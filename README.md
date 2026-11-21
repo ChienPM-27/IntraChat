@@ -2,7 +2,7 @@
 
 **IntraChat** là dự án phần mềm nhắn tin trong mạng nội bộ (LAN) bằng **Java**, hướng tới giao tiếp trực tiếp giữa các thiết bị cùng mạng: trò chuyện cá nhân (P2P), trò chuyện nhóm, chia sẻ tệp và nội dung đa phương tiện.
 
-> **Trạng thái dự án (21/11/2026):** Giai đoạn 01 đã có **Java/Swing foundation**, Maven Wrapper, mô hình metadata và JUnit tests. **Chưa** triển khai kết nối LAN, Chat P2P/Group, History Sync, File hoặc Media. M0 mới được kiểm tra một phần trên JDK 25 bằng bytecode target 21; runtime JDK 21 còn cần xác minh.
+> **Trạng thái dự án (21/11/2026):** **M0 Verified** — Java/Swing foundation, Maven Wrapper và 9 JUnit tests đã chạy trên actual Temurin JDK21; GUI 5/5 lần mở/đóng trong JVM chặn Java networking (Windows adapter không bị ngắt). M1 LAN networking **đang bắt đầu triển khai**, chưa Verified; Chat/Group/History Sync/File/Media chưa có.
 
 ## 1. Mục tiêu và phạm vi
 
