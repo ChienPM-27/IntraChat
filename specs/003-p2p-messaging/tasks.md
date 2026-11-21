@@ -2,7 +2,7 @@
 
 **Feature:** 003-p2p-messaging
 **Created:** 2026-11-21
-**Status:** **Planned — 0/90 tasks completed; M2 NOT IMPLEMENTED, NOT VERIFIED**
+**Status:** **In Progress — 15/90 tasks checked with local Java21 evidence; M2 PARTIAL / NOT VERIFIED; M1 Gate 1 and two physical Windows LAN PCs remain BLOCKED**
 **Branch:** 003-p2p-messaging
 **Inputs:** [spec](spec.md) · [plan](plan.md) · [research](research.md) · [data model](data-model.md) · [chat v2 contract](contracts/chat-v2.md) · [quickstart](quickstart.md) · [requirements checklist](checklists/requirements.md) · [Constitution](../../.specify/memory/constitution.md)
 
@@ -37,15 +37,15 @@
 
 ## Phase 1 — Setup, security review and Gate 0 (blocking for M2 code)
 
-- [ ] T001 Kiểm tra trạng thái thực trong specs/002-lan-networking/tasks.md và evidence/m1-acceptance-report.md; tạo specs/003-p2p-messaging/evidence/m1-dependency-gate.md ghi M0 Verified, M1 còn thiếu hai-PC LAN và blockers chi tiết. **Done:** version/commit/evidence đúng, không tự đánh dấu M1 Verified.
-- [ ] T002 [P] So sánh 5 Clarify trong specs/003-p2p-messaging/spec.md với plan.md, research.md, data-model.md và contracts/chat-v2.md; tạo evidence/m2-design-review.md. **Done:** kết nối đến vẫn phải Accept, trust persisted riêng, read event thật và FE Live/Demo không mâu thuẫn.
+- [x] T001 Kiểm tra trạng thái thực trong specs/002-lan-networking/tasks.md và evidence/m1-acceptance-report.md; tạo specs/003-p2p-messaging/evidence/m1-dependency-gate.md ghi M0 Verified, M1 còn thiếu hai-PC LAN và blockers chi tiết. **Done:** version/commit/evidence đúng, không tự đánh dấu M1 Verified.
+- [x] T002 [P] So sánh 5 Clarify trong specs/003-p2p-messaging/spec.md với plan.md, research.md, data-model.md và contracts/chat-v2.md; tạo evidence/m2-design-review.md. **Done:** kết nối đến vẫn phải Accept, trust persisted riêng, read event thật và FE Live/Demo không mâu thuẫn.
 - [ ] T003 [P] Kiểm tra Bouncy Castle bcpkix/bcprov/bcutil 1.87, JNA/JNA-platform 5.19.1, Java21 JSSE, Maven artifact provenance, license/CVE/compatibility; ghi evidence/dependency-review.md. **Done:** có kết quả resolve thực và chấp thuận trước khi thay pom.xml; nếu chưa an toàn phải sửa ADR.
 - [ ] T004 [P] Lập evidence/threat-model.md: LAN MITM, self-signed certificate, UUID/key spoof, SAS mismatch, pin substitution, TLS downgrade, DPAPI corruption, forged ACK/read, replay và DoS. **Done:** severity, trust boundary, attack tests, stop rules và reviewer được ghi rõ.
 - [ ] T005 [P] Hoàn thiện contracts/chat-v2.md bằng canonical binary SAS/session/conversation ID test vectors, pre-TLS 16KiB HELLO, v2 JSON ≤64KiB, READY protocol và error/version matrices. **Done:** hai peers tính cùng code/ID, không có user payload trong raw preface.
 - [ ] T006 [P] Rà soát data-model.md cho separate long-lived credential/pinned trust vs RAM-only ChatMessage/Draft/ACK/Read, key revoke/change, restart, dedup and proper message states. **Done:** không vô tình mở History Sync 005.
-- [ ] T007 [P] Audit src/main/java/listener/{ChatActionHandler,ChatClientListener}.java, model/{ChatMessage,DeliveryState,MessageContent}.java, model/mock/MockChatService.java và ui/frames/{LoginFrame,MainChatFrame}.java; ghi evidence/fe-integration-audit.md. **Done:** nêu rõ fake login, timed mock read, group/media, text UTF-16 cap, loadHistory cần tách.
-- [ ] T008 [P] Định nghĩa ViewEventPort và visible row criteria: FE Live foreground, đúng hội thoại đang chọn, bubble intersect viewport ≥250ms; viết UI negative test design tại evidence/view-receipt-design.md. **Done:** không READ từ preview, notification, background, Demo hoặc delivery ACK.
-- [ ] T009 Chạy actual Windows Java21 Maven clean test/package và scripts/verify-m1.ps1 để lập evidence/m2-baseline.md với command, exit code, JUnit count. **Depends:** T001. **Done:** regression M0/M1/FE được đo thực, không chỉ lấy số từ báo cáo cũ.
+- [x] T007 [P] Audit src/main/java/listener/{ChatActionHandler,ChatClientListener}.java, model/{ChatMessage,DeliveryState,MessageContent}.java, model/mock/MockChatService.java và ui/frames/{LoginFrame,MainChatFrame}.java; ghi evidence/fe-integration-audit.md. **Done:** nêu rõ fake login, timed mock read, group/media, text UTF-16 cap, loadHistory cần tách.
+- [x] T008 [P] Định nghĩa ViewEventPort và visible row criteria: FE Live foreground, đúng hội thoại đang chọn, bubble intersect viewport ≥250ms; viết UI negative test design tại evidence/view-receipt-design.md. **Done:** không READ từ preview, notification, background, Demo hoặc delivery ACK.
+- [x] T009 Chạy actual Windows Java21 Maven clean test/package và scripts/verify-m1.ps1 để lập evidence/m2-baseline.md với command, exit code, JUnit count. **Depends:** T001. **Done:** regression M0/M1/FE được đo thực, không chỉ lấy số từ báo cáo cũ.
 - [ ] T010 Review Gate 0 Constitution **I–VII**, threat/dependency findings, tạo checklists/constitution-check.md và ghi blockers. **Depends:** T002–T009. **Done:** design PASS/CONDITIONAL/BLOCKED trung thực; Gate 1 và M1 two-PC vẫn chưa được coi là đã qua.
 
 **Checkpoint:** Bảo mật và giao thức đủ rõ để chuyển sang test-first; nếu dependency/trust design không đạt, dừng trước việc mở user chat.
@@ -54,8 +54,8 @@
 
 **Depends:** T010 and approved dependency review T003. These are security building blocks, **not yet a working secure chat**.
 
-- [ ] T011 [P] Viết RED test src/test/java/vn/intrachat/security/DeviceIdentityTest.java cho P-256 ECDSA, key/identity lifetime, SHA-256 DER SPKI fingerprint, key rotation and malformed key. **Done:** actual RED command recorded; no private key in test logs.
-- [ ] T012 [US1] Tạo DeviceIdentity.java + DeviceCertificateFactory.java bằng Java JCA/approved BC; pin dependencies in pom.xml only after T003; làm T011 GREEN. **Depends:** T011/T003. **Done:** Java21 validates self-signed X509 and private key separated.
+- [x] T011 [P] Viết RED test src/test/java/vn/intrachat/security/DeviceIdentityTest.java cho P-256 ECDSA, key/identity lifetime, SHA-256 DER SPKI fingerprint, key rotation and malformed key. **Done:** actual RED command recorded; no private key in test logs.
+- [x] T012 [US1] Tạo DeviceIdentity.java + DeviceCertificateFactory.java bằng Java JCA/approved BC; pin dependencies in pom.xml only after T003; làm T011 GREEN. **Depends:** T011/T003. **Done:** Java21 validates self-signed X509 and private key separated.
 - [ ] T013 [P] Viết RED DeviceCertificateValidatorTest.java (src/test/java/vn/intrachat/security/) cho expired/not-yet-valid, weak/wrong algorithm, invalid signature/key usage, changed SPKI, spoofed UUID. **Done:** invalid candidates rejected.
 - [ ] T014 [US1] Triển khai src/main/java/vn/intrachat/security/DeviceCertificateValidator.java, exact key verification; GREEN T013. **Depends:** T012/T013/T004. **Done:** candidate self-signed TLS possession is **not** a trusted messaging peer.
 - [ ] T015 [P] Viết RED DeviceIdentityStoreTest.java cho Windows CurrentUser DPAPI wrap/unprotect, per-user ACL, restart, corrupt blob, cross-user access, partial atomic write and no plaintext. **Done:** unavailable Windows second-user test recorded BLOCKED rather than fake PASS.
@@ -92,11 +92,11 @@
 ## Phase 4 — US2/US3: Real text, sender, time and emoji
 
 - [ ] T036 [P] [US2] Viết RED domain/P2PConversationTest.java for deterministic conversation UUID from verified deviceId/SPKI pair, same ID on both peers, changed key/new ID, same display names. **Done:** UUID alone does not authorize.
-- [ ] T037 [US2] Triển khai domain/P2PConversation.java + in-RAM conversation registry, GREEN T036. **Depends:** T036/T022. **Done:** one verified pair maps to correct session conversation.
+- [x] T037 [US2] Triển khai domain/P2PConversation.java + in-RAM conversation registry, GREEN T036. **Depends:** T036/T022. **Done:** one verified pair maps to correct session conversation.
 - [ ] T038 [P] [US2] Viết RED protocol/ChatV2CodecTest.java for CHAT_TEXT/DELIVERY_ACK/READ_RECEIPT/ERROR allowlist, v2 IDs/UTC/destination, UTF-8, duplicate JSON keys, trailing tokens, max 64KiB, reject Group/File/History. **Done:** v1 whitelist unchanged.
-- [ ] T039 [US2] Tạo protocol/ChatV2Codec.java, ChatV2Types.java and immutable wire DTOs, GREEN T038. **Depends:** T038/T024. **Done:** only frames inside authenticated TLS are parsed as v2 chat.
-- [ ] T040 [P] [US3] Viết RED domain/ChatTextValidationTest.java for Vietnamese accents, emoji ZWJ/surrogates, malformed UTF-8, blank text, 8,000 **code points** and 32KiB UTF-8 bytes caps, multiline. **Done:** no silent truncation.
-- [ ] T041 [US3] Triển khai domain/ChatText.java validation and UTF-8 strict codec bridge, GREEN T040. **Depends:** T039/T040. **Done:** FE UTF-16 count mismatch handled explicitly.
+- [x] T039 [US2] Tạo protocol/ChatV2Codec.java, ChatV2Types.java and immutable wire DTOs, GREEN T038. **Depends:** T038/T024. **Done:** only frames inside authenticated TLS are parsed as v2 chat.
+- [x] T040 [P] [US3] Viết RED domain/ChatTextValidationTest.java for Vietnamese accents, emoji ZWJ/surrogates, malformed UTF-8, blank text, 8,000 **code points** and 32KiB UTF-8 bytes caps, multiline. **Done:** no silent truncation.
+- [x] T041 [US3] Triển khai domain/ChatText.java validation and UTF-8 strict codec bridge, GREEN T040. **Depends:** T039/T040. **Done:** FE UTF-16 count mismatch handled explicitly.
 - [ ] T042 [P] [US2] Viết RED application/LiveChatAuthorizationTest.java: disabled sending on merely connected, unverified key, missing inbound consent, TLS not READY, wrong conversation, offline draft. **Done:** zero plaintext user data emitted.
 - [ ] T043 [US2] Tạo application/LiveChatService.java and RAM chat/attempt ledger; gate async CHAT_TEXT on verified protected v2 state; GREEN T042. **Depends:** T034/T037/T039/T041/T042. **Done:** local write not falsely DELIVERED/READ.
 - [ ] T044 [P] [US2] Viết RED application/IncomingChatRoutingTest.java for verified sender/destination, wrong selected conversation, duplicate same-name peer, duplicate message IDs and session ordering. **Done:** invalid messages never appear in wrong chat.
@@ -109,14 +109,14 @@
 
 ## Phase 5 — US4: Delivery ACK, READ, retry and true state
 
-- [ ] T049 [P] [US4] Viết RED domain/MessageAttemptStateTest.java for DRAFT/SENDING/LOCAL_SENT/APP_ACKNOWLEDGED/READ, FAILED/UNCERTAIN, monotonicity, READ-before-ACK. **Done:** no fake read/receipt from local socket write.
+- [x] T049 [P] [US4] Viết RED domain/MessageAttemptStateTest.java for DRAFT/SENDING/LOCAL_SENT/APP_ACKNOWLEDGED/READ, FAILED/UNCERTAIN, monotonicity, READ-before-ACK. **Done:** no fake read/receipt from local socket write.
 - [ ] T050 [US4] Tạo domain/MessageAttempt.java, DeliveryReceipt.java, ReadReceipt.java and strict state machine, GREEN T049. **Depends:** T049/T037. **Done:** delivery and view distinct.
 - [ ] T051 [P] [US4] Viết RED application/DeliveryAckTest.java: ACK only after receiver accepts into RAM, wrong peer/session/conversation/messageId, duplicate/stale ACK, missing ACK. **Done:** no wrong \`Đã nhận\` state.
 - [ ] T052 [US4] Implement authenticated DELIVERY_ACK wire/handler in LiveChatService and bounded pending attempts, GREEN T051. **Depends:** T050/T051/T045. **Done:** remote acceptance proof is application ACK, not read.
 - [ ] T053 [P] [US4] Viết RED application/ManualRetryTest.java for offline RAM draft, no auto reconnect/outbox/send, lost ACK -> UNCERTAIN, manual resend and duplicate warning. **Done:** fake clock shows no hidden send scheduler.
 - [ ] T054 [US4] Implement manual retry/reconnect commands and 30s ACK uncertain transition in LiveChatService/NetworkCoordinator, GREEN T053. **Depends:** T052/T053. **Done:** user explicitly initiates each retry.
-- [ ] T055 [P] [US4] Viết RED ui/LiveMessageVisibilityTest.java for Live foreground active frame + selected conversation + row intersects viewport ≥250ms, excludes preview, other chat, offscreen, inactive, own outgoing and Demo. **Done:** deterministic clock/visibility tests.
-- [ ] T056 [US4] Tạo listener/MessageViewEventPort.java and ui/components/LiveMessageVisibilityObserver.java; GREEN T055. **Depends:** T055/T008. **Done:** exactly one logical view event per in-RAM message/session, no mock events.
+- [x] T055 [P] [US4] Viết RED ui/LiveMessageVisibilityTest.java for Live foreground active frame + selected conversation + row intersects viewport ≥250ms, excludes preview, other chat, offscreen, inactive, own outgoing and Demo. **Done:** deterministic clock/visibility tests.
+- [x] T056 [US4] Tạo listener/MessageViewEventPort.java and ui/components/LiveMessageVisibilityObserver.java; GREEN T055. **Depends:** T055/T008. **Done:** exactly one logical view event per in-RAM message/session, no mock events.
 - [ ] T057 [P] [US4] Viết RED protocol/ReadReceiptContractTest.java with distinct READ_RECEIPT, original messageId, conversation/session/verified viewer, viewedAtUTC/readEventId, duplicate/invalid wrong type. **Done:** delivery ACK != READ.
 - [ ] T058 [US4] Implement protected read receipt DTO/producer in ChatV2Codec/LiveChatService; accept only validated visibility event; GREEN T057. **Depends:** T056/T057/T039. **Done:** no offline receipt queue.
 - [ ] T059 [P] [US4] Viết RED application/ReadReceiptCorrelationTest.java for real READ, forged/wrong peer/session/conversation/messageId, duplicate/out-of-order, READ before ACK, recipient offline. **Done:** no false status or downgrade of READ.
@@ -160,7 +160,7 @@
 
 ## Phase 8 — Cross-cutting verification, Constitution Gate 1 and handoff
 
-- [ ] T085 [P] Build scripts/verify-m2.ps1 with Java21 enforcement, clean package, all Surefire tests, shaded JAR and both Live/Demo smoke, nonzero exit on test failure; run and write evidence/m2-jdk21-test-results.md. **Done:** real commands, counts, exit codes; no PASS when skipped.
+- [x] T085 [P] Build scripts/verify-m2.ps1 with Java21 enforcement, clean package, all Surefire tests, shaded JAR and both Live/Demo smoke, nonzero exit on test failure; run and write evidence/m2-jdk21-test-results.md. **Done:** real commands, counts, exit codes; no PASS when skipped.
 - [ ] T086 [P] Real Windows FE keyboard/focus/accessibility and ≥5 connect→pair→send→ACK→READ→disconnect cycles; inspect timers, socket close, viewport race, latency p95 and RAM-only restart; write evidence/m2-windows-ui-check.md. **Done:** measurements and failures disclosed.
 - [ ] T087 Independently review **Constitution I–VII Gate 1** in checklists/constitution-check.md and evidence/m2-security-review.md; all critical trust/key/receipt/M1 gates must be satisfied. **Depends:** T083/T085/T086. **Done:** review records PASS/BLOCKED, no unapproved MUST exception.
 - [ ] T088 Create evidence/m2-acceptance-report.md with AC-03-A…L, SC-03-001…010 and FR-001…040 mapped to actual tests/two PC evidence with PASS/PARTIAL/BLOCKED/NOT RUN. **Depends:** T080–T087. **Done:** no forged results and M1 prerequisite shown.
@@ -179,4 +179,4 @@
 | **US6** Real LAN two Windows PCs | T076–T084 | AC-03-J, AC-03-F/K |
 | **Cross-cutting** Gate 0/1 and release | T001–T010, T085–T090 | AC-03-K/L, SC-03-001…010 |
 
-**Final status:** 90 proposed tasks, **0 checked**, no new implementation or new test execution. Treat each checked item as an auditable assertion backed by actual evidence. Plan-stage documents are not executable functionality.
+**Current status (2026-11-21):** 90 tasks, **15 checked** where exact design/test/code or evidence is complete; other features, audits and full acceptance remain open. Actual local Java21 M2 implementation and tests exist; see [partial acceptance](evidence/m2-acceptance-report.md) and [baseline](evidence/m2-baseline.md). Treat each checked item as an auditable assertion backed by actual evidence. Plan-stage documents are not executable functionality.

@@ -1,10 +1,10 @@
 # IntraChat Desktop
 
-Bản Frontend demo phong cách Messenger, viết bằng Java Swing và FlatLaf. Chạy độc lập với ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm; không có Server, Socket, Database hay xác thực thật.
+IntraChat gồm **M1 LAN diagnostics**, **M2 Chat Live bảo vệ bằng TLS 1.3 (đang triển khai và kiểm thử local)** và **Messenger Demo** bằng Swing/FlatLaf với dữ liệu giả lập. Demo không kết nối TCP hoặc sử dụng xác thực thật.
 
-> **Trạng thái dự án (21/11/2026):** **M0 Verified (41/41 tasks)** trên Windows 11 + Temurin JDK 21. **M1 LAN Networking đang triển khai (36/60 tasks, đã hợp nhất FE)**: TCP P2P, nhập IPv4/port thủ công, Chấp nhận/Từ chối, handshake và PING/PONG chẩn đoán đã chạy **45 JUnit tests (gồm FE) + hai GUI process loopback**, nhưng **chưa thử hai máy Windows LAN thật nên M1 chưa Verified**. Kết nối M1 **chưa xác thực, chưa mã hóa** và không cho phép Chat/History/File/Group.
+> **Trạng thái dự án (21/11/2026):** **M0 Verified (41/41 tasks)** trên Windows 11 + Temurin JDK 21. **M1 LAN Networking đang triển khai (36/60 tasks, đã hợp nhất FE)**: TCP P2P, nhập IPv4/port thủ công, Chấp nhận/Từ chối, PING/PONG chẩn đoán đã kiểm thử local; **M1 chưa Verified** vì thiếu hai PC thật. **M2 đang triển khai (15/90 tasks checked)**: Live Messenger có TLS1.3, ghép cặp fingerprint và text/ACK/READ trong hai GUI process local; **chưa qua độc lập security audit hoặc two-PC LAN**, không phải bản chat được chứng nhận bảo mật. M1 **không có auth/TLS** và luôn chặn Chat/History/File/Group.
 
-Dự án chứa **hai giao diện Swing độc lập**: giao diện **M1 kết nối kỹ thuật P2P** tại `vn.intrachat.IntraChatApplication` và giao diện **FE demo Messenger với dữ liệu giả lập** tại `ui.IntraChat`. FE demo không dùng dữ liệu mạng thực. Cả hai được giữ lại sau khi hợp nhất nhánh FE, **chưa được liên kết thành một sản phẩm chat hoàn chỉnh**.
+Dự án hiện có **ba entrypoint**: **M1 diagnostics** tại `vn.intrachat.IntraChatApplication`, **M2 Chat Live** tại `ui.LiveIntraChat` (kết nối TCP thủ công, TLS1.3, fingerprint và FE Messenger thật), và **Demo độc lập** tại `ui.IntraChat` (mock data, không gửi mạng). **M2 chưa Verified**: mới chạy loopback trên một Windows PC với hai tiến trình; còn thiếu kiểm thử hai Windows PC vật lý, review bảo mật và các case failure/stress. Không gửi dữ liệu riêng tư khi chưa hoàn tất nghiệm thu bảo mật.
 
 ## Chạy thử
 
@@ -14,10 +14,12 @@ Dự án chứa **hai giao diện Swing độc lập**: giao diện **M1 kết n
 .\mvnw.cmd clean package
 # M1: Giao diện kết nối LAN P2P, chỉ dữ liệu chẩn đoán:
 java -jar target/intrachat-0.1.0-SNAPSHOT.jar
-# FE: Giao diện Messenger demo độc lập, dùng dữ liệu giả lập:
+# M2: Live Chat LAN (bản đang phát triển, chưa nghiệm thu bảo mật):
+java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
+# FE Demo: dữ liệu giả lập, không kết nối mạng:
 java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.IntraChat
-# Kiểm thử local 45 JUnit cases, không phải test hai máy LAN thật:
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m1.ps1 -Offline
+# Local Java 21 regression (M0/M1/M2/FE), không phải two-PC acceptance:
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m2.ps1 -Offline
 ```
 
 Với **FE demo**, nhập username bất kỳ (tối đa 32 ký tự) và mật khẩu demo không trống; chọn **Đăng ký** thì dùng tối thiểu 4 ký tự. **Không dùng mật khẩu thật.** FE chỉ là dữ liệu mô phỏng, không phải xác thực thực tế. Giao diện M1 riêng chỉ có bước Chấp nhận/Từ chối **không xác thực thiết bị**.
@@ -53,11 +55,11 @@ Những tình huống chi tiết (ví dụ: nhóm có quản trị viên hay kh�
 | --- | --- |
 | Ngôn ngữ | **Java** |
 | Môi trường | **Windows** (bản đầu tiên), các máy trong cùng LAN |
-| Kiểu truyền thông | **TCP P2P trực tiếp**, chỉ IPv4/port thủ công, consent/HELLO/PING/PONG chẩn đoán ở M1; không có auto-discovery |
-| Giao diện | **Swing** — M1 UI kỹ thuật và **FE FlatLaf mock demo** độc lập; chưa tích hợp thành chat thật |
-| Build / dependency | **Maven 3.9.16 + Wrapper**, Java 21 + JUnit 5.14.4, Jackson 2.22.4 và FlatLaf 3.6.2 |
+| Kiểu truyền thông | **TCP P2P IPv4 thủ công**; M1 diagnostics v1 plaintext riêng; M2 secure CHAT_V2 qua TLS1.3 với fingerprint pairing, chưa đầy đủ nghiệm thu |
+| Giao diện | **Swing + FlatLaf** — M1 diagnostics, **M2 Messenger FE Live** (đang kiểm thử local), FE Mock Demo tách riêng |
+| Build / dependency | **Maven Wrapper 3.9.16, Java21, JUnit5.14.4, Jackson2.22.4, FlatLaf3.6.2**, thêm Bouncy Castle1.87 (cert) và JNA5.19.1 (DPAPI/Windows) trong M2 |
 | Lưu lịch sử | Dự kiến **SQLite tại mỗi peer + History sync P2P** ở giai đoạn 05; chưa triển khai |
-| Định dạng thông điệp | **JSON UTF-8 có version, TCP 4-byte length-prefixed frame** và validate strict, đã kiểm thử local; không hỗ trợ Chat/History/File trên M1 |
+| Định dạng thông điệp | **M1 v1 strict JSON chẩn đoán**, còn **M2 v2 strict framed JSON bên trong TLS1.3**; chỉ text/ACK/read, không Group/File/History; chưa audit security |
 
 ### Phân lớp kiến trúc đề xuất
 
@@ -157,10 +159,10 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 ## 6. Lộ trình đề xuất
 
 - **Mốc 1 — Nền tảng (M0):** chốt JDK, UI/build, thiết kế protocol và identity; build, khởi chạy và test skeleton. Kiểm thử hai peer thuộc giai đoạn kết nối LAN tiếp theo.
-- **Mốc 2 — Chat:** [spec Giai đoạn 03 — P2P Messaging (M2)](specs/003-p2p-messaging/spec.md) ở trạng thái **Planned — 0/90 tasks** (chưa implement). Dự kiến P2P, Sender, Time, State, Emoji và yêu cầu xác minh peer/kênh bảo vệ trước khi truyền tin thật; M1 hiện chỉ có diagnostics chưa xác thực/chưa mã hóa.
+- **Mốc 2 — Chat:** [Giai đoạn 03 M2](specs/003-p2p-messaging/spec.md) **IN PROGRESS** — đã có nền danh tính/ghép cặp fingerprint, TLS1.3, CHAT_V2, ACK và đọc từ foreground Live FE qua LAN loopback. [Task tracker](specs/003-p2p-messaging/tasks.md) và [M2 partial acceptance](specs/003-p2p-messaging/evidence/m2-acceptance-report.md). **Không phải bản đã bảo mật/Verified**; M1 chưa Gate 1 và two-PC LAN chưa thử.
 - **Mốc 3 — Nhóm và lịch sử:** quản lý thành viên Group; History lưu cục bộ và đồng bộ giữa các máy được phép qua P2P khi kết nối lại.
 - **Mốc 4 — Chia sẻ:** File, Image, Video, Sound; kiểm thử dung lượng, đường dẫn và hủy truyền.
-- **Mốc 5 — Hoàn thiện:** trạng thái tin nhắn (nếu được duyệt), phục hồi lỗi, test tích hợp, tài liệu build/chạy và đóng gói.
+- **Mốc 5 — Hoàn thiện:** hoàn thành kiểm thử lỗi mạng, an toàn danh tính và read receipts, tài liệu đóng gói, kiểm thử hai Windows PC thật; chỉ ghi Verified khi toàn bộ acceptance đạt.
 
 Thứ tự có thể thay đổi sau khi viết spec; đây không phải tiến độ đã hoàn thành.
 

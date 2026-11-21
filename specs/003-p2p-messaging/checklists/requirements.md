@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-21
 **Scope:** [spec.md](../spec.md) — Giai đoạn 03 / M2 Chat P2P
-**Review status:** **PLANNED / TASKS WRITTEN — CL-03-01…05 CONFIRMED; 0/90 implementation tasks complete**
+**Review status:** **M2 IN PROGRESS — 15/90 tasks checked from local evidence; CL-03-01…05 CONFIRMED; full release criteria not met**
 **Rule:** Checklist reviews **the specification document**, not implementation evidence. Checked items below mean the text is specified or stakeholder decision confirmed, **not that code or tests have run**.
 
 ## Confirmed Clarifications — CL-03-01…05
@@ -30,17 +30,17 @@
 - [x] FE mock demo and live service identities/read states are not conflated; demo login is not authentication
 - [x] Out-of-scope Group (004), History Sync (005), File (006), Media (007), cloud/calls remain clear; **actual view-based read receipts are IN scope**
 - [x] Constitution I–VII and M1 Gate 1 dependency remain explicit. M1 In Progress (36/60), two real Windows LAN PCs not yet verified
-- [x] No M2 network code, executed M2 tests or Verified status is asserted; existing [plan.md](../plan.md) and [tasks.md](../tasks.md) are **design and work instructions only**.
+- [x] Spec/plan/tasks exist; **partial M2 Java code and local JDK21 tests now exist** and are disclosed in [partial acceptance](../evidence/m2-acceptance-report.md), without claiming M1/M2 Verified.
 
 ## Plan & Task Documentation Status / Remaining Execution Gates
 
-- [x] **Technical design documented, NOT implemented:** [plan.md](../plan.md), [research.md](../research.md) propose TLS 1.3 mutual device certificates, SAS/fingerprint, pinning, DPAPI storage, revocation/change-key and downgrade defense; dependency/security validation remains open task work.
+- [x] **Technical design documented, partially implemented and NOT security-certified:** [plan.md](../plan.md), [research.md](../research.md) propose TLS 1.3 mutual device certificates, SAS/fingerprint, pinning, DPAPI storage, revocation/change-key and downgrade defense; dependency/security validation remains open task work.
 - [x] **Wire/state design documented, NOT tested:** [chat-v2 contract](../contracts/chat-v2.md) defines separate CHAT_TEXT, delivery ACK and READ_RECEIPT; session/identity correlation, replay/dedup, out-of-order, UI view event and time/resource limits. No v2 runtime implementation.
-- [x] **FE/data design documented, NOT implemented:** [data-model.md](../data-model.md) and [plan.md](../plan.md) define FE Live adapter/Demo isolation, RAM-only chat vs durable protected trust metadata and deletion flows.
+- [x] **FE/data design documented, partially implemented in Live prototype:** [data-model.md](../data-model.md) and [plan.md](../plan.md) define FE Live adapter/Demo isolation, RAM-only chat vs durable protected trust metadata and deletion flows.
 - [ ] **Constitution Gate 0 review:** I–VII tradeoffs/security assessment must be reviewed in future `plan.md`
 - [ ] **M1 Gate 1:** real dual-Windows LAN and remaining M1 acceptance evidence must be Verified before M2 release
-- [x] **Work breakdown created:** [tasks.md](../tasks.md) contains **90 unchecked tasks** grouped by dependencies and US1–US6 with RED→GREEN, evidence and release gates.
-- [ ] **M2 implementation/test execution:** RED→GREEN code/test work **not started**, no JDK21 M2 test or two-PC acceptance result yet.
+- [x] **Work breakdown created:** [tasks.md](../tasks.md) contains **90 tasks, 15 checked from local evidence and 75 still open** grouped by dependencies and US1–US6 with RED→GREEN, evidence and release gates.
+- [ ] **M2 implementation/test execution:** RED→GREEN Java21 code/test work has **started and local tests pass**, but full tasks/security/fault/2-PC acceptance remains **incomplete**.
 - [ ] **M2 acceptance:** AC-03-A…L including real two-PC chat/read receipts executed and independently verified (NOT RUN)
 
-**Conclusion:** **CLARIFIED + PLANNED + TASKS DEFINED (0/90)**. Implementation has **not** started and M2 is **NOT VERIFIED**. M1 Gate 1 still open. A plan and task breakdown do **not** satisfy security review, RED→GREEN tests, real LAN evidence or Constitution Gate 1.
+**Conclusion:** **M2 IN PROGRESS — PARTIAL IMPLEMENTATION**, not Verified. [Task tracker](../tasks.md), [local tests](../evidence/m2-baseline.md) and [acceptance](../evidence/m2-acceptance-report.md) document actual progress. M1 Gate 1, independent security review and two physical Windows LAN PCs remain release blockers.

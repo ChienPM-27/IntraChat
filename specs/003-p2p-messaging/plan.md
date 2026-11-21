@@ -2,12 +2,12 @@
 
 **Feature/branch:** 003-p2p-messaging
 **Date:** 2026-11-21
-**Status:** **Design / Plan only — NOT IMPLEMENTED, NOT VERIFIED**
+**Status:** **In Progress — partial local Java21 implementation; Gate 1 NOT VERIFIED; see [acceptance](evidence/m2-acceptance-report.md)**
 **Specification:** [spec.md](spec.md) (CL-03-01…05 confirmed) · [requirements checklist](checklists/requirements.md)
 **Constitution:** [v1.0.0](../../.specify/memory/constitution.md)
 **Design artifacts:** [research](research.md) · [data model](data-model.md) · [v2 protocol contract](contracts/chat-v2.md) · [quickstart/testing](quickstart.md)
 **Dependencies:** M0 Verified (41/41); **M1 In Progress (36/60)**, loopback proven, **two physical Windows LAN peers NOT TESTED**. M1 Gate 1 and M2 Gate 1 remain open.
-**Current repo reality:** Java 21, Maven Wrapper 3.9.16, JUnit Jupiter 5.14.4, Jackson 2.22.4, FlatLaf 3.6.2; M1 raw TCP/JSON v1 allows diagnostics only; FE Messenger remains a standalone MockChatService demo. No secure messaging, fingerprint pairing or read receipts have been implemented.
+**Current repo reality (updated after implementation):** Java 21/Maven/FlatLaf/Jackson/JUnit remain; M1 raw TCP/JSON v1 diagnostic-only. **New** M2 branch contains JSSE TLS1.3, DPAPI device/pins, first human SAS dialogs, secure CHAT_V2 text/ACK/view-read and FE Live; Demo remains separate. Only local Windows loopback and JDK21 regression demonstrated; two physical PCs/security acceptance NOT VERIFIED.
 
 ## 1. Summary and binding Clarifications
 
@@ -176,7 +176,7 @@ See [contracts/chat-v2.md](contracts/chat-v2.md) for versioning, preface, TLS ha
 5. **FE Live + Demo:** new adapter and real device startup flow, map sender/time states, offline drafts, view observer for read receipt, disable unsupported group/media in Live; preserve Demo tests.
 6. **Reliability and acceptance:** half-open, capacity/flood, changed keys, privacy/disk/log audit, 5 loopback cycles, two physical Windows PCs without Internet, all M0/M1/FE regressions, Constitution Gate 1 and AC-03-A…L evidence.
 
-Commit implementation in **small independently tested slices** following [tasks.md](tasks.md), which currently contains **90 unchecked items**. Plan and task documents do **not** create implementation or test evidence.
+Commit implementation in **small independently tested slices** following [tasks.md](tasks.md), which currently contains **15 checked / 75 open items**. Plan and task documents do **not** create implementation or test evidence.
 
 ## 10. Verification matrix and release boundary
 
@@ -196,4 +196,4 @@ Commit implementation in **small independently tested slices** following [tasks.
 
 **Definition of Ready for tasks:** approved spec/Clarify; security design, contract and data model reviewed; dependency audit and M1 gate gap explicitly tracked. **Definition of Done:** test-backed AC-03-A…L plus real two-Windows-PC LAN and security/constitution signoff.
 
-**Current outcome: DESIGN / TASKS ONLY.** [tasks.md](tasks.md) defines **90 unexecuted tasks**. No M2 source code, tests, dependencies or real chat messages are produced by this documentation.
+**Current outcome (post-plan implementation): IN PROGRESS (15/90 checked).** [tasks.md](tasks.md) tracks verified subsets of 90 tasks. M2 source/tests, TLS dependency and local real GUI chat now exist; see [evidence](evidence/m2-acceptance-report.md). The original plan is design rationale, **not security certification**. Full AC-03 and real two-PC gates remain open.
