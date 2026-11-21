@@ -12,6 +12,9 @@ import java.util.function.Consumer;
 /** Starts a TCP listener only after explicit user action. Never auto discovers peers. */
 public final class TcpListener implements AutoCloseable {
     private final ExecutorService acceptWorkers = Executors.newVirtualThreadPerTaskExecutor();
+    // Limit candidates before allocating a virtual thread for user approval/HELLO handling.
+    private final java.util.concurrent.Semaphore candidateSlots =
+        new java.util.concurrent.Semaphore(NetworkConfig.MAX_PENDING_APPROVALS);
     private ServerSocket server;
     private volatile boolean listening;
 
@@ -34,12 +37,24 @@ public final class TcpListener implements AutoCloseable {
                 try {
                     Socket candidate = target.accept();
                     candidate.setTcpNoDelay(true);
-                    acceptWorkers.submit(() -> {
-                        try { handler.accept(candidate); }
-                        catch (RuntimeException failure) {
-                            try { candidate.close(); } catch (IOException ignored) { }
-                        }
-                    });
+                    if (!candidateSlots.tryAcquire()) {
+                        candidate.close(); // bounded rejection before spawning a worker
+                        continue;
+                    }
+                    try {
+                        acceptWorkers.submit(() -> {
+                            try { handler.accept(candidate); }
+                            catch (RuntimeException failure) {
+                                try { candidate.close(); } catch (IOException ignored) { }
+                            } finally {
+                                candidateSlots.release();
+                            }
+                        });
+                    } catch (java.util.concurrent.RejectedExecutionException closing) {
+                        candidateSlots.release();
+                        candidate.close();
+                        if (!listening) return;
+                    }
                 } catch (IOException failure) {
                     if (!listening) return;
                     // Fail closed on listener errors; restart only by user.

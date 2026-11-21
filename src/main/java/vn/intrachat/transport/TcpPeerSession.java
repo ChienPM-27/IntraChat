@@ -73,6 +73,8 @@ public final class TcpPeerSession implements AutoCloseable {
         UUID id = UUID.randomUUID();
         CompletableFuture<Duration> future = new CompletableFuture<>();
         outstanding.put(id, new Probe(System.nanoTime(), future));
+        // On timeout/cancellation, release this probe slot even when no PONG arrives.
+        future.whenComplete((duration, failure) -> outstanding.remove(id));
         NetworkEnvelope envelope = NetworkEnvelope.create(MessageType.DIAGNOSTIC_PING, local,
             remote.deviceId(), Map.of("probeId", id.toString(), "nonce", "intrachat-m1-test"));
         workers.submit(() -> {
