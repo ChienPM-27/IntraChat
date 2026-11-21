@@ -52,4 +52,4 @@ Do **not** silently choose any former B alternative: default-on History, unencry
 
 Reviewed documentation: `spec.md`, `clarifications.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/history-v1.md`, `quickstart.md`, `checklists/requirements.md` and `ROADMAP.md`. Every CL-05 requirement maps to a concrete architecture impact and AC; all 48 FR, 12 SC, 16 AC and ROADMAP 05.01–05.09 remain in scope.
 
-**Next:** independent encrypted-SQLite/cryptographic design review and canonical vectors → create task list (`tasks.md`) with RED→GREEN and gates → implementation → actually executed Java21/Maven/2-PC tests. Documentation QA is not a History functional test.
+**Next:** [136-task implementation list](../tasks.md) prepared with RED→GREEN, independent encrypted-SQLite/cryptographic review and canonical vectors required first for sensitive paths. Then execute tests and implementation with actual Java21/Maven/2-PC evidence; **0/136 tasks complete**, no History tests run. Documentation QA is not a History functional test.

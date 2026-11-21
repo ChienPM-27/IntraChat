@@ -2,8 +2,8 @@
 
 **Feature:** `005-chat-history` · **Branch:** `005-chat-history`
 **Created:** 2026-11-21 · **Priority:** P1 · **Milestone:** M3 = Group 004 **và** History 005
-**Status:** **CLARIFIED — 10/10 CL-05 USER CONFIRMED (all A); implementation plan updated, no History tasks/code/tests/Verified**
-**Design:** [Clarification choices](clarifications.md) · [Implementation plan](plan.md) · [Research](research.md) · [Data model](data-model.md) · [History V1 contract](contracts/history-v1.md) · [Test quickstart](quickstart.md)
+**Status:** **TASKS PLANNED — 10/10 CL-05 USER CONFIRMED (all A), 0/136 tasks completed; no History code/tests/Verified**
+**Design:** [Confirmed Clarifications](clarifications.md) · [Implementation plan](plan.md) · [136 implementation tasks](tasks.md) · [Research](research.md) · [Data model](data-model.md) · [History V1 contract](contracts/history-v1.md) · [Test quickstart](quickstart.md)
 **Sources:** [ROADMAP Giai đoạn 05](../../ROADMAP.md) · [Constitution](../../.specify/memory/constitution.md) · [Foundation CL-01-04](../001-project-foundation/spec.md) · [M2 secure P2P](../003-p2p-messaging/spec.md) · [Group 004](../004-group-chat/spec.md) · [M2 release blockers](../003-p2p-messaging/evidence/m1-blocker-at-m2.md)
 
 ## 1. Tổng quan, mục tiêu và ranh giới
@@ -323,4 +323,4 @@
 
 **Dependencies/gates (not claimed complete):** M0 verified per prior evidence; M1/M2 multi-physical-Win11-LAN/security Gate 1 not yet Verified. Group 004 is currently partial domain only; Group History requires 004 verified Group messaging/owner handoff before acceptance. Full milestone **M3 requires verified 004 + 005**, neither is established by this spec. No tasks/code/tests of 005 were executed as part of writing the spec.
 
-**Next step:** 10/10 [CL-05 đã được người dùng xác nhận](clarifications.md) và [plan](plan.md) đã được đồng bộ theo A. Tiếp theo cần review độc lập SQLite mã hóa/crypto, chốt wire canonical vectors và [Gate 0](checklists/architecture-impact-review.md) trước khi lập `tasks.md` và implement RED→GREEN. Chưa có History code/test; không tuyên bố 005/M3 Verified.
+**Next step:** [136 tasks](tasks.md) đã được chia theo 10 phase, với test-first RED→GREEN và các điểm chặn cụ thể. **0/136 task completed** tại thời điểm viết. Bắt đầu bằng preflight/threat/independent SQLite+crypto review [Gate 0](checklists/architecture-impact-review.md); các pure-domain tests có thể tiến hành trong worktree riêng, nhưng không bật sensitive storage/wire khi thiếu phê duyệt. Chưa có History code/test; không tuyên bố 005/M3 Verified.

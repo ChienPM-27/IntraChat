@@ -1,6 +1,6 @@
 # Quickstart — Verification procedure for History 005 (DRAFT; NOT RUN)
 
-**Feature:** 005-chat-history · **Status:** TEST PLAN ONLY; no History Java classes, encrypted SQLite database, HISTORY_V1 codec or implemented Sync tests exist on this branch. [Plan](plan.md) · [Spec](spec.md) · [CL candidates](clarifications.md) · [Contract draft](contracts/history-v1.md).
+**Feature:** 005-chat-history · **Status:** 136 tasks planned (0 done); test plan only; no History Java classes, encrypted SQLite database, HISTORY_V1 codec or implemented Sync tests exist on this branch. [Tasks](tasks.md) · [Plan](plan.md) · [Spec](spec.md) · [CL candidates](clarifications.md) · [Contract draft](contracts/history-v1.md).
 
 ## 1. Safety and gate checks
 
