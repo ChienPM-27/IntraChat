@@ -157,7 +157,7 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 ## 6. Lộ trình đề xuất
 
 - **Mốc 1 — Nền tảng (M0):** chốt JDK, UI/build, thiết kế protocol và identity; build, khởi chạy và test skeleton. Kiểm thử hai peer thuộc giai đoạn kết nối LAN tiếp theo.
-- **Mốc 2 — Chat:** kết nối LAN, P2P, Sender, Time, State (kết nối), Emoji.
+- **Mốc 2 — Chat:** [spec Giai đoạn 03 — P2P Messaging (M2)](specs/003-p2p-messaging/spec.md) ở trạng thái **Draft** (chưa implement). Dự kiến P2P, Sender, Time, State, Emoji và yêu cầu xác minh peer/kênh bảo vệ trước khi truyền tin thật; M1 hiện chỉ có diagnostics chưa xác thực/chưa mã hóa.
 - **Mốc 3 — Nhóm và lịch sử:** quản lý thành viên Group; History lưu cục bộ và đồng bộ giữa các máy được phép qua P2P khi kết nối lại.
 - **Mốc 4 — Chia sẻ:** File, Image, Video, Sound; kiểm thử dung lượng, đường dẫn và hủy truyền.
 - **Mốc 5 — Hoàn thiện:** trạng thái tin nhắn (nếu được duyệt), phục hồi lỗi, test tích hợp, tài liệu build/chạy và đóng gói.
