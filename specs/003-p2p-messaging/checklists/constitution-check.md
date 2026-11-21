@@ -17,3 +17,11 @@
 **Gate 0 conditional conclusion:** No known direct plaintext CHAT_TEXT through M1. The technical design still requires security/interop review before *release*. The project has a functional prototype but **does not satisfy release Gate 1**. No Constitution MUST exception is approved; any found serious violation blocks public/user data deployment.
 
 **Gate 1 result:** **BLOCKED**: M1 two-PC Gate 1 unverified; M2 two-PC, full security/privacy, stress, FE state and release acceptance incomplete. Do not mark M2 Verified.
+
+## 2026-11-21 follow-up security Gate 0 inspection
+
+**Reviewer:** implementation maintainer, self-review only. Independent reviewer is **pending project-maintainer nomination/signoff**. [Threat matrix](../evidence/threat-model.md) explicitly ranks attacks and stop rules. [Dependency provenance/license review](../evidence/dependency-review.md) confirms offline JDK21 Maven artifacts but does not supply formal CVE/SBOM and signoff. [CHAT_V2 contract](../contracts/chat-v2.md) contains cross-implementation SAS and conversation test vectors; these were checked in Java21 JUnit.
+
+Three negative tests exposed previously accepted invalid security metadata and were fixed: unsupported critical X.509 extension (prior commit), non-self-issued X509 candidate, and mismatched local store CN / all-zero v2 request/device UUID. These improve the prototype but do not replace MITM/pinning/DoS review.
+
+**Gate 0 decision remains CONDITIONAL/BLOCKED for production:** T003 formal dependency approval not complete, therefore T010 may not be checked as fully done. Principle III total RAM/outbound ledger and Principle IV independent audit are blocking gaps; no MUST exception approved. T087/T090 remain unchecked.

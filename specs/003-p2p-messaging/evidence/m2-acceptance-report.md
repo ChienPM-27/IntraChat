@@ -23,3 +23,7 @@
 **Unverified:** independent cryptographic security review, Windows DPAPI different-user access, corrupted-key workflow, v1/v2 shared-port dispatcher (M1 and M2 currently have separate listener lifecycles), full timeout/4 active capacity/ACL/flood/secret-log/perf tests, manual uncertain-send retry and accurate missing bubble states, and **two distinct Win11 LAN PCs without Internet**. No user Chat over M1 plaintext; `JsonEnvelopeCodec` v1 still diagnostic-only.
 
 **Decision:** M2 stays **In Progress**, NOT Verified. M1 remains **In Progress**. This report is **not a security certification** or official milestone acceptance.
+
+## 2026-11-21 later Java21 security-hardening addendum
+
+The original baseline above measured **74 tests**. A subsequent local `scripts/verify-m2.ps1 -Offline` run on Temurin **21.0.12.1+1** completed **93/93 tests, 0 failures/errors, exit 0** after test-first fixes to X509 issuer/critical extensions, DPAPI stored UUID/CN exact binding, CHAT_V2 reserved-zero UUID and UTC/read receipt metadata. See [full RED→GREEN evidence](m2-hardening-round2.md). The task tracker is now **29/90 completed**. This improves AC-03-F/G/K local confidence but **does not change BLOCKED/PARTIAL** status for real two-PC AC-03-B/J, independent security evaluation, M1 Gate 1, stress/resource audits or release AC-03-L.

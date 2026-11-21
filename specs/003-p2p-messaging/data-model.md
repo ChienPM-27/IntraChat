@@ -1,6 +1,6 @@
-# M2 Data Model — Secure P2P Messaging (DESIGN ONLY)
+# M2 Data Model — Secure P2P Messaging (design with runtime audit)
 
-**Status:** Planned schema, not Java classes or persisted DB.
+**Status:** Prototype domain/transport/security classes exist; this document defines required behavior and records unclosed implementation gaps. **No chat database**; M2 not release Verified.
 **Source:** [spec.md](spec.md) (CL-03-01…05 confirmed) · [plan.md](plan.md) · [chat-v2 contract](contracts/chat-v2.md).
 
 ## 1. Ownership and lifetimes
@@ -90,4 +90,21 @@ Existing FE view components: model.ChatMessage and model.DeliveryState.SENT/DELI
 - All socket/TLS/DPAPI/JSON work off EDT; UI events use SwingUtilities.invokeLater; close must cancel timers/listeners.
 - Test with mismatched SPKI, same display names, expired/replaced cert, read without actual view event, wrong-session receipt, invalid UTF-8, Thai/Vietnamese + emoji, timezone difference, app restart with preserved trust but empty transcript/draft/receipt.
 
-**No Java classes, DB schemas or tests created by this file.**
+## 7. Runtime consistency audit (T006, 2026-11-21)
+
+| Design requirement | Actual current code | Gap/action |
+| --- | --- | --- |
+| Durable local identity separate from chat | `DeviceIdentityStore` writes protected P-256 PKCS8/cert blob with Windows CurrentUser DPAPI, fail closed on damaged blob | Cross-user ACL and crash atomicity need independent Windows test (T015/016) |
+| Durable remote trust only | `PinnedPeerStore` maps UUID→32-byte SPKI in DPAPI atomic file; explicit `revoke` | No trusted-peer revocation UI/audit metadata (T017/018/022); no silent replacement |
+| Ephemeral pair state | `PairingStateMachine` owns local/remote confirmation and READY flags per request UUID | Confirmation/ready correlation is done by `SecureChatCoordinator`; timeout and replay matrix incomplete (T021/033) |
+| Transcripts RAM-only | `LiveChatService.PeerSession.messages` is synchronized RAM list ≤500 messages and 2MiB text **per connection** | **8MiB total application cap and cross-session retained-attempt cap not enforced** (T061/062) |
+| Draft RAM-only, manual resend | Live composer/adapter tracks UI draft | Uncertain resend semantics, same-ID within session and rejoin after disconnect not fully tested (T053/054/071) |
+| Status distinct from presence | `MessageAttempt` guards DRAFT/SENDING/LOCAL_SENT/APP_ACKNOWLEDGED/READ/FAILED/UNCERTAIN; Live uses separate event kind | Outbound attempt and receipt maps currently can grow across reconnections; bounded cleanup required (T050/052/061) |
+| Verified sender/destination | `TlsChatSession.send/receive` binds remote UUID and session ID to TLS peer; `LiveChatService` verifies conversation ID | Duplicate-name, clock skew and cross-session collision tests remain (T044/046/059) |
+| Read only from real visible bubble | `LiveMessageVisibilityObserver` with foreground guard sends `markViewed`; protected v2 READ_RECEIPT | Direct service `markViewed` assumes trusted FE caller; negative/GUI review pending (T059/072/086) |
+| In-session dedup | `PeerSession.seen` LinkedHashSet capped 1,024 incoming IDs; `viewed` set has max implicit 500 inbound | Different restart/session not exactly-once; duplicate-message ACK path needs explicit contract test (T044/061) |
+| True sender/time and Unicode | `ChatText`, `P2PConversation`, protected `ChatV2Message`/UUID, `Instant` | UTC time is display metadata; no globally ordered history or 005 synchronization |
+
+**Observed lifetime and fail-closed rules:** A peer pin can survive restart; `Message`, `MessageAttempt`, receipt events, draft, dedup and transcripts MUST NOT. Explicit revoke requires a new human verified pairing. A corrupted DPAPI identity/trust blob MUST throw rather than be silently regenerated. `LiveChatService.close()` clears its maps and shuts down workers; UI destruction must dispose references to prevent retaining strings beyond process lifetime.
+
+**No future scope added:** this review does not authorize History Sync/SQLite (005), Group (004), File (006) or media (007). Corrections to missing capacity/retry/security tests belong to tasks T053/T061/T062/T076–T083, not to a new persistent conversation store.

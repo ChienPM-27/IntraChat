@@ -1,9 +1,9 @@
 # IntraChat — Lộ trình triển khai chi tiết
 
 > **Dự án:** IntraChat — Phần mềm Chat mạng LAN bằng Java
-> **Phiên bản lộ trình:** 1.4.0
+> **Phiên bản lộ trình:** 1.4.1
 > **Ngày lập:** 21/11/2026
-> **Trạng thái:** **M0 Verified (41/41)**; **M1 In Progress (36/60 tasks)**, 45 JUnit tests pass trên Java21 sau hợp nhất FE; **chưa test hai máy LAN thật**, M1 không Verified
+> **Trạng thái:** **M0 Verified (41/41)**; **M1 In Progress (36/60 tasks)**, 45 JUnit tests tại baseline M1; **M2 In Progress (29/90 tasks), 93/93 JUnit PASS trên Java21 (local) sau gia cố bảo mật**; chưa test hai máy LAN vật lý, M1/M2 không Verified
 > **Nguồn yêu cầu:** P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender
 > **Tài liệu liên quan:** [README](README.md) · [AGENTS](AGENTS.md) · [Constitution](.specify/memory/constitution.md) · [Spec 001](specs/001-project-foundation/spec.md) · [Spec 002](specs/002-lan-networking/spec.md)
 
@@ -491,7 +491,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 | --- | --- | --- |
 | 01 — Project foundation | **Verified — 41/41**; Temurin JDK21, 9 JUnit baseline + 5 GUI network-denied cycles | M0 |
 | 02 — LAN networking | **In Progress — 36/60**; 45 tests pass cùng FE; 2 GUI localhost Ping/Pong; **2 máy LAN thật NOT RUN** | M1 |
-| 03 — P2P MVP | **In Progress — M2 15/90 tasks checked; partial implementation** — [Spec CL-03-01…05](specs/003-p2p-messaging/spec.md) · [Plan](specs/003-p2p-messaging/plan.md) · [Tasks](specs/003-p2p-messaging/tasks.md) · [evidence](specs/003-p2p-messaging/evidence/m2-acceptance-report.md); Java21 encrypted real Live GUI loopback 2 JVMs + ACK/view READ tested; **M1 Gate 1, full security review and two physical Win11 LAN PCs still BLOCKED** | M2 |
+| 03 — P2P MVP | **In Progress — M2 29/90 tasks checked; partial implementation, 93/93 Java21 JUnit local PASS** — [Spec CL-03-01…05](specs/003-p2p-messaging/spec.md) · [Plan](specs/003-p2p-messaging/plan.md) · [Tasks](specs/003-p2p-messaging/tasks.md) · [evidence](specs/003-p2p-messaging/evidence/m2-acceptance-report.md); Java21 encrypted real Live GUI loopback 2 JVMs + ACK/view READ tested; **M1 Gate 1, full security review and two physical Win11 LAN PCs still BLOCKED** | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
 | 06 — File transfer | Not Started | M4 |

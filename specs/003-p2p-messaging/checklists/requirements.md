@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-21
 **Scope:** [spec.md](../spec.md) — Giai đoạn 03 / M2 Chat P2P
-**Review status:** **M2 IN PROGRESS — 15/90 tasks checked from local evidence; CL-03-01…05 CONFIRMED; full release criteria not met**
+**Review status:** **M2 IN PROGRESS — 29/90 tasks checked from local evidence; CL-03-01…05 CONFIRMED; full release criteria not met**
 **Rule:** Checklist reviews **the specification document**, not implementation evidence. Checked items below mean the text is specified or stakeholder decision confirmed, **not that code or tests have run**.
 
 ## Confirmed Clarifications — CL-03-01…05
@@ -35,11 +35,11 @@
 ## Plan & Task Documentation Status / Remaining Execution Gates
 
 - [x] **Technical design documented, partially implemented and NOT security-certified:** [plan.md](../plan.md), [research.md](../research.md) propose TLS 1.3 mutual device certificates, SAS/fingerprint, pinning, DPAPI storage, revocation/change-key and downgrade defense; dependency/security validation remains open task work.
-- [x] **Wire/state design documented, NOT tested:** [chat-v2 contract](../contracts/chat-v2.md) defines separate CHAT_TEXT, delivery ACK and READ_RECEIPT; session/identity correlation, replay/dedup, out-of-order, UI view event and time/resource limits. No v2 runtime implementation.
+- [x] **Wire/state design documented, partially implemented and locally tested:** [chat-v2 contract](../contracts/chat-v2.md) defines separate CHAT_TEXT, delivery ACK and READ_RECEIPT; session/identity correlation, replay/dedup, out-of-order, UI view event and time/resource limits. The current v2 codec, mutual TLS pairing and RAM-only chat are exercised by local JDK21 tests; full negative/fault review and two-PC gate remain OPEN.
 - [x] **FE/data design documented, partially implemented in Live prototype:** [data-model.md](../data-model.md) and [plan.md](../plan.md) define FE Live adapter/Demo isolation, RAM-only chat vs durable protected trust metadata and deletion flows.
 - [ ] **Constitution Gate 0 review:** I–VII tradeoffs/security assessment must be reviewed in future `plan.md`
 - [ ] **M1 Gate 1:** real dual-Windows LAN and remaining M1 acceptance evidence must be Verified before M2 release
-- [x] **Work breakdown created:** [tasks.md](../tasks.md) contains **90 tasks, 15 checked from local evidence and 75 still open** grouped by dependencies and US1–US6 with RED→GREEN, evidence and release gates.
+- [x] **Work breakdown underway:** [tasks.md](../tasks.md) contains **90 tasks, 29 checked from local evidence and 61 still open** grouped by dependencies and US1–US6 with RED→GREEN, evidence and release gates. **93 local JDK21 JUnit PASS**; dependency/security/2-PC release gates remain OPEN.
 - [ ] **M2 implementation/test execution:** RED→GREEN Java21 code/test work has **started and local tests pass**, but full tasks/security/fault/2-PC acceptance remains **incomplete**.
 - [ ] **M2 acceptance:** AC-03-A…L including real two-PC chat/read receipts executed and independently verified (NOT RUN)
 

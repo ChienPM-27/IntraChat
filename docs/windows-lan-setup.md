@@ -1,6 +1,6 @@
-# IntraChat M1 — Windows LAN Setup & Troubleshooting
+# IntraChat M1 diagnostics + M2 Live — Windows LAN Setup & Troubleshooting
 
-**Scope:** Only direct P2P TCP diagnostics; **no peer authentication, no encryption, no user Chat/History/File/Group**. Applies to Windows 11 x64 and Java 21. **Loopback tested**; **two physical Windows PCs NOT YET tested**.
+**Scope:** M1 raw TCP diagnostics are **plaintext and not for chat**; M2 experimental **Live** chat separately uses TLS1.3 and human SAS pairing. Windows11 x64 / Java21. **Local two-JVM loopback tested; two distinct physical Windows LAN PCs NOT YET tested.** Do not treat M1 Accept as peer authentication.
 
 ## 1. Start the app
 
@@ -69,8 +69,30 @@ These are **Java system properties**, not passwords. In each process use loopbac
 | `Đã ngắt kết nối` | Link closed. Retry only by clicking `Kết nối lại`. |
 | Unknown UUID | Device ID is **self-declared**; no cryptographic authenticity. Do not send private content. |
 
-## 6. Unverified & release gate
+## 6. M2 encrypted Live P2P chat on Windows 11 — prototype walkthrough (physical 2-PC NOT RUN)
+
+**Never send private content using the M1 `java -jar ...` diagnostics entrypoint.** The M2 prototype has its own Live UI; peer authentication is based on a device TLS key and independently compared pairing code, not a nickname/IP/demo password.
+
+1. Build with an actual **JDK 21**: `java -version`, `.\mvnw.cmd -o clean package`. Do not use the host JDK25 as an assertion of JDK21 runtime verification.
+2. On **physical PC A**, start `java -cp target\intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat` and choose its **actual authorized private LAN IPv4:47321** as the bind address, then start listener **manually**. On **physical PC B**, launch the same Live entrypoint and manually enter **A's private IPv4:47321**. Do **not** enter `127.0.0.1` for another physical host.
+3. A must **Accept** the inbound request (or Reject to test no-chat). On first contact the two humans visually compare the generated **same SAS on both devices** using an independent channel and **each clicks Confirm**. A matching unverified name or endpoint does not count.
+4. Only after TLSv1.3 and **both PAIR_READY** should chat be enabled. Send Vietnamese/emoji in both directions; confirm distinct sender and local-rendered time. A TCP send is **not** `Đã nhận`; that requires a protected application ACK.
+5. `Đã xem` requires recipient's Live conversation to be **foreground, selected, and actually show the message bubble in the viewport ≥250ms**. Test preview, background and offscreen: no read receipt. Read denotes app display, **not proof the human read it**.
+6. Disconnect and reconnect **manually**; even a pinned known peer still requires inbound **Accept** on each connection. Messages/drafts/receipts are RAM-only; close/restart clears them but keeps **Windows CurrentUser DPAPI identity/trust pins**. Key replacement must fail closed and require deliberate revoke/re-pair.
+7. If Windows Firewall blocks A's port, request authorized **Private profile TCP-only** inbound allowance scoped to approved LAN hosts/subnet. Never create a broad **Public** profile rule automatically. Check adapter/VLAN/AP client isolation, and undo test firewall rules when finished.
+8. To test without the **public Internet**, disconnect Internet upstream or use an authorized isolated LAN while maintaining PC-to-PC routing. Do not disable unrelated shared corporate networks. Record sanitized evidence on **both** PCs: Windows build, actual JDK21, Git commit, private IPv4 (mask if needed), SAS match observation, approvals, TLS, chat/ACK/viewport READ, rejection/downgrade cases and disconnected Internet state.
+
+**Local separate-profile smoke only (not two-PC proof):** two distinct secure roots prevent accidental sharing of the same local private key:
+```powershell
+java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-A' -cp target\intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
+java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-B' -cp target\intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
+```
+These two processes use **one OS user/computer**, so they cannot satisfy the physical 2-PC requirement. Use a writable private test directory and delete stale synthetic credentials through the approved procedure when done. The normal secure directory is `%LOCALAPPDATA%\IntraChat\security\`.
+
+**Known gaps (T079 documentation does not close them):** common-port v1/v2 dispatch, comprehensive red-team/TLS pin/DPAPI ACL review, 4-active/4-pending stress, accurate uncertain retry and real two-computer LAN acceptance all remain not verified. See [003 Quickstart](../specs/003-p2p-messaging/quickstart.md) and [threat model](../specs/003-p2p-messaging/evidence/threat-model.md).
+
+## 7. Unverified & release gate
 
 - **NOT RUN:** Two physical Windows 11 PCs with LAN still available and Internet removed, including both directions and Windows Private-profile Firewall acceptance. Do not mark AC-02-A/I or M1 Verified from loopback tests.
-- Authentication, TLS, secure pairing, History ACL, user chat, File/Group/Media remain **out of scope**.
+- **For the M1 diagnostic path only:** authentication, TLS, secure pairing, user chat, History/File/Group/Media remain out of scope. **M2 Live is a separate TLS chat prototype** and is not made Verified by M1 diagnostics or local loopback.
 - Java 21 local build/loopback is verified on one Windows machine; a second computer may have different firewall/network policies.

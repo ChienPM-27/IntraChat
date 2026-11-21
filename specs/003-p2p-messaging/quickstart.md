@@ -18,7 +18,7 @@ From the repository root on Windows 11 x64 with actual Java 21 and Maven cache:
 
 ## 2. Actual two-process Windows loopback (selected steps tested; remaining are acceptance targets)
 
-1. Build the current M2 prototype using `.\mvnw.cmd clean package` and `scripts/verify-m2.ps1 -Offline` (requires cached dependencies and actual JDK21). Local suite last measured **74 JUnit tests**; see [baseline](evidence/m2-baseline.md).
+1. Build the current M2 prototype using `.\mvnw.cmd -o clean package` and `scripts/verify-m2.ps1 -Offline` (requires cached dependencies and actual JDK21). The original M2 baseline recorded **74 JUnit tests**; newer security test additions must be counted from **current Surefire XML**, not that historical number. See [baseline](evidence/m2-baseline.md) and [security hardening evidence](evidence/certificate-validation-jdk21.md).
 2. Launch **two separate terminals/JVMs** with unique `-Dintrachat.secureRoot` paths and Live entrypoint (replace directory paths with writable directories that will be cleaned after test):
 
        java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-A' -cp target\intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
@@ -79,3 +79,13 @@ From the repository root on Windows 11 x64 with actual Java 21 and Maven cache:
 | [evidence/m2-acceptance-report.md](evidence/m2-acceptance-report.md) | **PARTIAL, NOT VERIFIED** |
 
 **Local prototype works; M2 remains IN PROGRESS / NOT VERIFIED.** Never confuse two Java processes on one machine with two physical Windows LAN computers or a security certification.
+
+## 6. Current security/compatibility review checklist
+
+- [x] Protocol-specific Java21 negative tests and documented canonical [SAS/UUID vectors](contracts/chat-v2.md); synthetic only, no genuine keys.
+- [x] [Threat model](evidence/threat-model.md) documents MITM/impersonation/pinning/downgrade/DPAPI/ACK/read/replay/DoS stop rules.
+- [ ] Formal dependency CVE/SBOM/signature/legal approval ([dependency evidence](evidence/dependency-review.md)).
+- [ ] Complete 4-active/4-pending and total 8MiB RAM/queued-frame stress; finish actual manual uncertain-send retry and UI accessibility.
+- [ ] Both separate physical Win11 LAN computers and independent security reviewer/sign-off.
+
+See [Windows M1/M2 LAN/firewall guide](../../docs/windows-lan-setup.md) for a practical **Private** firewall-only, manual IPv4:port and two-machine evidence procedure.

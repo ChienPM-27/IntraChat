@@ -1,7 +1,7 @@
-# Contract — CHAT_V2 secure direct P2P (DESIGN ONLY)
+# Contract — CHAT_V2 secure direct P2P (prototype + incomplete release review)
 
 **Date:** 2026-11-21
-**Status:** Proposed v2 protocol for future implementation. This is NOT a deployed wire format.
+**Status:** Partially implemented locally in the M2 prototype, **not a released/interoperability-approved contract**. The shared v1/v2 port dispatcher and dual-physical-PC acceptance remain NOT RUN.
 **References:** [spec](../spec.md), [plan](../plan.md), [data model](../data-model.md).
 **Safety:** M1 v1 remains diagnostic-only and plaintext. **Never transmit CHAT_TEXT/DELIVERY_ACK/READ_RECEIPT over existing raw TCP v1.**
 
@@ -53,7 +53,7 @@ Once verified, the following metadata is mandatory for every v2 JSON envelope in
 | type | enum | PAIR_CONFIRM, PAIR_READY, CHAT_TEXT, DELIVERY_ACK, READ_RECEIPT, CHAT_ERROR only |
 | sessionId | UUID string | Current authenticated chat session; reject old-session replay |
 | sender.deviceId | UUID string | Must equal device UUID bound to authenticated TLS peer SPKI pin |
-| sender.displayName | string | Display-only; not authorization |
+| sender.displayName | string | **Design-only; not emitted in current v2 protected envelope.** Current prototype exchanges untrusted displayName in pre-TLS HELLO/ACCEPT and binds messages to authenticated sender.deviceId instead. Never authorize by name. |
 | destination.kind | string | PEER only for M2 |
 | destination.id | UUID string | Must equal local verified peer identity |
 | conversationId | UUID string | Derived deterministically from verified (deviceId, pinned SPKI) pair using SHA-256 domain separation and 128-bit UUID version/variant formatting, **not** from displayName or IP; authorization still requires TLS pin check |
@@ -103,7 +103,40 @@ Strict UTF-8 decoder (REPORT for malformed), JSON max nesting depth 32, duplicat
 
 No private messages/keys/raw JSON in user logs; messages in errors are sanitized codes only. A network attacker may learn local IP, existence of listener and plaintext preface metadata, so don't misrepresent metadata secrecy.
 
-## 8. Test matrix (not executed)
+## 8. Deterministic canonical binary vectors and wire-error matrix (T005)
+
+All vector inputs below are synthetic bytes, **not actual device SPKI hashes, keys or user credentials**. Independently calculated using Windows PowerShell `SHA256.ComputeHash`, then verified in JDK21 JUnit `FingerprintVerifierTest` and `P2PConversationTest`.
+
+| Field | A | B |
+| --- | --- | --- |
+| UUID | `11111111-1111-4111-8111-111111111111` | `22222222-2222-4222-8222-222222222222` |
+| Synthetic 32-byte fingerprint (hex) | `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f` | `202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f` |
+| 32-byte nonce (hex) | `404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f` | `606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f` |
+
+**Exact SAS transcript bytes:** ASCII `IntraChat-PAIR-V2` prefixed by unsigned 32-bit big-endian length (17); then each sorted tuple prefixed with 32-bit big-endian length (80); a tuple = 16 UUID RFC4122 network-order bytes + 32 fingerprint bytes + 32 nonce bytes. Order tuples using unsigned lexicographic comparison of their entire bytes; each side MUST reverse inputs identically. `SHA-256` of these bytes:
+
+```text
+ac818b2d88b58cf914e943963bd4921e307769494b75c427f68f89b0374789dc
+```
+
+The **first 8 bytes** yield SAS `AC81-8B2D-88B5-8CF9`, uppercase group-of-4 hex. Altering any nonce/key/ID changes SAS (test includes mutation). SAS does not itself grant trust without **each human confirmation**.
+
+**Conversation ID** input differs from SAS: ASCII `IntraChat-CONVERSATION-V2` **without length prefix**, followed by sorted 48-byte tuples (16 UUID network-order bytes + 32 fingerprint bytes, **no nonce**). SHA-256 first 16 bytes; set UUID version to 5 and RFC variant to 2. Expected ID: `5bc726bf-5e70-5d11-8b49-774e77637482`, independent of input ordering. Conversation ID identifies a pair but is **not** authentication.
+
+**Session ID test vector:** the protected `sessionId` equals the exact pre-TLS HELLO `requestId` (not a fingerprint hash), for example `33333333-3333-4333-8333-333333333333` represented as 16 UUID RFC4122 network-order bytes `33333333333343338333333333333333`. It is repeated in every PAIR_CONFIRM/PAIR_READY/CHAT_TEXT/ACK/READ on that one TLS session. A different `requestId` is a different session and must fail receipt correlation; no reuse/replay across reconnect.
+
+**Handshake / version states (current prototype):**
+
+| State | Allowed wire | Rejection |
+| --- | --- | --- |
+| Raw socket, untrusted, max 16,384 bytes | single `CHAT_HELLO` v2; `CHAT_ACCEPT` or `CHAT_REJECT` | invalid UUID (including all-zero request/device ID), unknown fields/capabilities, malformed UTF-8, duplicate keys, version mismatch, chat text → fail closed |
+| TLS established, not yet paired/READY | `PAIR_CONFIRM`, `PAIR_READY` with matching session and transcript | `CHAT_TEXT`, ACK/READ or v1 diagnostic → reject |
+| TLS 1.3 plus both READY, max 65,536 bytes per protected frame | `CHAT_TEXT`, `DELIVERY_ACK`, `READ_RECEIPT` (CHAT_ERROR is schema-known but not yet fully handled) | other types, wrong sender/destination/session/conversation, duplicate JSON keys, oversized frame → reject |
+| Raw M1 v1 listener, diagnostics-only | v1 ping/pong and consent | v2 user chat, v1 CHAT_TEXT or silent downgrade → prohibited |
+
+**Prototype/release gap:** v1 and v2 currently use different listener ownership rather than a completed version dispatcher on one port; no automatic v1 fallback is allowed. Pairing control currently correlates `requestId`, `transcriptHash` and conversationId and does not send redundant standalone `localKeyHash`/`remoteKeyHash` fields because the transcript already binds both. `CHAT_ERROR` is defined in the codec but not fully supported as a LiveChatService incoming event. Those mismatches are tracked, not claimed interoperable.
+
+## 9. Test matrix (partially executed)
 
 1. M1 v1 diagnostics still work; v1 CHAT_TEXT rejected; v1-only peer does not silently receive v2 content; no downgrade on mismatch.
 2. First pair: valid self-signed certificates, TLS mutual possession, equal SAS on both ends, both humans confirm; one rejects or uses wrong code; no pre-pair content.
@@ -115,4 +148,4 @@ No private messages/keys/raw JSON in user logs; messages in errors are sanitized
 8. FE Live uses real transport and Demo uses MockChatService only; login password not peer auth.
 9. **Two distinct Windows 11 x64 LAN computers with no Internet**, real IPv4 + authorized firewall, human Accept, SAS, bidirectional chat and view receipts. Record proof on both machines.
 
-**Gate:** AC-03-A…L and Constitution I–VII not complete until all critical tests, real two-PC evidence and M1 Gate 1 proof. This file is a contract design, **not proof of implementation or security**.
+**Gate:** AC-03-A…L and Constitution I–VII not complete until all critical tests, real two-PC evidence and M1 Gate 1 proof. The deterministic vectors verify representation only; this is **not proof of production interoperability or security**.
