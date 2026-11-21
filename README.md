@@ -161,9 +161,21 @@ Thứ tự có thể thay đổi sau khi viết spec; đây không phải tiến
 - **Nhóm dự án:** hiển thị người gửi, số thành viên, tệp, video, WAV và biên nhận Đã nhận. Nhấn **+** để tạo nhóm khác.
 - **Thanh soạn:** Enter để gửi tin mock, bảng 30 emoji, chọn ảnh/video/tệp hoặc ghi âm tối đa 120 giây. Bấm ảnh để xem đầy đủ, video để mở bằng trình phát mặc định, biểu tượng tải để lưu tệp không ghi đè.
 
+### Thử kết bạn qua LAN
+
+Mở **Kết bạn** từ sidebar. Nhập IP mẫu `192.168.1.23` hoặc `fd00::23` rồi bấm **Gửi lời mời**. Trong **Đã gửi**, lời mời ở trạng thái **Chờ chấp nhận**. Khánh Linh phản hồi trong bản mô phỏng sau khoảng 6 giây và đoạn chat riêng xuất hiện.
+
+Tab **Đã nhận** có lời mời mẫu từ Hải Nam (`192.168.1.24`). Chọn **Chấp nhận** rồi **Nhắn tin** để mở đoạn chat, hoặc chọn **Từ chối** để đóng lời mời. Lời mời và bạn mới chỉ tồn tại trong phiên demo. IP nhập vào chỉ dùng để tra dữ liệu mẫu.
+
+### Thử gọi thoại và gọi video
+
+Mở đoạn chat với **Mai Anh** rồi bấm biểu tượng điện thoại hoặc camera ở góc trên. Người nhận mô phỏng bắt máy sau khoảng 2 giây. Trong cuộc gọi có bộ đếm thời lượng, nút bật/tắt mic và nút kết thúc. Cuộc gọi video hiển thị hai khung avatar mẫu và cho phép bật/tắt trạng thái camera.
+
+Chọn **Thử gọi đến** trong cùng đoạn chat để mở cuộc gọi thoại hoặc video đến, rồi **Chấp nhận** hoặc **Từ chối**. Lời gọi đến hết hạn sau 20 giây. Xem [đặc tả Frontend cuộc gọi](specs/003-desktop-calls/spec.md).
+
 ## Phạm vi
 
-Lịch sử, hội thoại, tài khoản và biên nhận chỉ là dữ liệu mô phỏng trong phiên; đóng ứng dụng sẽ mất thay đổi. Media mẫu và bản ghi sử dụng thư mục tạm; tệp lưu theo lựa chọn của bạn vẫn còn. Ghi và phát tin thoại phụ thuộc thiết bị/quyền âm thanh của hệ điều hành. Ứng dụng không có cuộc gọi, Story hoặc cài đặt nâng cao.
+Lịch sử, hội thoại, tài khoản, biên nhận và cuộc gọi dùng dữ liệu mô phỏng trong phiên. Media mẫu và bản ghi sử dụng thư mục tạm. Tệp lưu theo lựa chọn của bạn vẫn còn. Ghi và phát tin nhắn thoại phụ thuộc thiết bị và quyền âm thanh của hệ điều hành.
 
 `listener.ChatActionHandler` nhận thao tác từ UI và `listener.ChatClientListener` nhận cập nhật. Bản demo chỉ dùng `model.mock.MockChatService`. Xem [đặc tả](specs/001-desktop-frontend/spec.md) và [kế hoạch](specs/001-desktop-frontend/plan.md) để biết giới hạn và hành vi mock.
 

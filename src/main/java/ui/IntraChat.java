@@ -13,7 +13,8 @@ public final class IntraChat {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             ChatStyle.install();
-            new LoginFrame(new MockChatService()).setVisible(true);
+            MockChatService demo = new MockChatService();
+            new LoginFrame(demo, demo::simulateIncomingCall).setVisible(true);
         });
     }
 }

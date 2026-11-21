@@ -5,6 +5,7 @@ import listener.ChatClientListener;
 import model.*;
 
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -18,6 +19,10 @@ public final class MockChatService implements ChatActionHandler {
     private static final String DIRECT_MAI = "direct-mai";
     private static final String DIRECT_KHANG = "direct-khang";
     private static final String TEAM = "group-project";
+    private static final String SELF_IP = "192.168.1.10";
+    private static final String LINH_IP = "192.168.1.23";
+    private static final String NAM_IP = "192.168.1.24";
+    private static final int FRIEND_REPLY_SECONDS = 6;
 
     private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor(task -> {
         Thread thread = new Thread(task, "intrachat-demo");
@@ -27,7 +32,10 @@ public final class MockChatService implements ChatActionHandler {
     private final Map<String, ChatUser> users = new LinkedHashMap<>();
     private final Map<String, Conversation> conversations = new LinkedHashMap<>();
     private final Map<String, List<ChatMessage>> histories = new HashMap<>();
+    private final Map<String, ChatUser> peersByIp = new HashMap<>();
+    private final Map<String, FriendRequest> friendRequests = new LinkedHashMap<>();
     private ChatClientListener listener;
+    private final MockCalls calls = new MockCalls(worker, this::publishCall, Duration.ofSeconds(20));
 
     @Override
     public CompletionStage<ChatUser> signIn(String username, char[] password) {
@@ -116,6 +124,108 @@ public final class MockChatService implements ChatActionHandler {
         });
     }
 
+    @Override
+    public CompletionStage<Void> sendFriendRequest(String ipAddress) {
+        return submit(() -> {
+            String address = LanAddress.normalize(ipAddress);
+            if (SELF_IP.equals(address)) {
+                throw new IllegalArgumentException("Đây là IP của bạn trong phiên demo.");
+            }
+            ChatUser peer = peersByIp.get(address);
+            if (peer == null) {
+                throw new IllegalArgumentException("IP này không có trong dữ liệu demo.");
+            }
+            if (users.containsKey(peer.id())) {
+                throw new IllegalArgumentException("Người này đã là bạn.");
+            }
+            for (FriendRequest pending : friendRequests.values()) {
+                if (pending.peer().id().equals(peer.id()) && pending.status() == FriendRequest.Status.PENDING) {
+                    String message = pending.direction() == FriendRequest.Direction.INCOMING
+                            ? "Người này đã gửi lời mời. Mở tab Đã nhận để phản hồi."
+                            : "Lời mời đã gửi và đang chờ chấp nhận.";
+                    throw new IllegalArgumentException(message);
+                }
+            }
+            FriendRequest request = new FriendRequest(UUID.randomUUID().toString(), peer, ipAddress.strip(),
+                    FriendRequest.Direction.OUTGOING, FriendRequest.Status.PENDING, Instant.now());
+            friendRequests.put(request.id(), request);
+            publishDirectory();
+            worker.schedule(() -> finishFriendRequest(request, true), FRIEND_REPLY_SECONDS, TimeUnit.SECONDS);
+            return null;
+        });
+    }
+
+    @Override
+    public CompletionStage<Void> respondToFriendRequest(String requestId, boolean accept) {
+        return submit(() -> {
+            FriendRequest request = friendRequests.get(requestId);
+            if (request == null || request.direction() != FriendRequest.Direction.INCOMING
+                    || request.status() != FriendRequest.Status.PENDING) {
+                throw new IllegalArgumentException("Lời mời này không còn chờ bạn phản hồi.");
+            }
+            finishFriendRequest(request, accept);
+            return null;
+        });
+    }
+
+    private void finishFriendRequest(FriendRequest request, boolean accept) {
+        if (accept) {
+            ChatUser peer = request.peer();
+            users.put(peer.id(), peer);
+            addConversation(new Conversation("direct-" + peer.id(), peer.displayName(), false, List.of(SELF, peer.id())));
+        }
+        friendRequests.put(request.id(), request.withStatus(accept ? FriendRequest.Status.ACCEPTED
+                : FriendRequest.Status.DECLINED));
+        publishDirectory();
+    }
+
+    @Override
+    public CompletionStage<Void> startCall(String conversationId, CallSession.Mode mode) {
+        return ring(conversationId, mode, CallSession.Direction.OUTGOING);
+    }
+
+    public CompletionStage<Void> simulateIncomingCall(String conversationId, CallSession.Mode mode) {
+        return ring(conversationId, mode, CallSession.Direction.INCOMING);
+    }
+
+    private CompletionStage<Void> ring(String conversationId, CallSession.Mode mode, CallSession.Direction direction) {
+        return submit(() -> {
+            Conversation conversation = requireConversation(conversationId);
+            if (conversation.group() || !conversation.memberIds().contains(SELF)) {
+                throw new IllegalArgumentException("Chọn một đoạn chat riêng để gọi.");
+            }
+            ChatUser peer = conversation.memberIds().stream().filter(id -> !SELF.equals(id))
+                    .map(users::get).findFirst().orElseThrow();
+            if (!peer.online()) {
+                throw new IllegalArgumentException(peer.displayName() + " đang ngoại tuyến.");
+            }
+            calls.ring(conversationId, peer, mode, direction);
+            return null;
+        });
+    }
+
+    @Override
+    public CompletionStage<Void> respondToCall(String callId, boolean accept) {
+        return submit(() -> {
+            calls.respond(callId, accept);
+            return null;
+        });
+    }
+
+    @Override
+    public CompletionStage<Void> endCall(String callId) {
+        return submit(() -> {
+            calls.end(callId);
+            return null;
+        });
+    }
+
+    private void publishCall(CallSession session) {
+        if (listener != null) {
+            listener.onCallChanged(session);
+        }
+    }
+
     private void updateState(ChatMessage message, DeliveryState state) {
         histories.get(message.conversationId()).replaceAll(existing ->
                 existing.id().equals(message.id()) ? existing.withState(state) : existing);
@@ -131,7 +241,8 @@ public final class MockChatService implements ChatActionHandler {
         Map<String, ChatMessage> previews = new HashMap<>();
         histories.forEach((id, messages) -> messages.stream().max(ChatMessage.ORDER)
                 .ifPresent(message -> previews.put(id, message)));
-        listener.onDirectoryChanged(new ChatSnapshot(List.copyOf(users.values()), List.copyOf(conversations.values()), previews));
+        listener.onDirectoryChanged(new ChatSnapshot(List.copyOf(users.values()), List.copyOf(conversations.values()),
+                previews, List.copyOf(friendRequests.values())));
     }
 
     private Conversation requireConversation(String id) {
@@ -151,6 +262,16 @@ public final class MockChatService implements ChatActionHandler {
         }
         users.put(MAI, new ChatUser(MAI, "Mai Anh", true));
         users.put(KHANG, new ChatUser(KHANG, "Minh Khang", false));
+        peersByIp.put("192.168.1.11", users.get(MAI));
+        peersByIp.put("192.168.1.12", users.get(KHANG));
+        ChatUser linh = new ChatUser("demo-linh", "Khánh Linh", true);
+        ChatUser nam = new ChatUser("demo-nam", "Hải Nam", true);
+        peersByIp.put(LINH_IP, linh);
+        peersByIp.put(LanAddress.normalize("fd00::23"), linh);
+        peersByIp.put(NAM_IP, nam);
+        FriendRequest incoming = new FriendRequest("demo-incoming", nam, NAM_IP, FriendRequest.Direction.INCOMING,
+                FriendRequest.Status.PENDING, Instant.now().minus(2, ChronoUnit.MINUTES));
+        friendRequests.put(incoming.id(), incoming);
         addConversation(new Conversation(DIRECT_MAI, "Mai Anh", false, List.of(SELF, MAI)));
         addConversation(new Conversation(TEAM, "Nhóm dự án", true, List.of(SELF, MAI, KHANG)));
         addConversation(new Conversation(DIRECT_KHANG, "Minh Khang", false, List.of(SELF, KHANG)));

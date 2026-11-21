@@ -10,7 +10,7 @@
 | Chia sẻ media | Chọn ảnh, video hoặc tệp theo bộ lọc. Xem ảnh lớn, mở video bằng trình phát hệ thống và lưu tệp vào vị trí mình chọn. |
 | Gửi và nghe tin thoại | Bắt đầu/dừng/hủy ghi âm với bộ đếm, gửi WAV hợp lệ. Tin thoại hiện Play/Pause, tiến trình và thời lượng. |
 
-Ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm có đủ loại nội dung. Trạng thái mẫu và thao tác gửi chỉ diễn ra trong bộ nhớ tiến trình. Lưu lượng P2P/nhóm, xác thực và lưu trữ dài hạn thuộc Backend LAN sau này. Call, Video Call, Voice Room, Story và cài đặt nâng cao nằm ngoài phạm vi.
+Ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm có đủ loại nội dung. Trạng thái mẫu và thao tác gửi chỉ diễn ra trong bộ nhớ tiến trình. Lưu lượng P2P/nhóm, xác thực và lưu trữ dài hạn thuộc Backend LAN sau này. Gọi thoại và gọi video mô phỏng được mô tả trong [đặc tả Frontend cuộc gọi](../003-desktop-calls/spec.md). Voice Room, Story và cài đặt nâng cao nằm ngoài phạm vi.
 
 ## Trường hợp biên
 

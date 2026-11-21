@@ -6,6 +6,7 @@ import listener.ChatClientListener;
 import model.*;
 import ui.components.*;
 import ui.dialogs.CreateGroupDialog;
+import ui.dialogs.FriendRequestsDialog;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -15,8 +16,10 @@ import java.awt.*;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.*;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiFunction;
 
 import static ui.components.ChatStyle.*;
 
@@ -42,6 +45,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private final JPanel directoryCards = new JPanel(new CardLayout());
     private final JLabel noConversations = label("Không tìm thấy đoạn chat", 13, Font.PLAIN, MUTED);
     private final JButton newGroup = iconButton(ChatIcon.Kind.PLUS, "Tạo nhóm mới", BLUE);
+    private final JButton friends = new JButton("Kết bạn");
     private final JLabel headerAvatar = new JLabel();
     private final JLabel headerTitle = label("Đoạn chat", 16, Font.BOLD, INK);
     private final JLabel headerState = label(" ", 12, Font.PLAIN, MUTED);
@@ -50,12 +54,20 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private final JScrollPane scroll = new JScrollPane(history);
     private final ComposerPanel composer;
     private final MessageMedia media;
+    private final CallControls calls;
+    private List<FriendRequest> friendRequests = List.of();
+    private FriendRequestsDialog friendsDialog;
     private String activeId;
     private boolean updatingList;
     private boolean creatingGroup;
     private boolean closed;
 
     public MainChatFrame(ChatUser self, ChatActionHandler actions) {
+        this(self, actions, null);
+    }
+
+    public MainChatFrame(ChatUser self, ChatActionHandler actions,
+                         BiFunction<String, CallSession.Mode, CompletionStage<Void>> simulateIncoming) {
         super("IntraChat");
         this.self = self;
         this.actions = actions;
@@ -70,6 +82,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         root.add(buildSidebar(), BorderLayout.WEST);
         media = new MessageMedia(work, this, this::showNotice);
         composer = new ComposerPanel(work, () -> activeId, this::send, this::showNotice);
+        calls = new CallControls(this, self, actions, simulateIncoming, this::showNotice);
         root.add(buildChat());
         refreshDirectory();
         renderHistory(false);
@@ -97,7 +110,18 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             @Override public void removeUpdate(DocumentEvent event) { refreshDirectory(); }
             @Override public void changedUpdate(DocumentEvent event) { refreshDirectory(); }
         });
-        top.add(search, BorderLayout.SOUTH);
+        top.add(search);
+
+        friends.setIcon(new ChatIcon(ChatIcon.Kind.PERSON_ADD, BLUE, 18));
+        friends.setHorizontalAlignment(SwingConstants.LEADING);
+        friends.setIconTextGap(9);
+        friends.setBackground(FIELD);
+        friends.putClientProperty(FlatClientProperties.STYLE, "arc: 12; borderWidth: 0; margin: 3,10,3,10");
+        friends.setPreferredSize(new Dimension(0, 34));
+        friends.setToolTipText("Kết bạn qua LAN");
+        friends.setEnabled(false);
+        friends.addActionListener(event -> openFriends());
+        top.add(friends, BorderLayout.SOUTH);
         sidebar.add(top, BorderLayout.NORTH);
 
         list.setBackground(Color.WHITE);
@@ -146,6 +170,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         heading.add(headerTitle);
         heading.add(headerState);
         header.add(heading);
+        header.add(calls, BorderLayout.EAST);
         chat.add(header, BorderLayout.NORTH);
 
         scroll.setBorder(null);
@@ -229,14 +254,17 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
 
     private void refreshHeader() {
         Conversation chat = conversations.get(activeId);
+        calls.selectConversation(chat != null && peer(chat) != null ? chat.id() : null);
         if (chat == null) {
             headerTitle.setText("Đoạn chat");
+            headerTitle.setToolTipText(null);
             headerAvatar.setIcon(null);
             headerState.setText(" ");
             return;
         }
         ConversationRenderer.Row row = row(chat);
         headerTitle.setText(row.title());
+        headerTitle.setToolTipText(row.title());
         headerAvatar.setIcon(new AvatarIcon(row.title(), row.avatarId(), 40, row.online(), chat.group()));
         headerState.setText(chat.group() ? chat.memberIds().size() + " thành viên"
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
@@ -281,6 +309,42 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
                 refreshDirectory();
             }));
         });
+    }
+
+    private void openFriends() {
+        if (friendsDialog == null || !friendsDialog.isDisplayable()) {
+            friendsDialog = new FriendRequestsDialog(this, actions, friendRequests, this::openFriendChat);
+        }
+        friendsDialog.setVisible(true);
+        friendsDialog.toFront();
+    }
+
+    private boolean openFriendChat(String peerId) {
+        var target = conversations.values().stream()
+                .filter(chat -> !chat.group() && chat.memberIds().contains(self.id()) && chat.memberIds().contains(peerId))
+                .findFirst();
+        if (target.isEmpty()) {
+            return false;
+        }
+        search.setText("");
+        switchChat(target.get().id());
+        refreshDirectory();
+        list.ensureIndexIsVisible(list.getSelectedIndex());
+        return true;
+    }
+
+    private void updateFriendRequests(List<FriendRequest> requests) {
+        friendRequests = requests;
+        long pending = requests.stream().filter(request -> request.direction() == FriendRequest.Direction.INCOMING
+                && request.status() == FriendRequest.Status.PENDING).count();
+        friends.setText(pending == 0 ? "Kết bạn" : "Kết bạn · " + pending + " lời mời đến");
+        friends.getAccessibleContext().setAccessibleName(pending == 0 ? "Kết bạn qua LAN"
+                : "Kết bạn qua LAN, " + pending + " lời mời đến");
+        friends.setBackground(pending == 0 ? FIELD : SELECTED);
+        friends.setEnabled(true);
+        if (friendsDialog != null && friendsDialog.isDisplayable()) {
+            friendsDialog.updateRequests(requests);
+        }
     }
 
     private void send(String destination, MessageContent content) {
@@ -424,6 +488,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             conversations.clear();
             snapshot.conversations().forEach(chat -> conversations.put(chat.id(), chat));
             snapshot.previews().forEach(this::updatePreview);
+            updateFriendRequests(snapshot.friendRequests());
             if (activeId == null || !conversations.containsKey(activeId)) {
                 switchChat(conversations.keySet().stream().findFirst().orElse(null));
             }
@@ -447,6 +512,11 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     }
 
     @Override
+    public void onCallChanged(CallSession session) {
+        onEdt(() -> calls.update(session));
+    }
+
+    @Override
     public void onConnectionError(String message) {
         onEdt(() -> showNotice(message));
     }
@@ -455,6 +525,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     public void dispose() {
         if (!closed) {
             closed = true;
+            calls.close();
             composer.close();
             media.close();
             work.shutdownNow();

@@ -5,7 +5,10 @@ import java.awt.*;
 import java.awt.geom.*;
 
 public record ChatIcon(Kind kind, Color color, int size) implements Icon {
-    public enum Kind { LOGO, PLUS, SEARCH, IMAGE, VIDEO, FILE, MIC, SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK }
+    public enum Kind {
+        LOGO, PLUS, PERSON_ADD, SEARCH, IMAGE, VIDEO, FILE, MIC, MIC_OFF, PHONE, CAMERA, CAMERA_OFF,
+        SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK
+    }
 
     @Override
     public int getIconWidth() {
@@ -34,6 +37,12 @@ public record ChatIcon(Kind kind, Color color, int size) implements Icon {
                 draw.fill(path(6.6, 13.3, 11.4, 8.5, 14, 10.9, 17.5, 9.3, 13, 14.2, 10.3, 11.8, 6.6, 13.3));
             }
             case PLUS -> draw.draw(path(12, 5, 12, 19, 12, 12, 5, 12, 19, 12));
+            case PERSON_ADD -> {
+                draw.draw(new Ellipse2D.Double(4.5, 3.5, 8, 8));
+                draw.draw(new Arc2D.Double(2, 13.5, 13, 11, 0, 180, Arc2D.OPEN));
+                draw.drawLine(19, 7, 19, 15);
+                draw.drawLine(15, 11, 23, 11);
+            }
             case SEARCH -> {
                 draw.draw(new Ellipse2D.Double(4, 4, 11, 11));
                 draw.drawLine(13, 13, 20, 20);
@@ -53,10 +62,36 @@ public record ChatIcon(Kind kind, Color color, int size) implements Icon {
                 draw.drawLine(9, 13, 15, 13);
                 draw.drawLine(9, 17, 15, 17);
             }
-            case MIC -> {
+            case MIC, MIC_OFF -> {
                 draw.draw(new RoundRectangle2D.Double(9, 3, 6, 11, 6, 6));
                 draw.draw(new Arc2D.Double(6, 6, 12, 12, 180, 180, Arc2D.OPEN));
                 draw.drawLine(12, 18, 12, 21);
+                if (kind == Kind.MIC_OFF) {
+                    draw.drawLine(4, 4, 20, 20);
+                }
+            }
+            case PHONE -> {
+                Path2D handset = new Path2D.Double();
+                handset.moveTo(5, 3);
+                handset.lineTo(8, 3);
+                handset.lineTo(10, 8);
+                handset.lineTo(8, 10);
+                handset.quadTo(10, 14, 14, 16);
+                handset.lineTo(16, 14);
+                handset.lineTo(21, 16);
+                handset.lineTo(21, 19);
+                handset.quadTo(21, 22, 17, 21);
+                handset.quadTo(6, 19, 3, 7);
+                handset.quadTo(2, 3, 5, 3);
+                handset.closePath();
+                draw.draw(handset);
+            }
+            case CAMERA, CAMERA_OFF -> {
+                draw.draw(new RoundRectangle2D.Double(2.5, 5.5, 13, 13, 4, 4));
+                draw.draw(path(15.5, 10, 21.5, 6, 21.5, 18, 15.5, 14));
+                if (kind == Kind.CAMERA_OFF) {
+                    draw.drawLine(4, 3, 21, 21);
+                }
             }
             case SMILE -> {
                 draw.draw(new Ellipse2D.Double(3, 3, 18, 18));

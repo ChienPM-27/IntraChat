@@ -1,6 +1,7 @@
 package ui.frames;
 
 import listener.ChatActionHandler;
+import model.CallSession;
 import model.ChatUser;
 import ui.components.ChatIcon;
 import ui.components.ChatStyle;
@@ -11,11 +12,13 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Arrays;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiFunction;
 
 import static ui.components.ChatStyle.*;
 
 public final class LoginFrame extends JFrame {
     private final ChatActionHandler actions;
+    private final BiFunction<String, CallSession.Mode, CompletionStage<Void>> simulateIncoming;
     private final JTextField username = new JTextField(22);
     private final JPasswordField password = new JPasswordField(22);
     private final JLabel title = label("Đăng nhập", 28, Font.BOLD, INK);
@@ -26,8 +29,13 @@ public final class LoginFrame extends JFrame {
     private boolean transferred;
 
     public LoginFrame(ChatActionHandler actions) {
+        this(actions, null);
+    }
+
+    public LoginFrame(ChatActionHandler actions, BiFunction<String, CallSession.Mode, CompletionStage<Void>> simulateIncoming) {
         super("IntraChat");
         this.actions = actions;
+        this.simulateIncoming = simulateIncoming;
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setIconImage(iconImage());
         setMinimumSize(new Dimension(440, 560));
@@ -133,7 +141,7 @@ public final class LoginFrame extends JFrame {
                     password.requestFocusInWindow();
                     return;
                 }
-                MainChatFrame chat = new MainChatFrame(user, actions);
+                MainChatFrame chat = new MainChatFrame(user, actions, simulateIncoming);
                 transferred = true;
                 chat.setVisible(true);
                 dispose();

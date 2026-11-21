@@ -1,5 +1,6 @@
 package listener;
 
+import model.CallSession;
 import model.ChatMessage;
 import model.ChatUser;
 import model.Conversation;
@@ -20,6 +21,16 @@ public interface ChatActionHandler extends AutoCloseable {
     CompletionStage<ChatMessage> sendMessage(String conversationId, MessageContent content);
 
     CompletionStage<Conversation> createGroup(String name, List<String> memberIds);
+
+    CompletionStage<Void> sendFriendRequest(String ipAddress);
+
+    CompletionStage<Void> respondToFriendRequest(String requestId, boolean accept);
+
+    CompletionStage<Void> startCall(String conversationId, CallSession.Mode mode);
+
+    CompletionStage<Void> respondToCall(String callId, boolean accept);
+
+    CompletionStage<Void> endCall(String callId);
 
     @Override
     void close();
