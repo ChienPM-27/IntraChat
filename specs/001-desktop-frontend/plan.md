@@ -1,6 +1,6 @@
 # Kế hoạch Frontend chat desktop
 
-- **JDK/UI:** Swing và Java 17 theo yêu cầu. FlatLaf cung cấp `FlatLightLaf`, focus, màu và độ bo góc. Dùng Java2D cho icon, avatar, bong bóng và preview.
+- Bản demo Swing được đóng gói với Java target 21 theo cấu hình chung của nhánh `FE`. FlatLaf cung cấp `FlatLightLaf`, focus, màu và độ bo góc. Dùng Java2D cho icon, avatar, bong bóng và preview.
 - **Build/test:** Maven theo bố cục Java tiêu chuẩn; Maven Shade đóng gói FlatLaf vào JAR. JUnit kiểm tra DTO, mock, xử lý media và tương tác Swing.
 - **Tích hợp:** `ChatActionHandler` nhận thao tác xác thực, tải lịch sử, gửi và tạo nhóm, trả `CompletionStage` không chặn. `ChatClientListener` nhận dữ liệu cập nhật; UI chuyển callback sang EDT.
 - **Dữ liệu:** DTO bất biến, ID độc lập với tên, `Instant` và ID tin để sắp xếp ổn định. Gộp lịch sử/sự kiện theo ID; biên nhận chỉ tăng. Trạng thái nhóm tổng hợp mọi người nhận. Demo không tự nâng trạng thái khi còn thành viên offline.

@@ -2,17 +2,38 @@
 
 Bản Frontend demo phong cách Messenger, viết bằng Java Swing và FlatLaf. Chạy độc lập với ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm; không có Server, Socket, Database hay xác thực thật.
 
-## Chạy thử
-> **Trạng thái dự án (21/11/2026):** Giai đoạn 01 đã có **Java/Swing foundation**, Maven Wrapper, mô hình metadata và JUnit tests. **Chưa** triển khai kết nối LAN, Chat P2P/Group, History Sync, File hoặc Media. M0 mới được kiểm tra một phần trên JDK 25 bằng bytecode target 21; runtime JDK 21 còn cần xác minh.
+## Chạy thử Frontend
 
-Yêu cầu JDK 17 trở lên và Maven để build. Maven tải dependency khi cần; file JAR đã đóng gói không cần mạng để chạy.
+Nhánh `FE` dùng JDK 21 trở lên và Maven Wrapper để build. Maven tải dependency khi cần. File JAR đã đóng gói có thể chạy offline.
 
-```shell
-mvn clean package
+```powershell
+.\mvnw.cmd clean package
 java -jar target/intrachat-0.1.0.jar
 ```
 
 Nhập một username bất kỳ (tối đa 32 ký tự) và mật khẩu demo không trống. Nếu chọn **Đăng ký**, nhập mật khẩu demo ít nhất 4 ký tự. Không dùng mật khẩu thật.
+
+- **Mai Anh** đang online. Đoạn chat có lịch sử ảnh và biên nhận Đã xem.
+- **Minh Khang** đang offline. Tin gửi trong demo dừng ở Đã gửi.
+- **Nhóm dự án** hiển thị người gửi, số thành viên, tệp, video, WAV và biên nhận Đã nhận. Nhấn **+** để tạo nhóm khác.
+- Trong **thanh soạn**, nhấn Enter để gửi tin mock, chọn từ 30 emoji hoặc đính kèm ảnh, video, tệp và bản ghi âm tối đa 120 giây. Bấm ảnh để xem đầy đủ, video để mở bằng trình phát mặc định hoặc biểu tượng tải để lưu tệp mà không ghi đè.
+
+### Thử kết bạn qua LAN
+
+Mở **Kết bạn** từ sidebar. Nhập IP mẫu `192.168.1.23` hoặc `fd00::23` rồi bấm **Gửi lời mời**. Trong **Đã gửi**, lời mời ở trạng thái **Chờ chấp nhận**. Khánh Linh phản hồi trong bản mô phỏng sau khoảng 6 giây và đoạn chat riêng xuất hiện.
+
+Tab **Đã nhận** có lời mời mẫu từ Hải Nam (`192.168.1.24`). Chọn **Chấp nhận** rồi **Nhắn tin** để mở đoạn chat, hoặc chọn **Từ chối** để đóng lời mời. Lời mời và bạn mới chỉ tồn tại trong phiên demo. IP nhập vào chỉ dùng để tra dữ liệu mẫu.
+
+### Thử gọi thoại và gọi video
+
+Mở đoạn chat với **Mai Anh** rồi bấm biểu tượng điện thoại hoặc camera ở góc trên. Người nhận mô phỏng bắt máy sau khoảng 2 giây. Trong cuộc gọi có bộ đếm thời lượng, nút bật/tắt mic và nút kết thúc. Cuộc gọi video hiển thị hai khung avatar mẫu và cho phép bật/tắt trạng thái camera.
+
+Chọn **Thử gọi đến** trong cùng đoạn chat để mở cuộc gọi thoại hoặc video đến, rồi **Chấp nhận** hoặc **Từ chối**. Lời gọi đến hết hạn sau 20 giây. Xem [đặc tả Frontend cuộc gọi](specs/003-desktop-calls/spec.md).
+
+## 1. Mục tiêu dự án
+
+> **Trạng thái dự án (21/11/2026):** Giai đoạn 01 đã có nền tảng Java/Swing, Maven Wrapper, mô hình metadata và JUnit tests. Kết nối LAN, nhắn tin giữa các máy, History Sync và truyền tệp/media thuộc các giai đoạn tiếp theo.
+
 - Hỗ trợ trao đổi thông tin giữa các máy trong cùng mạng LAN mà không bắt buộc có dịch vụ Internet.
 - Cung cấp giao diện dễ sử dụng để trao đổi văn bản, emoji và tệp đa phương tiện.
 - Hiển thị rõ người gửi, thời gian và trạng thái liên quan đến người dùng/tin nhắn.
@@ -46,7 +67,7 @@ Những tình huống chi tiết (ví dụ: nhóm có quản trị viên hay kh�
 | Ngôn ngữ | **Java** |
 | Môi trường | **Windows** (bản đầu tiên), các máy trong cùng LAN |
 | Kiểu truyền thông | **P2P trực tiếp**, không bắt buộc server trung tâm; plan đề xuất TCP, cơ chế tìm peer triển khai ở giai đoạn 02 |
-| Giao diện | **Swing** — đã triển khai khung cửa sổ M0; chưa có giao diện chat |
+| Giao diện | **Swing** với khung cửa sổ M0 và bản demo chat FlatLaf trên nhánh `FE` |
 | Build / dependency | **Maven 3.9.16 + Wrapper** — đã triển khai và kiểm chứng build/test trên JDK 25, Java target 21 |
 | Lưu lịch sử | Dự kiến **SQLite tại mỗi peer + History sync P2P** ở giai đoạn 05; chưa triển khai |
 | Định dạng thông điệp | Draft **JSON UTF-8 có version, TCP length-prefix framing** trong plan; chưa triển khai |
@@ -85,7 +106,7 @@ Không sử dụng Java native serialization từ dữ liệu mạng không đá
 ### Yêu cầu hiện tại
 
 - Windows 11 x64, giao diện desktop; Git và PowerShell.
-- **JDK 21 LTS (khuyến nghị Eclipse Temurin)**. `pom.xml` biên dịch với `--release 21`. Kiểm thử hiện tại đã chạy trên **Oracle JDK 25.0.4** chứ chưa phải runtime JDK 21.
+- **JDK 21 LTS (khuyến nghị Eclipse Temurin)**. `pom.xml` biên dịch với `--release 21`. Báo cáo M0 ghi lại kết quả kiểm thử trên **Oracle JDK 25.0.4**.
 - Maven Wrapper 3.9.16 được cung cấp bởi `mvnw.cmd` và sẽ tải Maven khi cần. Lần chạy đầu để tải Maven/plugins/dependencies cần Internet (hoặc cache/mirror đã chuẩn bị); **ứng dụng chạy không cần Internet**.
 - Hai máy cùng LAN chỉ cần cho giai đoạn 02 trở đi; M0 chưa mở socket.
 
@@ -103,7 +124,7 @@ java -jar target/intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m0.ps1
 ```
 
-Sau khi cache các dependencies, có thể dùng `.\mvnw.cmd -o test` để test offline. **Đã chạy 9/9 JUnit tests pass và build/package/diagnostics thành công** trên môi trường nêu trên; chưa kiểm thử runtime Java 21. Chi tiết lệnh và bằng chứng: [Quickstart](specs/001-project-foundation/quickstart.md) · [M0 test report](specs/001-project-foundation/evidence/m0-test-results.md).
+Sau khi cache các dependencies, có thể dùng `.\mvnw.cmd -o test` để test offline. Báo cáo M0 ghi nhận 9/9 test đạt cùng kết quả build, đóng gói và chẩn đoán trên môi trường nêu trên. [Quickstart](specs/001-project-foundation/quickstart.md) · [M0 test report](specs/001-project-foundation/evidence/m0-test-results.md).
 
 ### Tổ chức dự án
 
@@ -156,23 +177,6 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 
 Thứ tự có thể thay đổi sau khi viết spec; đây không phải tiến độ đã hoàn thành.
 
-- **Mai Anh:** người dùng online, lịch sử có ảnh và biên nhận Đã xem.
-- **Minh Khang:** người dùng offline; tin gửi trong demo dừng ở Đã gửi.
-- **Nhóm dự án:** hiển thị người gửi, số thành viên, tệp, video, WAV và biên nhận Đã nhận. Nhấn **+** để tạo nhóm khác.
-- **Thanh soạn:** Enter để gửi tin mock, bảng 30 emoji, chọn ảnh/video/tệp hoặc ghi âm tối đa 120 giây. Bấm ảnh để xem đầy đủ, video để mở bằng trình phát mặc định, biểu tượng tải để lưu tệp không ghi đè.
-
-### Thử kết bạn qua LAN
-
-Mở **Kết bạn** từ sidebar. Nhập IP mẫu `192.168.1.23` hoặc `fd00::23` rồi bấm **Gửi lời mời**. Trong **Đã gửi**, lời mời ở trạng thái **Chờ chấp nhận**. Khánh Linh phản hồi trong bản mô phỏng sau khoảng 6 giây và đoạn chat riêng xuất hiện.
-
-Tab **Đã nhận** có lời mời mẫu từ Hải Nam (`192.168.1.24`). Chọn **Chấp nhận** rồi **Nhắn tin** để mở đoạn chat, hoặc chọn **Từ chối** để đóng lời mời. Lời mời và bạn mới chỉ tồn tại trong phiên demo. IP nhập vào chỉ dùng để tra dữ liệu mẫu.
-
-### Thử gọi thoại và gọi video
-
-Mở đoạn chat với **Mai Anh** rồi bấm biểu tượng điện thoại hoặc camera ở góc trên. Người nhận mô phỏng bắt máy sau khoảng 2 giây. Trong cuộc gọi có bộ đếm thời lượng, nút bật/tắt mic và nút kết thúc. Cuộc gọi video hiển thị hai khung avatar mẫu và cho phép bật/tắt trạng thái camera.
-
-Chọn **Thử gọi đến** trong cùng đoạn chat để mở cuộc gọi thoại hoặc video đến, rồi **Chấp nhận** hoặc **Từ chối**. Lời gọi đến hết hạn sau 20 giây. Xem [đặc tả Frontend cuộc gọi](specs/003-desktop-calls/spec.md).
-
 ## Phạm vi
 
 Lịch sử, hội thoại, tài khoản, biên nhận và cuộc gọi dùng dữ liệu mô phỏng trong phiên. Media mẫu và bản ghi sử dụng thư mục tạm. Tệp lưu theo lựa chọn của bạn vẫn còn. Ghi và phát tin nhắn thoại phụ thuộc thiết bị và quyền âm thanh của hệ điều hành.
@@ -181,4 +185,4 @@ Lịch sử, hội thoại, tài khoản, biên nhận và cuộc gọi dùng d�
 
 ## Kiểm tra
 
-`mvn test` chạy test lịch sử, kiểm tra/lưu media và luồng giao diện mock. Test Swing cần môi trường desktop; ảnh chụp layout nằm trong `target/`. Microphone, âm thanh phát ra loa và trình phát video mặc định cần kiểm tra thủ công trên máy sử dụng.
+`.\mvnw.cmd test` chạy test nền tảng và bản demo Frontend. Test Swing cần môi trường desktop và ghi ảnh bố cục vào `target/`. Kiểm tra thủ công microphone, âm thanh qua loa và trình phát video mặc định trên máy sử dụng.
