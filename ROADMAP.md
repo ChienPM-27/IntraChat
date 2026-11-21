@@ -1,9 +1,9 @@
 # IntraChat — Lộ trình triển khai chi tiết
 
 > **Dự án:** IntraChat — Phần mềm Chat mạng LAN bằng Java  
-> **Phiên bản lộ trình:** 1.1.0
+> **Phiên bản lộ trình:** 1.2.0
 > **Ngày lập:** 21/11/2026  
-> **Trạng thái:** Lộ trình và tiến độ theo bằng chứng — **M0 In Progress (38/41 tasks)**; Giai đoạn 02 **Specified, chưa triển khai**
+> **Trạng thái:** Lộ trình và tiến độ theo bằng chứng — **M0 In Progress (38/41 tasks)**; Giai đoạn 02 **Clarified / Planned, chưa triển khai**
 > **Nguồn yêu cầu:** P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender  
 > **Tài liệu liên quan:** [README](README.md) · [AGENTS](AGENTS.md) · [Constitution](.specify/memory/constitution.md) · [Spec 001](specs/001-project-foundation/spec.md) · [Spec 002](specs/002-lan-networking/spec.md)
 
@@ -128,7 +128,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 **Ưu tiên:** P0  
 **Spec Kit feature:** `002-lan-networking`  
 **Đặc tả:** [specs/002-lan-networking/spec.md](specs/002-lan-networking/spec.md)
-**Trạng thái:** **Specified** — đã viết spec, chưa có `plan.md`, `tasks.md`, network code hoặc network tests
+**Trạng thái:** **Clarified / Planned** — đã có [spec](specs/002-lan-networking/spec.md), [plan](specs/002-lan-networking/plan.md) và checklist; chưa có `tasks.md`, network code hoặc network tests
 **Phụ thuộc:** Giai đoạn 01 (M0 **chưa Verified**; được lập spec/plan song song nhưng phải xử lý gate bàn giao trước khi hoàn tất M1)
 **Mục tiêu M1:** hai máy Windows trong cùng LAN **kết nối trực tiếp P2P**, hoàn tất handshake/version negotiation, trao đổi **payload kỹ thuật** hai chiều, nhận biết trạng thái/mất kết nối, xử lý input không tin cậy và dọn tài nguyên. **Chưa có chat người dùng**; chức năng đó thuộc 03.
 
@@ -136,22 +136,25 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 - **Topology:** P2P trực tiếp, không cần server trung tâm hoặc cloud runtime. Máy có thể chủ động kết nối và chấp nhận kết nối đến; **không** tự động cho quyền đọc lịch sử.
 - **Nền tảng:** Windows 11 x64; Java 21 target (runtime Java 21 vẫn còn gate M0). Tận dụng Swing, Maven Wrapper và typed metadata đã có.
-- **Kết nối tối thiểu:** phải hỗ trợ **nhập IP/port thủ công** ngay cả khi không có auto-discovery. Quyết định có/không triển khai discovery trong M1 nằm ở `plan.md`.
-- **Giao thức:** đề xuất TCP, framed JSON UTF-8 có version từ 001; `plan.md` 002 chốt cổng, timeout, framing, hard limits, handshake, session/trust boundary và retry/backoff.
+- **CL-02-01 — Discovery:** chỉ nhập **IP/port thủ công**; không auto-discovery/broadcast/scan trong M1.
+- **CL-02-02 — Kết nối đến:** người dùng phải **Chấp nhận/Từ chối** trước khi session có hiệu lực; từ chối/hết hạn phải đóng socket và không chuyển dữ liệu chẩn đoán.
+- **CL-02-03 — Security:** chỉ kết nối **chẩn đoán chưa xác thực/chưa mã hóa**, cảnh báo rõ; đồng ý kết nối không phải pairing/trust/History ACL.
+- **CL-02-04 — Reconnect:** **người dùng chủ động Kết nối lại**, không có auto retry.
+- **Giao thức:** [plan 002](specs/002-lan-networking/plan.md) chọn TCP + framed JSON UTF-8, giới hạn frame và handshake/session/timeout; các lựa chọn đang ở **mức thiết kế, chưa triển khai**.
 - **Security:** thiết bị tự khai `deviceId` **không** mặc nhiên được xác thực; chưa có quyền với History/File/Group; phải công bố giới hạn mã hóa/xác thực nếu chưa có kiểm chứng.
 - **Ngoài phạm vi:** P2P text chat, delivered/read, Group, History Sync, File, Image/Video/Sound; không gọi thời gian thực hoặc mở server Internet.
 
 ### Công việc chi tiết (dự kiến, chưa được triển khai)
 
 - [ ] **02.01 — Chốt topology và environment:** direct P2P, local listener/connect, Windows 11 + JDK compatibility; review blocker M0.
-- [ ] **02.02 — Định địa chỉ và port:** cấu hình listener/endpoint, nhập IP/port thủ công, hướng dẫn Windows Firewall Private profile; quyết định auto-discovery hay hoãn.
-- [ ] **02.03 — Session & handshake:** thương lượng protocol version, peer/device ID và display name riêng, chống connected giả, xử lý phiên trùng.
+- [ ] **02.02 — Định địa chỉ và port:** cấu hình listener/endpoint, chỉ nhập IP/port thủ công (không discovery), hướng dẫn Windows Firewall Private profile.
+- [ ] **02.03 — Session & handshake:** B **Chấp nhận/Từ chối yêu cầu kết nối đến**, sau đó thương lượng protocol version và device ID/display name tự khai; chống connected giả và xử lý phiên trùng.
 - [ ] **02.04 — Protocol framing:** length-prefix, message envelope typed, xử lý fragment/coalesced frames và hard size bounds.
 - [ ] **02.05 — Diagnostic exchange:** gửi/nhận payload kiểm thử hai chiều, hỗ trợ UTF-8, phiên bản/metadata đúng; không triển khai chat UI.
 - [ ] **02.06 — Async network lifecycle:** worker/queue có giới hạn, connect/read/write không chặn Swing EDT.
-- [ ] **02.07 — Timeout/cancel/disconnect:** thông báo trạng thái, retry/manual reconnect được giới hạn, đóng sockets/workers sạch.
+- [ ] **02.07 — Timeout/cancel/disconnect:** thông báo trạng thái, **chỉ reconnect thủ công** bằng nút Kết nối lại; đóng sockets/workers và pending approvals sạch.
 - [ ] **02.08 — Validate untrusted data:** address sai, malformed JSON/frame, unknown version/type, oversized/truncated frame; không native Java deserialization.
-- [ ] **02.09 — Trust & privacy boundary:** cảnh báo security, không cấp quyền History/File từ self-reported ID; log an toàn; không mở public firewall tự động.
+- [ ] **02.09 — Trust & privacy boundary:** chỉ diagnostics **chưa xác thực/chưa mã hóa**, cảnh báo security, không cấp quyền History/File từ self-reported ID hoặc nhờ nút Chấp nhận; log an toàn; không mở public firewall tự động.
 - [ ] **02.10 — Automated tests:** ít nhất 2 process/loopback, thành công, invalid input, timeout, peer disconnect, resource cleanup, UI responsiveness.
 - [ ] **02.11 — LAN thật & tài liệu:** kiểm tra 2 máy Windows cùng LAN, 2 chiều, không cần Internet; lưu bằng chứng port/firewall/thiết bị và hạn chế.
 - [ ] **02.12 — M1 gate:** rà soát AC-02-A…K, Constitution I–VII, build/test/log, cập nhật README/spec; chỉ gắn Verified khi có bằng chứng.
@@ -166,15 +169,15 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 ### Tiêu chí nghiệm thu M1
 
 - **AC-02-A:** Hai máy cùng LAN kết nối trực tiếp và trao đổi payload **kỹ thuật** hai chiều, không cần Internet/server.
-- **AC-02-B:** Nhập IP/port thủ công hoạt động khi auto-discovery không có hoặc thất bại.
-- **AC-02-C:** Handshake/version và `deviceId` hợp lệ, không đánh đồng display name với identity xác thực.
+- **AC-02-B:** **Chỉ** nhập IP/port thủ công và kết nối được, không có auto-discovery.
+- **AC-02-C:** B **Chấp nhận** trước khi handshake hợp lệ; version và `deviceId` đúng cú pháp, không đánh đồng tên hiển thị/ID với identity xác thực.
 - **AC-02-D:** Framing xử lý dữ liệu phân đoạn/gộp, UTF-8 và giới hạn kích thước.
 - **AC-02-E:** Version/type không hỗ trợ, malformed/oversized/truncated frame bị từ chối an toàn.
-- **AC-02-F:** Timeout/disconnect/cancel/reconnect không treo UI và không rò rỉ socket/worker.
+- **AC-02-F:** Timeout/Từ chối/disconnect/cancel/**reconnect thủ công** không treo UI và không rò rỉ socket/worker.
 - **AC-02-G:** UI thể hiện connection state thật; không báo delivered/read/authenticated/synced khi chưa có bằng chứng.
 - **AC-02-H:** Có hướng dẫn Windows network profile/port/firewall/discovery và không tự mở public firewall.
 - **AC-02-I:** Có kết quả chạy **hai process** và **hai máy LAN thật**, thành công/lỗi/cleanup được ghi lại.
-- **AC-02-J:** Không tự động cấp quyền History/File/Group cho peer chưa xác thực; công bố giới hạn bảo mật.
+- **AC-02-J:** Không tự động cấp quyền History/File/Group cho peer chưa xác thực; **chưa mã hóa, chưa auth; chỉ chẩn đoán**, công bố giới hạn rõ.
 - **AC-02-K:** Gate M0 liên quan được giải quyết, M1 có Constitution Check và test thực thi trước khi Verified.
 
 **Mốc M1 chỉ được nghiệm thu khi** AC-02-A…K đạt và có bằng chứng; **spec mới không đồng nghĩa mạng đã được triển khai**.
@@ -487,7 +490,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 | Giai đoạn | Trạng thái ban đầu | Mốc |
 | --- | --- | --- |
 | 01 — Project foundation | **In Progress — 38/41 tasks**; 9/9 JUnit + 5/5 GUI lifecycle, JDK 21 runtime/offline GUI/M0 gate còn mở | M0 |
-| 02 — LAN networking | **Specified — Draft**; đã có spec và checklist, chưa plan/tasks/code/test mạng | M1 |
+| 02 — LAN networking | **Clarified / Planned**; có spec + checklist + plan, chưa tasks/code/test mạng | M1 |
 | 03 — P2P MVP | Not Started | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
@@ -510,7 +513,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 1. **Hoàn tất M0:** T025 (offline GUI test), T040 (Constitution Gate 1 + JDK 21 runtime), T041 (bàn giao). Giai đoạn 01 vẫn là **In Progress**, không tự coi đã Verified.
 2. **Giai đoạn 02 đã được specify:** đọc [spec 002](specs/002-lan-networking/spec.md) và [requirements checklist](specs/002-lan-networking/checklists/requirements.md); các quyết định CL-01…04 được giữ nguyên.
-3. **Tiếp tục Spec Kit cho 002:** clarify nếu quyết định mới làm thay đổi hành vi (discovery, inbound trust), rồi tạo `specs/002-lan-networking/plan.md` (Constitution I–VII, topology/ports/transport/security/tests), sau đó `tasks.md`.
+3. **Tiếp tục Spec Kit cho 002:** bốn quyết định **CL-02-01…04 đã chốt** trong [spec](specs/002-lan-networking/spec.md); [plan](specs/002-lan-networking/plan.md) đã có Constitution Check I–VII, architecture/protocol/security/tests. **Bước kế tiếp tạo `specs/002-lan-networking/tasks.md`**, chưa thực thi mạng.
 4. **Implement M1 khi gate M0 được xử lý:** làm manual IP fallback, handshake, protocol framing, diagnostic two-way exchange, non-blocking UI, disconnect/cleanup và kiểm thử ít nhất hai process **và hai máy LAN thật**.
 5. **Chỉ sau M1 Verified** mới chuyển sang chat P2P thực tế ở giai đoạn 03, không nhầm payload chẩn đoán với bản nhắn tin hoàn chỉnh.
 
@@ -518,4 +521,4 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 ---
 
-*Cập nhật v1.1.0 (21/11/2026): phản ánh M0 38/41 tasks và test đã có nhưng chưa Verified; bổ sung đặc tả M1 LAN P2P trực tiếp và điều kiện nghiệm thu AC-02-A…K. Không có bằng chứng nào cho thấy chức năng kết nối mạng đã được triển khai.*
+*Cập nhật v1.2.0 (21/11/2026): M0 còn 3 task nghiệm thu. M1 đã xác nhận CL-02-01…04, tạo spec + plan theo Constitution, chưa có tasks/code/network tests; không có bằng chứng mạng đã hoạt động.*
