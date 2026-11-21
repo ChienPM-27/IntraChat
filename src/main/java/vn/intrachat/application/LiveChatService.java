@@ -167,7 +167,19 @@ public final class LiveChatService implements AutoCloseable {
         }finally {
             sessions.remove(remoteId,peer);
             peer.socket.close();
+            // Message bodies/attempts belong to this authenticated session only.
+            // Never retain them across reconnects or after a failed/closed TLS link.
+            discardSessionLedger(remoteId,peer);
             publish(EventKind.DISCONNECTED,remoteId,null,null,"REMOTE_CLOSED_OR_INVALID");
+        }
+    }
+    private void discardSessionLedger(UUID remoteId,PeerSession peer) {
+        for(var entry:outbound.entrySet()) {
+            Message message=entry.getValue();
+            if(message.destinationId().equals(remoteId)
+                &&message.sessionId().equals(peer.socket.sessionId())
+                &&outbound.remove(entry.getKey(),message))
+                attempts.remove(entry.getKey());
         }
     }
     private void dispatch(UUID remoteId,PeerSession peer,ChatV2Message frame)throws Exception {
@@ -175,22 +187,34 @@ public final class LiveChatService implements AutoCloseable {
             throw new ProtocolException("CONVERSATION_MISMATCH","Protected frame mismatched peer conversation");
         switch(frame.type()){
             case CHAT_TEXT -> {
-                if(!peer.register(frame.messageId()))return;
                 ChatText content=new ChatText((String)frame.payload().get("text"));
+                Message accepted=peer.inbound.get(frame.messageId());
+                if(accepted!=null){
+                    if(!accepted.text().equals(content.text())
+                        ||!accepted.sentAt().equals(frame.sentAt()))
+                        throw new ProtocolException("DUPLICATE_MESSAGE_CONFLICT",
+                            "A message ID cannot be reused with different content or timestamp");
+                    sendAcceptedAck(peer,remoteId,accepted.messageId());
+                    return; // Same-ID manual retry: ACK again, never show a second bubble
+                }
+                if(!peer.register(frame.messageId()))return;
                 Message message=new Message(frame.messageId(),peer.conversationId,frame.sessionId(),
                     remoteId,local.deviceId(),frame.sentAt(),content.text(),false);
                 peer.add(message);
                 peer.inbound.put(message.messageId(),message);
                 publish(EventKind.RECEIVED,remoteId,message,null,null);
-                peer.socket.send(new ChatV2Message(UUID.randomUUID(),ChatV2Type.DELIVERY_ACK,
-                    peer.socket.sessionId(),local.deviceId(),remoteId,peer.conversationId,
-                    Instant.now(),Map.of("originalMessageId",message.messageId().toString(),
-                                       "acceptedAtUTC",Instant.now().toString(),"result","ACCEPTED")));
+                sendAcceptedAck(peer,remoteId,message.messageId());
             }
             case DELIVERY_ACK -> changeStatus(remoteId,peer,frame,false);
             case READ_RECEIPT -> changeStatus(remoteId,peer,frame,true);
             default -> throw new ProtocolException("UNSUPPORTED_TYPE_FOR_PHASE","Pair controls not valid after READY");
         }
+    }
+    private void sendAcceptedAck(PeerSession peer,UUID remoteId,UUID messageId)throws IOException {
+        peer.socket.send(new ChatV2Message(UUID.randomUUID(),ChatV2Type.DELIVERY_ACK,
+            peer.socket.sessionId(),local.deviceId(),remoteId,peer.conversationId,
+            Instant.now(),Map.of("originalMessageId",messageId.toString(),
+                "acceptedAtUTC",Instant.now().toString(),"result","ACCEPTED")));
     }
     private void changeStatus(UUID remoteId,PeerSession peer,ChatV2Message event,boolean read){
         UUID original=UUID.fromString((String)event.payload().get("originalMessageId"));
@@ -202,9 +226,12 @@ public final class LiveChatService implements AutoCloseable {
             ||!message.sessionId().equals(event.sessionId())
             ||!message.senderId().equals(local.deviceId()))return;
         try{
+            MessageAttempt.Status before=attempt.status();
             if(read)attempt.onViewReceipt();
             else attempt.onDeliveryAck();
-            publish(EventKind.STATUS_CHANGED,remoteId,message,attempt.status(),null);
+            MessageAttempt.Status after=attempt.status();
+            if(before!=after)
+                publish(EventKind.STATUS_CHANGED,remoteId,message,after,null);
         }catch(IllegalStateException ignored){
             // Invalid/unsolicited state never elevates an unrelated message.
         }

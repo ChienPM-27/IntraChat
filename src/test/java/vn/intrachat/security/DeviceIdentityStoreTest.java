@@ -7,6 +7,29 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DeviceIdentityStoreTest {
+    @Test void protectedIdentityFileAclRestrictsExplicitAccessToCurrentOwner() throws Exception {
+        DeviceIdentityStore store=new DeviceIdentityStore(directory.resolve("owner-only.bin"));
+        store.loadOrCreate();
+        var acl=Files.getFileAttributeView(store.path(),
+                java.nio.file.attribute.AclFileAttributeView.class);
+        assertNotNull(acl,"Windows ACL attribute view is required for DPAPI credential store");
+        var owner=Files.getOwner(store.path());
+        assertFalse(acl.getAcl().isEmpty());
+        for(var entry:acl.getAcl()){
+            if(entry.type()==java.nio.file.attribute.AclEntryType.ALLOW)
+                assertEquals(owner,entry.principal(),
+                    "No explicit allow ACE may grant another identity access");
+        }
+    }
+    @Test void missingUnwritableSecureParentDoesNotProduceHalfWrittenCredential() throws Exception {
+        Path occupied=directory.resolve("occupied");
+        Files.writeString(occupied,"already a file");
+        Path target=occupied.resolve("identity.bin");
+        DeviceIdentityStore store=new DeviceIdentityStore(target);
+        assertThrows(java.io.IOException.class,store::loadOrCreate);
+        assertFalse(Files.exists(target));
+        assertEquals("already a file",Files.readString(occupied));
+    }
     @TempDir Path directory;
     @Test void dpapiStoreSurvivesRestartAndContainsNoPlainPrivateKey() throws Exception {
         DeviceIdentityStore store=new DeviceIdentityStore(directory.resolve("identity.bin"));

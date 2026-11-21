@@ -28,6 +28,11 @@ public final class PinnedPeerStore {
             if(FingerprintVerifier.sameFingerprint(existing,fingerprint))return;
             throw new IllegalStateException("Peer key changed; explicit revoke and re-pair required");
         }
+        for (var entry:pins.entrySet()) {
+            if(!entry.getKey().equals(deviceId)
+                && FingerprintVerifier.sameFingerprint(entry.getValue(),fingerprint))
+                throw new IllegalStateException("Pinned public key already belongs to a different device ID");
+        }
         if(pins.size()>=MAX_PEERS)throw new IOException("Peer trust store capacity exceeded");
         pins.put(deviceId,fingerprint.clone());
         save(pins);
