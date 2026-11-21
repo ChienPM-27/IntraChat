@@ -283,4 +283,4 @@ Là người cài đặt IntraChat trong phòng máy, tôi cần biết địa c
 
 **M1 Verified chỉ khi:** AC-02-A…K đều có bằng chứng thực thi hoặc được ghi tình trạng cần xử lý; bắt buộc có kết quả hai máy thật, negative tests và resource cleanup; không có vi phạm MUST của Constitution, không tuyên bố peer authentication/encryption nếu chưa chứng minh. **Không được coi việc tạo tài liệu này là đã triển khai hoặc kiểm thử kết nối mạng.**
 
-**Current status:** Clarified; đã có [plan.md](plan.md) ở mức thiết kế; chưa có `tasks.md`, Java networking code hoặc network tests thực thi.
+**Current status:** Clarified / Planned; đã có [plan.md](plan.md) và [tasks.md](tasks.md) (**60 tasks, tất cả chưa thực thi**); chưa có Java networking code hoặc network tests thực thi.

@@ -86,7 +86,7 @@ specs/002-lan-networking/
 ├── quickstart.md                 # proposed Windows/2-peer setup and test instructions
 ├── checklists/
 │   └── constitution-check.md     # proposed Gate 0/1 review evidence
-└── tasks.md                      # NEXT step; not created by writing plan
+└── tasks.md                      # created: 60 implementation tasks, all unchecked
 ```
 
 ### Source tree — future implementation, not yet created
@@ -476,7 +476,7 @@ The existing domain `ConnectionState` enum may remain coarse (`DISCONNECTED`, `C
 - [ ] **AC-02-J:** Insecure-unverified notice + no History/File/Group access or sensitive payload.
 - [ ] **AC-02-K:** M0 dependency gate resolved; Constitution I–VII Gate 1 evidence clear.
 
-**Next step:** generate `specs/002-lan-networking/tasks.md` after review of this plan. Do not create networking classes or mark any M1 test PASS during planning. A `tasks.md` must explicitly sequence test-first protocol, inbound approval, live LAN verification and the M0 dependency gate.
+**Next step:** follow [tasks.md](tasks.md), now created with **60 unchecked tasks** over 8 phases and 5 user stories; **T001 M0 gate** precedes networking code. Do not create networking classes or mark M1 tests PASS until implementation and validation actually happen. Test-first protocol, inbound approval, real LAN evidence and M0 gate are required.
 
 ## References
 

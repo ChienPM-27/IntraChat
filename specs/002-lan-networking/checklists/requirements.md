@@ -43,6 +43,6 @@
 
 ## Status
 
-**Spec quality:** **Clarified — ready for tasks**; 4 quyết định hành vi đã được người dùng xác nhận, [plan.md](../plan.md) có Constitution Check I–VII và ADR. Không còn câu hỏi Clarify bắt buộc trước `tasks.md`.
+**Spec quality:** **Clarified / Planned**; bốn quyết định hành vi đã được xác nhận; [plan.md](../plan.md) có Constitution Check I–VII và ADR; [tasks.md](../tasks.md) có **60 task, tất cả chưa thực thi**. Không còn câu hỏi Clarify bắt buộc.
 
-**Implementation:** NOT STARTED. **Đã có `plan.md`, chưa có `tasks.md`**, networking source hoặc test runtime 002; checklist này chỉ đánh giá chất lượng tài liệu, không xác minh socket/handshake/payload đã chạy.
+**Implementation:** **NOT STARTED — 0/60 tasks checked**. Đã có spec/plan/tasks; chưa có networking source hoặc test runtime 002; checklist chỉ đánh giá tài liệu, không xác minh socket/handshake/payload đã chạy.

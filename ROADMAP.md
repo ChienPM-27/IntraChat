@@ -1,7 +1,7 @@
 # IntraChat — Lộ trình triển khai chi tiết
 
 > **Dự án:** IntraChat — Phần mềm Chat mạng LAN bằng Java  
-> **Phiên bản lộ trình:** 1.2.0
+> **Phiên bản lộ trình:** 1.3.0
 > **Ngày lập:** 21/11/2026  
 > **Trạng thái:** Lộ trình và tiến độ theo bằng chứng — **M0 In Progress (38/41 tasks)**; Giai đoạn 02 **Clarified / Planned, chưa triển khai**
 > **Nguồn yêu cầu:** P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender  
@@ -128,7 +128,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 **Ưu tiên:** P0  
 **Spec Kit feature:** `002-lan-networking`  
 **Đặc tả:** [specs/002-lan-networking/spec.md](specs/002-lan-networking/spec.md)
-**Trạng thái:** **Clarified / Planned** — đã có [spec](specs/002-lan-networking/spec.md), [plan](specs/002-lan-networking/plan.md) và checklist; chưa có `tasks.md`, network code hoặc network tests
+**Trạng thái:** **Ready for implementation planning / 0 of 60 tasks complete** — đã có [spec](specs/002-lan-networking/spec.md), [plan](specs/002-lan-networking/plan.md), [tasks](specs/002-lan-networking/tasks.md) và checklist; chưa có network code hoặc network tests; thực thi bị chặn bởi M0 gate còn mở
 **Phụ thuộc:** Giai đoạn 01 (M0 **chưa Verified**; được lập spec/plan song song nhưng phải xử lý gate bàn giao trước khi hoàn tất M1)
 **Mục tiêu M1:** hai máy Windows trong cùng LAN **kết nối trực tiếp P2P**, hoàn tất handshake/version negotiation, trao đổi **payload kỹ thuật** hai chiều, nhận biết trạng thái/mất kết nối, xử lý input không tin cậy và dọn tài nguyên. **Chưa có chat người dùng**; chức năng đó thuộc 03.
 
@@ -490,7 +490,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 | Giai đoạn | Trạng thái ban đầu | Mốc |
 | --- | --- | --- |
 | 01 — Project foundation | **In Progress — 38/41 tasks**; 9/9 JUnit + 5/5 GUI lifecycle, JDK 21 runtime/offline GUI/M0 gate còn mở | M0 |
-| 02 — LAN networking | **Clarified / Planned**; có spec + checklist + plan, chưa tasks/code/test mạng | M1 |
+| 02 — LAN networking | **Tasks ready — 0/60**; có spec/plan/tasks, chưa code/test mạng; M0 Gate 1 còn mở | M1 |
 | 03 — P2P MVP | Not Started | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
@@ -513,7 +513,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 1. **Hoàn tất M0:** T025 (offline GUI test), T040 (Constitution Gate 1 + JDK 21 runtime), T041 (bàn giao). Giai đoạn 01 vẫn là **In Progress**, không tự coi đã Verified.
 2. **Giai đoạn 02 đã được specify:** đọc [spec 002](specs/002-lan-networking/spec.md) và [requirements checklist](specs/002-lan-networking/checklists/requirements.md); các quyết định CL-01…04 được giữ nguyên.
-3. **Tiếp tục Spec Kit cho 002:** bốn quyết định **CL-02-01…04 đã chốt** trong [spec](specs/002-lan-networking/spec.md); [plan](specs/002-lan-networking/plan.md) đã có Constitution Check I–VII, architecture/protocol/security/tests. **Bước kế tiếp tạo `specs/002-lan-networking/tasks.md`**, chưa thực thi mạng.
+3. **Giai đoạn 02 đã sẵn sàng về tài liệu Spec Kit:** bốn quyết định **CL-02-01…04** trong [spec](specs/002-lan-networking/spec.md), [plan](specs/002-lan-networking/plan.md) với Constitution I–VII và [60 tasks](specs/002-lan-networking/tasks.md) chia theo 8 pha/5 user stories. **0/60 tasks đã triển khai**, không được bỏ qua M0 gate trong T001.
 4. **Implement M1 khi gate M0 được xử lý:** làm manual IP fallback, handshake, protocol framing, diagnostic two-way exchange, non-blocking UI, disconnect/cleanup và kiểm thử ít nhất hai process **và hai máy LAN thật**.
 5. **Chỉ sau M1 Verified** mới chuyển sang chat P2P thực tế ở giai đoạn 03, không nhầm payload chẩn đoán với bản nhắn tin hoàn chỉnh.
 
@@ -521,4 +521,4 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 ---
 
-*Cập nhật v1.2.0 (21/11/2026): M0 còn 3 task nghiệm thu. M1 đã xác nhận CL-02-01…04, tạo spec + plan theo Constitution, chưa có tasks/code/network tests; không có bằng chứng mạng đã hoạt động.*
+*Cập nhật v1.3.0 (21/11/2026): M0 còn 3 task nghiệm thu. M1 đã xác nhận CL-02-01…04, có spec + plan + 60 tasks (8 pha), tất cả chưa thực thi; chưa có network code hoặc network test, không có bằng chứng mạng đã hoạt động.*
