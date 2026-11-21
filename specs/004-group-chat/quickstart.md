@@ -78,4 +78,4 @@ Decision: NOT VERIFIED until every mandatory gate is met
 
 ## 6. After-plan work
 
-Create `tasks.md` only when starting the implementation workstream: tasks should be small, dependency-ordered, test-first and verifiable, including all eight confirmed CL-04, membership/owner handoff persistence, Group codec/canonical signing, per-recipient READ, multi-client integration, negative/privacy and release gates. Keep Group release status separate from M3 (which additionally requires History 005).
+The [implementation task tracker](tasks.md) now contains **124 dependency-ordered RED→GREEN and gate tasks (0/124 completed)** for all eight confirmed CL-04, membership/owner handoff persistence, Group codec/canonical signing, per-recipient READ, multi-client integration, negative/privacy and release gates. This is documentation only; Group runtime tests remain **NOT RUN**. Keep Group release status separate from M3 (which additionally requires History 005).

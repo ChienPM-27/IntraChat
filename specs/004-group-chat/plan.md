@@ -290,7 +290,7 @@ Member states: `INVITED` (no access), `ACTIVE` (authorized), `LEFT`, `REMOVED`; 
 
 **Architecture decisions documented separately:** [research.md](research.md) covers owner relay vs mesh, handoff, signatures, persistence, compatibility, retry/READ and acceptance tradeoffs; [data-model.md](data-model.md) has entity/schema/state tables; [contracts/group-v1.md](contracts/group-v1.md) has wire fields/nonce/signatures/errors.
 
-**Future delivery order (no `tasks.md` created in this request):**
+**Implementation task tracker:** [tasks.md](tasks.md) — **124 tasks T001–T124, 0 completed**. Sequence below maps to the task phases; all implementation and Group acceptance remain NOT RUN.
 
 1. Verify prerequisite M2 design/runtime/security and owner 4-peer capacity; freeze Group extension version/canonical vectors and independent review.
 2. RED tests + pure Group domain, ACL/roster/revision reducer, bounded typed states and member invitation proposal.

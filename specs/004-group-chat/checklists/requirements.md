@@ -43,7 +43,7 @@
 ## 4. Future execution/release — intentionally not checked
 
 - [ ] Freeze canonical binary signature vectors, schema error matrix and review protocol against independent security expert.
-- [ ] Write `tasks.md` with dependency-ordered RED→GREEN implementation/test tasks (not requested in this turn).
+- [x] Create [tasks.md](../tasks.md) with **124 dependency-ordered RED→GREEN implementation, security, test and release gate tasks**, all unchecked (no code/test task executed).
 - [ ] Implement Group codec/capability/session routing; verify strict v1/v2 regression.
 - [ ] Implement Group owner/member/ACL/epoch/transfer, bounded fan-out/ACK/READ and signed provenance.
 - [ ] Implement protected metadata store; actual Windows DPAPI, cross-user/ACL/corruption tests.

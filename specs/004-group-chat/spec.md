@@ -302,4 +302,4 @@ Các quyết định hành vi này được **người dùng xác nhận** ngày
 | VI Honest UX | Per-recipient status, không fake all-delivered/read, không mock Live |
 | VII Spec-driven | CL-04 xác nhận, viết plan/contract/data-model/tasks, chỉ Verified khi AC có evidence |
 
-**Bước tiếp theo:** (1) 8/8 CL-04 đã xác nhận; (2) xem [plan.md](plan.md), [research](research.md), [data model](data-model.md), [wire contract](contracts/group-v1.md); (3) tạo `tasks.md` RED→GREEN trong bước triển khai sau; (4) implement sau khi M1/M2 Gate 1; (5) nghiệm thu ≥3 clients và LAN vật lý có evidence. **Không tuyên bố Group/M3 Verified khi chưa có code/test/release signoff.**
+**Bước tiếp theo:** (1) 8/8 CL-04 đã xác nhận; (2) xem [plan.md](plan.md), [research](research.md), [data model](data-model.md), [wire contract](contracts/group-v1.md); (3) theo dõi [tasks.md](tasks.md) với **0/124 task được thực hiện**; (4) implement sau khi M1/M2 Gate 1; (5) nghiệm thu ≥3 clients và LAN vật lý có evidence. **Không tuyên bố Group/M3 Verified khi chưa có code/test/release signoff.**
