@@ -1,8 +1,8 @@
 # Requirements Quality Checklist — Giai đoạn 05 Chat History & LAN P2P Sync
 
 **Feature:** `005-chat-history` · **Date:** 2026-11-21
-**Status:** **SPEC DRAFT; 10/10 Clarify questions OPEN, no decisions user-confirmed yet. No plan/tasks/implementation/test/Verified.**
-**Source:** [spec](../spec.md) · [ROADMAP Giai đoạn 05](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
+**Status:** **SPEC DRAFT + PROVISIONAL PLAN written; 10/10 Clarify PENDING user confirmation. No History tasks/code/test/Verified.**
+**Source:** [spec](../spec.md) · [choices](../clarifications.md) · [provisional plan](../plan.md) · [data model](../data-model.md) · [History V1 draft](../contracts/history-v1.md) · [ROADMAP Giai đoạn 05](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
 
 ## 1. Requirements scope, language and consistency
 
@@ -56,11 +56,11 @@
 ## 5. Before implementation — intentionally incomplete
 
 - [ ] Người dùng xác nhận `CL-05-01…10` (có thể thay baseline; sửa spec tương ứng).
-- [ ] Lập `plan.md` có Constitution Check I–VII, ADRs, at-rest schema/encryption/migration, versioned History wire contract, event model, sync/replay/ACL, deletion/retention, error and resource budgets.
+- [x] Đã **soạn bản [plan.md](../plan.md) PROVISIONAL** với Constitution Check I–VII, ADRs, at-rest encrypted storage, History V1 wire draft, event model, ACL/delete, resource budgets và release gates; **chưa phê duyệt/freeze**, vì 10 CL còn PENDING và independent review chưa có.
 - [ ] Lập `tasks.md` với RED→GREEN tests và gate dependencies, tránh sửa mã cùng file với công việc M2/004 đang dở.
 - [ ] Implement History local store, Live history UI, P2P sync và Group History integration theo đúng các quyết định đã được duyệt.
 - [ ] Chạy actual Java21 tests + 2-peer/3-client encrypted LAN, corruption/permissions/negative tests, record AC-05-A…P.
 - [ ] Khép lại inherited M1/M2/004 release gates và independent security/privacy review trước khi tuyên bố 005 Verified.
 - [ ] M3 Verified **chỉ khi cả 004 Group lẫn 005 History đã Verified**.
 
-**Conclusion:** Spec draft đủ để tiếp tục phiên Clarify; không phải release report, design freeze, code hay test evidence.
+**Conclusion:** Spec + plan draft đủ để quyết định 10 Clarify; plan, contract, driver và numeric targets vẫn conditional, không phải approved design freeze, release report, code hay test evidence.

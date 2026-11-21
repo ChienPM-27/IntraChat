@@ -2,7 +2,8 @@
 
 **Feature:** `005-chat-history` · **Branch:** `005-chat-history`
 **Created:** 2026-11-21 · **Priority:** P1 · **Milestone:** M3 = Group 004 **và** History 005
-**Status:** **DRAFT / SPEC ONLY — 10 clarifications CL-05-01…10 PENDING; chưa có plan/tasks/code/test/Verified cho 005**
+**Status:** **DRAFT SPEC + PROVISIONAL IMPLEMENTATION PLAN — 10/10 CL-05 PENDING user confirmation; no History tasks/code/tests/Verified**
+**Design:** [Clarification choices](clarifications.md) · [Provisional plan](plan.md) · [Research](research.md) · [Data model](data-model.md) · [History V1 contract](contracts/history-v1.md) · [Test quickstart](quickstart.md)
 **Sources:** [ROADMAP Giai đoạn 05](../../ROADMAP.md) · [Constitution](../../.specify/memory/constitution.md) · [Foundation CL-01-04](../001-project-foundation/spec.md) · [M2 secure P2P](../003-p2p-messaging/spec.md) · [Group 004](../004-group-chat/spec.md) · [M2 release blockers](../003-p2p-messaging/evidence/m1-blocker-at-m2.md)
 
 ## 1. Tổng quan, mục tiêu và ranh giới
@@ -46,7 +47,7 @@
 - “Remote wipe” chắc chắn nội dung mà peer khác đã sở hữu; Group E2EE đối với relay owner (không có ở 004); auto-election của coordinator; chạy History qua v1 plaintext.
 - Sáp nhập Demo mock vào dữ liệu Live, tự tạo tin hoặc tự tạo bằng chứng delivered/read để “làm đầy” lịch sử.
 
-## 2. Clarify trước `plan.md` — PENDING (chưa được người dùng xác nhận)
+## 2. Clarify để phê duyệt `plan.md` — PENDING (chưa được người dùng xác nhận)
 
 Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không phải yêu cầu đã phê duyệt. Các yêu cầu bảo mật/không vượt quyền từ Constitution và 004 là **không thể hạ** bằng baseline.
 
@@ -322,4 +323,4 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 
 **Dependencies/gates (not claimed complete):** M0 verified per prior evidence; M1/M2 multi-physical-Win11-LAN/security Gate 1 not yet Verified. Group 004 is currently partial domain only; Group History requires 004 verified Group messaging/owner handoff before acceptance. Full milestone **M3 requires verified 004 + 005**, neither is established by this spec. No tasks/code/tests of 005 were executed as part of writing the spec.
 
-**Next step:** user confirms `CL-05-01…10`; write `plan.md` with Constitution Check, storage/encryption/migration, protected versioned History wire contract, incremental event reconciliation, ACL and Group join-window design, conflict/tombstone semantics, resource budgets, threat model, Java21 test matrix; then `tasks.md` and RED→GREEN implementation. Never mark History Verified from documentation alone.
+**Next step:** user selects/approves [CL-05-01…10](clarifications.md) using the proposed answers or custom choices, then **finalize the existing [provisional plan](plan.md)**, freeze reviewed storage/wire/security design and write `tasks.md` for RED→GREEN implementation. No History code/tests are claimed; do not mark History Verified from documentation alone.
