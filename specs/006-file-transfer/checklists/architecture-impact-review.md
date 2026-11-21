@@ -48,6 +48,6 @@
 
 ## 4. Document and workflow completeness
 
-The [plan](../plan.md) traces **8 US, 56 FR, 14 SC, 16 AC** and eight ROADMAP 06.01–08 items. [Data model](../data-model.md) is conceptual RAM-only model + transient staging/final file, [FILE_V1 wire](../contracts/file-v1.md) is a strict **DRAFT**, [quickstart](../quickstart.md) is a test *plan*, not a test run. `tasks.md` and Java File transfer code are deliberately **not generated** here.
+The [plan](../plan.md) traces **8 US, 56 FR, 14 SC, 16 AC** and eight ROADMAP 06.01–08 items. [Data model](../data-model.md) is conceptual RAM-only model + transient staging/final file, [FILE_V1 wire](../contracts/file-v1.md) is a strict **DRAFT**, [quickstart](../quickstart.md) is a test *plan*, not a test run. [160 planned implementation tasks](../tasks.md) now exist (0 completed); Java File transfer code is **not** generated or tested.
 
-**Next:** independent File protocol+Win11 secure filesystem review and Group 004 runtime gap; then future `tasks.md` RED→GREEN workstream with honest blockers. Keep local dirty 003 main worktree untouched.
+**Next:** independent File protocol+Win11 secure filesystem review and Group 004 runtime gap; then execute [160 tasks](../tasks.md) RED→GREEN under honest Gate0/Group blockers. Keep local dirty 003 main worktree untouched.

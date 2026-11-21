@@ -1,8 +1,8 @@
 # Requirements Quality Checklist — Stage 06: Secure LAN File Transfer
 
 **Feature:** `006-file-transfer` · **Date:** 2026-11-21
-**Status:** **10/10 CL-06 USER CONFIRMED (9 A, CL-06-03 B), spec/plan/technical drafts aligned; independent File wire/Win11 filesystem security Gate 0 CONDITIONAL/BLOCKED; NO File Java code/tests/Verified.**
-**Documents:** [Spec](../spec.md) · [Confirmed CL log](../clarifications.md) · [Implementation plan](../plan.md) · [ADRs](../research.md) · [Data model](../data-model.md) · [FILE_V1 draft](../contracts/file-v1.md) · [Quickstart](../quickstart.md) · [Architecture impact](architecture-impact-review.md) · [ROADMAP](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
+**Status:** **10/10 CL-06 USER CONFIRMED (9 A, CL-06-03 B); 160 implementation tasks planned / 0 done; File wire/Win11 security Gate 0 CONDITIONAL/BLOCKED; NO File Java code/tests/Verified.**
+**Documents:** [Spec](../spec.md) · [Confirmed CL log](../clarifications.md) · [Implementation plan](../plan.md) · [160 tasks](../tasks.md) · [ADRs](../research.md) · [Data model](../data-model.md) · [FILE_V1 draft](../contracts/file-v1.md) · [Quickstart](../quickstart.md) · [Architecture impact](architecture-impact-review.md) · [ROADMAP](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
 
 ## 1. Feature and requirements quality — DOCUMENTATION DONE
 
@@ -53,10 +53,10 @@
 
 ## 5. Future implementation and release tasks — NOT DONE
 
-- [ ] Create `tasks.md` test-first RED→GREEN with user CL trace, file ownership and exact security/Group dependencies. **Not requested in this step**.
+- [x] Create [160-task plan](../tasks.md) test-first RED→GREEN with user CL trace, shared-file ownership, review and Group gates. **Planning checklist only; 0/160 implementation tasks done.**
 - [ ] Implement FILE_V1 domain/codec/service/Win11 secure Downloads receiving, consent/stream/integrity/UI in separate clean worktree; protect dirty 003 main checkout.
 - [ ] Run actual Java21 File suite, 2-peer verified M2 session, malformed/corrupt/path attack/cancel/stress tests, log AC-06-A…P evidence.
 - [ ] Test **≥2 actual physical Windows 11 x64 PCs** in a LAN without Internet with manual IPv4 connection and inbound Accept/SAS, never claim local loopback equals physical Gate 1.
 - [ ] Mark 006 VERIFIED only after all mandatory P2P and Group (selected CL-06-07 A) gates/security/AC pass; **M4 VERIFIED only if 006 AND 007 Verified**.
 
-**Conclusion:** Clarify **10/10** locked and CL-aligned plan/wire/impact artifacts drafted. **No File Java implementation, File unit test, 2-PC transfer test, independent security approval, or 006/M4 release status is claimed.**
+**Conclusion:** Clarify **10/10** locked, [160 tasks](../tasks.md) drafted (0 implemented), plan/wire/impact aligned. **No File Java implementation, File unit test, 2-PC transfer test, independent security approval, or 006/M4 release status is claimed.**

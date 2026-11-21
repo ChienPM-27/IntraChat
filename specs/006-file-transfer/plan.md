@@ -1,8 +1,8 @@
 # Implementation Plan — Giai đoạn 06: Secure LAN File Transfer
 
 **Feature/branch:** `006-file-transfer` · **Date:** 2026-11-21 · **Priority:** P2 · **Milestone:** M4 = 006 File **AND** 007 Multimedia
-**Status:** **10/10 CL-06 USER CONFIRMED (9 × A, CL-06-03 B); technical Gate 0 CONDITIONAL/BLOCKED, no File code/tests or release acceptance.**
-**Sources:** [Spec](spec.md) · [Confirmed decisions](clarifications.md) · [Architecture impact](checklists/architecture-impact-review.md) · [Research/ADRs](research.md) · [Data model](data-model.md) · [FILE_V1 contract draft](contracts/file-v1.md) · [Quickstart](quickstart.md) · [Constitution I–VII](../../.specify/memory/constitution.md) · [ROADMAP 06.01–08](../../ROADMAP.md) · [M2 v2](../003-p2p-messaging/contracts/chat-v2.md) · [Group 004](../004-group-chat/spec.md) · [History 005](../005-chat-history/spec.md).
+**Status:** **160 IMPLEMENTATION TASKS PLANNED / 0 DONE; 10/10 CL-06 USER CONFIRMED (9 × A, CL-06-03 B); technical Gate 0 CONDITIONAL/BLOCKED, no File code/tests or release acceptance.**
+**Sources:** [Spec](spec.md) · [Confirmed decisions](clarifications.md) · [Architecture impact](checklists/architecture-impact-review.md) · [Research/ADRs](research.md) · [Data model](data-model.md) · [FILE_V1 contract draft](contracts/file-v1.md) · [Quickstart](quickstart.md) · [160 RED→GREEN implementation tasks](tasks.md) · [Constitution I–VII](../../.specify/memory/constitution.md) · [ROADMAP 06.01–08](../../ROADMAP.md) · [M2 v2](../003-p2p-messaging/contracts/chat-v2.md) · [Group 004](../004-group-chat/spec.md) · [History 005](../005-chat-history/spec.md).
 
 ## 1. Decisions frozen by user
 
@@ -40,7 +40,7 @@
 | IV. Security/privacy | **BLOCKED** | Independent Win11 Downloads ACL/junction/atomic no-clobber/crash security review and M2 signature/capability review missing |
 | V. Test-backed | **CONDITIONAL** | Prior Java21 138 tests are M0–M2/History domain baseline, **0 File tests**, no 2-PC File evidence |
 | VI. Honest Live UI | **DESIGN PASS / runtime OPEN** | Per-offer Accept even with approved Downloads, no fake receiver complete/read/auto-open |
-| VII. Spec-driven | **DESIGN PASS / implementation OPEN** | 10 CL confirmed; 8 US/56 FR/14 SC/16 AC; no tasks, File code or File QA |
+| VII. Spec-driven | **DESIGN PASS / implementation OPEN** | 10 CL confirmed; 8 US/56 FR/14 SC/16 AC; **tasks.md planned 0/160**, no File code or File QA |
 
 **Gate 0.0: 10/10 user Clarify DONE.** G0.1 File wire/capability profile freeze **OPEN**. G0.2 Windows FS path/atomic no-clobber security review **OPEN**. G0.3 Group signed original-source/owner 004 runtime **BLOCKED**. G0.4 capacity/timeout fairness measurements **NOT RUN**. G0.5 independent security/privacy signoff **NOT EVIDENCED**. Product confirmation does not sign off these gates.
 
@@ -169,7 +169,7 @@
 
 ## 10. Test-first RED→GREEN implementation schedule
 
-No work below is marked implemented; this is ordering guidance for a **future** `tasks.md`.
+The [160-task implementation list](tasks.md) now exists; **0/160 tasks are implemented or checked**. This section is the RED→GREEN implementation strategy only, not a record of tests executed.
 
 | Stream | RED tests (write and run first) | GREEN implementation and exit |
 | --- | --- | --- |
@@ -201,10 +201,10 @@ No work below is marked implemented; this is ordering guidance for a **future** 
 
 ## 12. Deliverables, release rules and next actions
 
-**Documentation produced in this update:** confirmed `clarifications.md`; CL-aligned `spec.md`; `plan.md` (this document); supporting [architecture research](research.md), [conceptual model](data-model.md), [draft FILE_V1 wire](contracts/file-v1.md), [test plan](quickstart.md), and [impact review](checklists/architecture-impact-review.md); checklists/ROADMAP status updated. **Do not create `tasks.md` or Java File code in this action**.
+**Documentation produced in this update:** confirmed `clarifications.md`; CL-aligned `spec.md`; `plan.md` (this document); supporting [architecture research](research.md), [conceptual model](data-model.md), [draft FILE_V1 wire](contracts/file-v1.md), [test plan](quickstart.md), and [impact review](checklists/architecture-impact-review.md); checklists/ROADMAP status updated. **160 tasks are now authored in [tasks.md](tasks.md) (0 completed); no Java File code or File tests were created/run by task authoring.**
 
 **Gate 0 exit:** product CL now DONE; independent protocol version/handshake signed transcript review, Win11 safe root/no-clobber filesystem review and exact resource budgeting must be reviewed before production codec/disk/network changes. Group 004 missing real runtime remains a separate external blocker. No claim of approved native Win32 library, successful atomic rename on Windows, measured capacity or independent reviewer.
 
 **Gate 1 exit:** real Java21 verified File E2E P2P/Group, full AC-06-A…P; ≥2 physical Windows 11 PCs LAN working without Internet, human inbound Accept and SAS, anti-traversal/ACL/symlink/junction/changed-source/crash/slow peer/adversarial tests and independent security/privacy signoff. No false READ/ACK, no Group 004 owner bypass.
 
-**Milestone rule:** Stage 006 File NOT VERIFIED until **all mandatory acceptance including Group selected at CL-06-07 A** pass; M4 NOT VERIFIED until both Stage **006 AND 007** pass. Current plan and user choices alone meet **neither**. The next implementation-planning step is a detailed `tasks.md` RED→GREEN breakdown *after* technical Gate 0 review prerequisites are resolved or explicitly marked BLOCKED.
+**Milestone rule:** Stage 006 File NOT VERIFIED until **all mandatory acceptance including Group selected at CL-06-07 A** pass; M4 NOT VERIFIED until both Stage **006 AND 007** pass. Current plan and user choices alone meet **neither**. The [160-task RED→GREEN breakdown](tasks.md) is prepared with explicit BLOCKED technical Gate 0 dependencies; executing production wire/Win11 filesystem tasks awaits actual independent approvals.

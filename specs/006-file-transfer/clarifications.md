@@ -2,7 +2,7 @@
 
 **Feature:** `006-file-transfer` · **Date:** 2026-11-21
 **Status:** **10/10 USER CONFIRMED — 9 × A and 1 × B (CL-06-03 B)**. Binding user product decisions; alternatives are no longer pending.
-**Source:** Explicit user confirmation on 2026-11-21 · [Spec](spec.md) · [Implementation plan](plan.md) · [Architecture impact](checklists/architecture-impact-review.md) · [ROADMAP Stage 06](../../ROADMAP.md).
+**Source:** Explicit user confirmation on 2026-11-21 · [Spec](spec.md) · [Implementation plan](plan.md) · [160 tasks](tasks.md) · [Architecture impact](checklists/architecture-impact-review.md) · [ROADMAP Stage 06](../../ROADMAP.md).
 
 ## Binding decisions (canonical)
 
@@ -33,4 +33,4 @@
 
 Independent review **not yet granted** for: (i) exact File V1 version and canonical wire/capability transcript/golden vectors, (ii) Windows Downloads root/ACL/reparse/atomic no-clobber/orphan cleanup, (iii) M2 fair scheduling and bounded binary frames/quotas, (iv) original Group author signatures/current owner provenance, and (v) security/privacy release. **Group 004 remains 18/124 domain-only; M1/M2 physical two-Windows-PC release gate remains open.** No File Java implementation, File unit test or actual transfer acceptance is claimed.
 
-**Next:** approved product choices are reflected in [plan](plan.md) and [draft file wire contract](contracts/file-v1.md). Implementing code, designing `tasks.md` and signing security Gate 1 are **not** part of this documentation-only update.
+**Next:** approved product choices are reflected in [plan](plan.md) and [draft file wire contract](contracts/file-v1.md). [160-task implementation list](tasks.md) is now prepared (0 done), but implementing Java code and signing security Gate 1 are **not** part of task authoring.

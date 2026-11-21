@@ -1,6 +1,6 @@
 # Quickstart — File 006 Test-first Verification Plan (NOT EXECUTED)
 
-**Feature:** `006-file-transfer` · **Status:** User choices **10/10 confirmed**, File implementation/tests **NOT RUN**. [Plan](plan.md) · [Spec](spec.md) · [Draft wire](contracts/file-v1.md) · [Gate assessment](checklists/architecture-impact-review.md).
+**Feature:** `006-file-transfer` · **Status:** User choices **10/10 confirmed**, **160 implementation tasks / 0 completed**, File implementation/tests **NOT RUN**. [Plan](plan.md) · [160 planned tasks](tasks.md) · [Spec](spec.md) · [Draft wire](contracts/file-v1.md) · [Gate assessment](checklists/architecture-impact-review.md).
 
 ## 1. Before running File tests
 
