@@ -15,7 +15,7 @@ Khi yêu cầu xung đột, tuân theo chỉ dẫn trực tiếp hợp lệ củ
 
 ## 2. Hiện trạng repository
 
-Ở thời điểm thiết lập tài liệu (2026-11-21), repository chưa có mã nguồn Java và chưa có công cụ build. **Không được tuyên bố tính năng đã được triển khai, đã chạy, đã kiểm thử hoặc đã bảo mật** nếu không có bằng chứng kiểm chứng thực tế.
+Tính đến bản nền tảng M0 (2026-11-21), repository **đã có** Java/Swing entrypoint, Maven Wrapper, metadata/domain types và bộ test JUnit. Chưa có kết nối LAN, nhắn tin, database hay History Sync thực tế. Bằng chứng kiểm chứng nằm tại `specs/001-project-foundation/evidence/`; JDK 21 runtime chưa được xác minh (máy hiện dùng JDK 25, bytecode `--release 21`). **Không được tuyên bố tính năng đã được triển khai, đã chạy, đã kiểm thử hoặc đã bảo mật** nếu không có bằng chứng thực tế.
 
 Phạm vi mục tiêu gồm 11 chức năng: **P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender**.
 

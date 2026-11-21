@@ -2,7 +2,7 @@
 
 **IntraChat** là dự án phần mềm nhắn tin trong mạng nội bộ (LAN) bằng **Java**, hướng tới giao tiếp trực tiếp giữa các thiết bị cùng mạng: trò chuyện cá nhân (P2P), trò chuyện nhóm, chia sẻ tệp và nội dung đa phương tiện.
 
-> **Trạng thái dự án (21/11/2026):** Repository mới được khởi tạo, chưa có mã nguồn ứng dụng, cấu hình build hoặc bản phát hành. Các tính năng dưới đây là **phạm vi yêu cầu/dự kiến**, không phải cam kết đã triển khai.
+> **Trạng thái dự án (21/11/2026):** Giai đoạn 01 đã có **Java/Swing foundation**, Maven Wrapper, mô hình metadata và JUnit tests. **Chưa** triển khai kết nối LAN, Chat P2P/Group, History Sync, File hoặc Media. M0 mới được kiểm tra một phần trên JDK 25 bằng bytecode target 21; runtime JDK 21 còn cần xác minh.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -22,7 +22,7 @@
 | Giao tiếp | **Group** | Tạo hoặc tham gia nhóm và trao đổi tin nhắn với nhiều thành viên. |
 | Chia sẻ | **File** | Gửi, nhận, theo dõi tiến trình và lưu tệp an toàn. |
 | Tin nhắn | **Emoji** | Soạn, gửi và hiển thị emoji Unicode. |
-| Dữ liệu | **History** | Xem lại lịch sử hội thoại theo chính sách lưu trữ được đặc tả. |
+| Dữ liệu | **History** | Lưu và xem lịch sử cục bộ, hướng tới đồng bộ các hội thoại được phép giữa nhiều máy qua P2P khi kết nối lại. |
 | Đa phương tiện | **Image** | Gửi/nhận và xem hình ảnh trong cuộc trò chuyện. |
 | Đa phương tiện | **Video** | Gửi/nhận và mở nội dung video; **không mặc định** là gọi video. |
 | Đa phương tiện | **Sound** | Gửi/nhận và phát nội dung âm thanh; **không mặc định** là gọi thoại. |
@@ -30,19 +30,19 @@
 | Thông tin | **Time** | Gắn và hiển thị mốc thời gian của tin nhắn/sự kiện theo quy ước rõ ràng. |
 | Thông tin | **Sender** | Hiển thị đúng định danh/tên người gửi cho mỗi tin nhắn. |
 
-Các tình huống chi tiết (ví dụ: nhóm có quản trị viên hay không, giới hạn dung lượng, lịch sử lưu tại đâu, trạng thái `đã xem`, cách khám phá thiết bị và loại codec hỗ trợ) **chưa được chốt**. Ghi các quyết định này trong feature spec trước khi lập trình.
+Những tình huống chi tiết (ví dụ: nhóm có quản trị viên hay không, giới hạn dung lượng, chính sách giữ/xóa lịch sử, cơ chế xác thực peer, trạng thái `đã xem`, cách khám phá thiết bị và codec hỗ trợ) **chưa được chốt**; các quyết định nền tảng đã có trong [spec](specs/001-project-foundation/spec.md) và [plan](specs/001-project-foundation/plan.md). Ghi các quyết định này trong feature spec trước khi lập trình.
 
 ## 3. Công nghệ và kiến trúc
 
 | Thành phần | Quyết định hiện tại |
 | --- | --- |
 | Ngôn ngữ | **Java** |
-| Môi trường | Các máy tính kết nối trong cùng LAN |
-| Kiểu truyền thông | P2P là **yêu cầu chức năng**; cơ chế tìm peer, điều phối nhóm và giao thức truyền sẽ chọn ở giai đoạn thiết kế |
-| Giao diện | Chưa quyết định (cân nhắc Swing hoặc JavaFX) |
-| Build / dependency | Chưa quyết định (cân nhắc Maven hoặc Gradle) |
-| Lưu lịch sử | Chưa quyết định (tệp cục bộ hoặc cơ sở dữ liệu nhúng) |
-| Định dạng thông điệp | Chưa quyết định; cần định nghĩa version, loại tin và metadata |
+| Môi trường | **Windows** (bản đầu tiên), các máy trong cùng LAN |
+| Kiểu truyền thông | **P2P trực tiếp**, không bắt buộc server trung tâm; plan đề xuất TCP, cơ chế tìm peer triển khai ở giai đoạn 02 |
+| Giao diện | **Swing** — đã triển khai khung cửa sổ M0; chưa có giao diện chat |
+| Build / dependency | **Maven 3.9.16 + Wrapper** — đã triển khai và kiểm chứng build/test trên JDK 25, Java target 21 |
+| Lưu lịch sử | Dự kiến **SQLite tại mỗi peer + History sync P2P** ở giai đoạn 05; chưa triển khai |
+| Định dạng thông điệp | Draft **JSON UTF-8 có version, TCP length-prefix framing** trong plan; chưa triển khai |
 
 ### Phân lớp kiến trúc đề xuất
 
@@ -77,26 +77,44 @@ Không sử dụng Java native serialization từ dữ liệu mạng không đá
 
 ### Yêu cầu hiện tại
 
-- Git.
-- JDK và công cụ build: **phiên bản/công cụ sẽ được xác định khi tạo kế hoạch kỹ thuật**.
-- Hai máy cùng LAN (hoặc hai tiến trình loopback) để kiểm thử giao tiếp.
+- Windows 11 x64, giao diện desktop; Git và PowerShell.
+- **JDK 21 LTS (khuyến nghị Eclipse Temurin)**. `pom.xml` biên dịch với `--release 21`. Kiểm thử hiện tại đã chạy trên **Oracle JDK 25.0.4** chứ chưa phải runtime JDK 21.
+- Maven Wrapper 3.9.16 được cung cấp bởi `mvnw.cmd` và sẽ tải Maven khi cần. Lần chạy đầu để tải Maven/plugins/dependencies cần Internet (hoặc cache/mirror đã chuẩn bị); **ứng dụng chạy không cần Internet**.
+- Hai máy cùng LAN chỉ cần cho giai đoạn 02 trở đi; M0 chưa mở socket.
 
-**Chưa có lệnh build hoặc chạy ứng dụng** vì repository chưa có mã nguồn. Khi bổ sung cấu hình thực tế, cập nhật mục này với lệnh chính xác (build, run, test) và phiên bản JDK đã kiểm chứng.
+### Build, chạy và kiểm thử đã xác minh trên Windows 11 + JDK 25 (Java 21 target)
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-environment.ps1
+.\mvnw.cmd -version
+.\mvnw.cmd clean package
+.\mvnw.cmd test
+java -jar target/intrachat-0.1.0-SNAPSHOT.jar
+# Chẩn đoán không cần màn hình đồ họa:
+java -jar target/intrachat-0.1.0-SNAPSHOT.jar --diagnostics
+# Kiểm chứng tự động build + test + diagnostics:
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m0.ps1
+```
+
+Sau khi cache các dependencies, có thể dùng `.\mvnw.cmd -o test` để test offline. **Đã chạy 9/9 JUnit tests pass và build/package/diagnostics thành công** trên môi trường nêu trên; chưa kiểm thử runtime Java 21. Chi tiết lệnh và bằng chứng: [Quickstart](specs/001-project-foundation/quickstart.md) · [M0 test report](specs/001-project-foundation/evidence/m0-test-results.md).
 
 ### Tổ chức dự án
 
-Hiện tại repository chứa các tài liệu quản trị và đặc tả:
+Cấu trúc nền tảng đã được triển khai:
 
 ```text
 IntraChat/
-├── README.md
-├── AGENTS.md
-└── .specify/
-    └── memory/
-        └── constitution.md
+├── pom.xml, mvnw.cmd, .mvn/wrapper/
+├── src/main/java/vn/intrachat/  # entrypoint, UI, domain, protocol metadata
+├── src/test/java/vn/intrachat/  # JUnit tests
+├── docs/                          # architecture + feature matrix
+├── scripts/                       # environment + M0 verification
+├── specs/001-project-foundation/  # spec, plan, tasks, contracts, evidence
+├── README.md, ROADMAP.md, AGENTS.md
+└── .specify/memory/constitution.md
 ```
 
-Thư mục `src/`, `tests/`, cấu hình build và `specs/` chỉ được bổ sung khi có quyết định triển khai hoặc sau bước khởi tạo Spec Kit.
+**Ranh giới M0:** chưa có server, socket connection, database History Sync hay tính năng truyền media. Các thư mục transport/persistence sẽ được bổ sung ở giai đoạn sau.
 
 ## 5. Quy trình phát triển theo GitHub Spec Kit
 
@@ -123,9 +141,9 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 
 ## 6. Lộ trình đề xuất
 
-- **Mốc 1 — Nền tảng:** chốt JDK, UI/build, cơ chế tìm peer, định dạng thông điệp, định danh người dùng; kiểm thử hai peer.
-- **Mốc 2 — Chat:** P2P, Sender, Time, State (kết nối), Emoji, lịch sử cơ bản.
-- **Mốc 3 — Nhóm:** quản lý thành viên, gửi/nhận Group, xử lý rời nhóm và lỗi kết nối.
+- **Mốc 1 — Nền tảng (M0):** chốt JDK, UI/build, thiết kế protocol và identity; build, khởi chạy và test skeleton. Kiểm thử hai peer thuộc giai đoạn kết nối LAN tiếp theo.
+- **Mốc 2 — Chat:** kết nối LAN, P2P, Sender, Time, State (kết nối), Emoji.
+- **Mốc 3 — Nhóm và lịch sử:** quản lý thành viên Group; History lưu cục bộ và đồng bộ giữa các máy được phép qua P2P khi kết nối lại.
 - **Mốc 4 — Chia sẻ:** File, Image, Video, Sound; kiểm thử dung lượng, đường dẫn và hủy truyền.
 - **Mốc 5 — Hoàn thiện:** trạng thái tin nhắn (nếu được duyệt), phục hồi lỗi, test tích hợp, tài liệu build/chạy và đóng gói.
 

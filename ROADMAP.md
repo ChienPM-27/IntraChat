@@ -30,7 +30,7 @@ Nguyên tắc:
 | Group | 4 | P1 | Nhiều thành viên trao đổi trong một nhóm |
 | File | 6 | P2 | Gửi/nhận tệp có tiến độ và kiểm soát lỗi |
 | Emoji | 3 | P0 | Soạn và hiển thị emoji Unicode |
-| History | 5 | P1 | Lưu và đọc lại các hội thoại |
+| History | 5 | P1 | Lưu cục bộ, đọc lại và đồng bộ lịch sử giữa các peer được phép trong LAN khi kết nối lại |
 | Image | 7 | P2 | Gửi/nhận và xem hình ảnh |
 | Video | 7 | P2 | Gửi/nhận và mở hoặc phát video |
 | Sound | 7 | P2 | Gửi/nhận và mở hoặc phát âm thanh |
@@ -38,7 +38,7 @@ Nguyên tắc:
 | Time | 3 | P0 | Hiển thị timestamp nhất quán |
 | Sender | 3 | P0 | Mỗi tin nhắn có định danh người gửi chính xác |
 
-**Giới hạn phạm vi:** Video và Sound ở đây là **chia sẻ/phát nội dung**, chưa bao gồm gọi video hoặc gọi thoại thời gian thực. Những phần như Internet chat, cloud account, đồng bộ đa thiết bị, gọi điện trực tiếp chỉ thực hiện khi có yêu cầu và spec riêng.
+**Giới hạn phạm vi:** Video và Sound ở đây là **chia sẻ/phát nội dung**, chưa bao gồm gọi video hoặc gọi thoại thời gian thực. Những phần như Internet chat, cloud account và gọi điện trực tiếp chỉ thực hiện khi có yêu cầu và spec riêng. **History đồng bộ nhiều máy trong LAN** đã được xác nhận tại [CL-04](specs/001-project-foundation/spec.md), không yêu cầu server trung tâm; triển khai thuộc giai đoạn 05.
 
 ### 1.2. Các quyết định cần làm rõ, không tự giả định
 
@@ -230,7 +230,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 **Spec Kit feature:** `005-chat-history`  
 **Phụ thuộc:** mô hình message giai đoạn 03; tích hợp group với giai đoạn 04  
 **Phạm vi tính năng:** **History**, liên kết Sender/Time/State  
-**Mục tiêu:** xem lại lịch sử sau khi đóng/mở ứng dụng.
+**Mục tiêu:** xem lại lịch sử sau khi đóng/mở ứng dụng và đồng bộ lịch sử hội thoại được phép giữa các máy qua P2P khi kết nối lại.
 
 ### Công việc chi tiết
 
@@ -241,6 +241,8 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 - [ ] **05.05 — Chính sách dữ liệu:** retention, xóa lịch sử, dữ liệu nhạy cảm, lỗi ghi và backup nếu cần.
 - [ ] **05.06 — Chống dữ liệu trùng:** xử lý message ID trùng, replay/retry; tránh đổi sender/time gốc.
 - [ ] **05.07 — Test persistence:** đóng/mở lại, corrupted storage, nhiều hội thoại và dữ liệu Unicode.
+- [ ] **05.08 — Sync P2P:** trao đổi summary/delta, phát hiện event trùng/thiếu, tiếp tục đồng bộ khi online trở lại, giới hạn theo hội thoại được phép.
+- [ ] **05.09 — Bảo vệ History:** đặc tả xác thực thiết bị, quyền tham gia, xóa/thu hồi quyền, giải quyết xung đột và kiểm thử peer không có quyền.
 
 ### Kết quả bàn giao
 
@@ -254,6 +256,8 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 - **AC-05-B:** sau khi Group tích hợp, tin nhóm xuất hiện đúng conversation/group.
 - **AC-05-C:** tin lặp không làm xuất hiện bản sao ngoài chính sách đã định.
 - **AC-05-D:** khi lỗi storage, app báo lỗi hợp lý và không sập/không che giấu mất dữ liệu.
+- **AC-05-E:** hai peer được phép tham gia cùng hội thoại có thể đồng bộ những sự kiện còn thiếu sau khi một peer offline rồi kết nối lại; không tạo bản sao trùng sau retry.
+- **AC-05-F:** peer không có quyền tham gia hội thoại không thể yêu cầu/nhận lịch sử, kể cả khi biết conversation ID hoặc nằm trong cùng LAN.
 
 ---
 
@@ -454,7 +458,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 | Giai đoạn | Trạng thái ban đầu | Mốc |
 | --- | --- | --- |
-| 01 — Project foundation | Not Started | M0 |
+| 01 — Project foundation | In Progress — Java/Swing foundation & tests, JDK 21 runtime gate còn mở | M0 |
 | 02 — LAN networking | Not Started | M1 |
 | 03 — P2P MVP | Not Started | M2 |
 | 04 — Group chat | Not Started | M3 |
