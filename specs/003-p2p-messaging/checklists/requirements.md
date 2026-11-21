@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-21
 **Scope:** [spec.md](../spec.md) — Giai đoạn 03 / M2 Chat P2P
-**Review status:** **CLARIFIED — 5/5 product decisions CONFIRMED; ready for planning, NOT for implementation**
+**Review status:** **PLANNED / TASKS WRITTEN — CL-03-01…05 CONFIRMED; 0/90 implementation tasks complete**
 **Rule:** Checklist reviews **the specification document**, not implementation evidence. Checked items below mean the text is specified or stakeholder decision confirmed, **not that code or tests have run**.
 
 ## Confirmed Clarifications — CL-03-01…05
@@ -30,16 +30,17 @@
 - [x] FE mock demo and live service identities/read states are not conflated; demo login is not authentication
 - [x] Out-of-scope Group (004), History Sync (005), File (006), Media (007), cloud/calls remain clear; **actual view-based read receipts are IN scope**
 - [x] Constitution I–VII and M1 Gate 1 dependency remain explicit. M1 In Progress (36/60), two real Windows LAN PCs not yet verified
-- [x] No M2 network code, executed tests, `plan.md`, `tasks.md` or Verified status is asserted
+- [x] No M2 network code, executed M2 tests or Verified status is asserted; existing [plan.md](../plan.md) and [tasks.md](../tasks.md) are **design and work instructions only**.
 
-## Open Technical Planning / Execution Gates (NOT completed by Clarify)
+## Plan & Task Documentation Status / Remaining Execution Gates
 
-- [ ] **Technical design (plan only):** chọn thuật toán và cơ chế authenticated encryption/integrity; fingerprint/SAS presentation, first-time comparison, device-key lifecycle, protected user-local trust storage, revocation/change-key, downgrade resistance
-- [ ] **Technical design (plan only):** versioned schema/types for `CHAT_TEXT`, delivery ACK và **read receipt độc lập**, authentic peer/session/conversation/message binding, replay/dedup, out-of-order, view-event criteria and timeout/resource caps
-- [ ] **Technical design (plan only):** FE Live service adapter, Demo isolation, chat RAM-only lifecycle, protection of trust metadata and deletion flows; no hidden persistence of text/drafts/read receipts
+- [x] **Technical design documented, NOT implemented:** [plan.md](../plan.md), [research.md](../research.md) propose TLS 1.3 mutual device certificates, SAS/fingerprint, pinning, DPAPI storage, revocation/change-key and downgrade defense; dependency/security validation remains open task work.
+- [x] **Wire/state design documented, NOT tested:** [chat-v2 contract](../contracts/chat-v2.md) defines separate CHAT_TEXT, delivery ACK and READ_RECEIPT; session/identity correlation, replay/dedup, out-of-order, UI view event and time/resource limits. No v2 runtime implementation.
+- [x] **FE/data design documented, NOT implemented:** [data-model.md](../data-model.md) and [plan.md](../plan.md) define FE Live adapter/Demo isolation, RAM-only chat vs durable protected trust metadata and deletion flows.
 - [ ] **Constitution Gate 0 review:** I–VII tradeoffs/security assessment must be reviewed in future `plan.md`
 - [ ] **M1 Gate 1:** real dual-Windows LAN and remaining M1 acceptance evidence must be Verified before M2 release
-- [ ] **M2 tasks/test-first implementation:** write `tasks.md` after plan; RED→GREEN implementation and test evidence are not part of this request
+- [x] **Work breakdown created:** [tasks.md](../tasks.md) contains **90 unchecked tasks** grouped by dependencies and US1–US6 with RED→GREEN, evidence and release gates.
+- [ ] **M2 implementation/test execution:** RED→GREEN code/test work **not started**, no JDK21 M2 test or two-PC acceptance result yet.
 - [ ] **M2 acceptance:** AC-03-A…L including real two-PC chat/read receipts executed and independently verified (NOT RUN)
 
-**Conclusion:** **CLARIFIED — 5/5 confirmed.** The M2 product behavior can proceed to **Plan**, but M2 remains **not implemented, not Verified** and M1 Gate 1 remains open. **No `plan.md`, `tasks.md` or implementation changes are created as part of this Clarify update.**
+**Conclusion:** **CLARIFIED + PLANNED + TASKS DEFINED (0/90)**. Implementation has **not** started and M2 is **NOT VERIFIED**. M1 Gate 1 still open. A plan and task breakdown do **not** satisfy security review, RED→GREEN tests, real LAN evidence or Constitution Gate 1.

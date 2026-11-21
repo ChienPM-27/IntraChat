@@ -77,7 +77,7 @@ Deliver direct P2P LAN text/emoji with correct Sender, Time, independent deliver
 - specs/003-p2p-messaging/data-model.md — domain/session/receipt/trust schemas and lifetime
 - specs/003-p2p-messaging/contracts/chat-v2.md — precise bootstrap, TLS and JSON contract
 - specs/003-p2p-messaging/quickstart.md — future test procedure and blockers
-- specs/003-p2p-messaging/tasks.md — **NOT CREATED; next task-generation stage**
+- specs/003-p2p-messaging/tasks.md — **CREATED: T001–T090, all unchecked; implementation test-first work remains future**
 
 ### 4.2 Proposed layers (paths describe future code, not existing files)
 
@@ -167,7 +167,7 @@ See [contracts/chat-v2.md](contracts/chat-v2.md) for versioning, preface, TLS ha
 
 **Dependency validation status:** Published Maven metadata supports the proposed Bouncy Castle 1.87 and JNA-platform 5.19.1, and Java21 JSSE documents TLS 1.3; **none of the new M2 deps were downloaded, added to pom, compiled or audited in this plan**. See [research](research.md). Dependency version does not certify security.
 
-## 9. Future implementation sequence (NOT tasks.md yet)
+## 9. Future implementation sequence (mapped to tasks.md)
 
 1. **Gates and research:** M1 Gate 1 status tracked; source-level threat model, Java21 dependency/CVE audit, trust manager/security review, v1/v2 dispatch and FE adapters design.
 2. **Device identity and trust:** P-256 identity/cert generation, DPAPI protected store, user-visible fingerprint/SAS, two-sided pair confirmation, restart/changed-key/revoke/failed store tests.
@@ -176,7 +176,7 @@ See [contracts/chat-v2.md](contracts/chat-v2.md) for versioning, preface, TLS ha
 5. **FE Live + Demo:** new adapter and real device startup flow, map sender/time states, offline drafts, view observer for read receipt, disable unsupported group/media in Live; preserve Demo tests.
 6. **Reliability and acceptance:** half-open, capacity/flood, changed keys, privacy/disk/log audit, 5 loopback cycles, two physical Windows PCs without Internet, all M0/M1/FE regressions, Constitution Gate 1 and AC-03-A…L evidence.
 
-Commit implementation in **small independently tested slices** after tasks.md exists. **This plan does not create tasks or code.**
+Commit implementation in **small independently tested slices** following [tasks.md](tasks.md), which currently contains **90 unchecked items**. Plan and task documents do **not** create implementation or test evidence.
 
 ## 10. Verification matrix and release boundary
 
@@ -196,4 +196,4 @@ Commit implementation in **small independently tested slices** after tasks.md ex
 
 **Definition of Ready for tasks:** approved spec/Clarify; security design, contract and data model reviewed; dependency audit and M1 gate gap explicitly tracked. **Definition of Done:** test-backed AC-03-A…L plus real two-Windows-PC LAN and security/constitution signoff.
 
-**Current outcome: DESIGN ONLY.** No M2 source code, tests, dependencies, tasks.md or real chat messages produced by this document.
+**Current outcome: DESIGN / TASKS ONLY.** [tasks.md](tasks.md) defines **90 unexecuted tasks**. No M2 source code, tests, dependencies or real chat messages are produced by this documentation.

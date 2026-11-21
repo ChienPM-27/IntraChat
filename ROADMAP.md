@@ -491,7 +491,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 | --- | --- | --- |
 | 01 — Project foundation | **Verified — 41/41**; Temurin JDK21, 9 JUnit baseline + 5 GUI network-denied cycles | M0 |
 | 02 — LAN networking | **In Progress — 36/60**; 45 tests pass cùng FE; 2 GUI localhost Ping/Pong; **2 máy LAN thật NOT RUN** | M1 |
-| 03 — P2P MVP | **Planned (design only)** — [Spec CL-03-01…05 confirmed](specs/003-p2p-messaging/spec.md) · [Implementation Plan](specs/003-p2p-messaging/plan.md) · v2 TLS/ACK/read receipt contract; **chưa tasks/code**, M1 Gate 1 chưa Verified | M2 |
+| 03 — P2P MVP | **Planned (design only)** — [Spec CL-03-01…05 confirmed](specs/003-p2p-messaging/spec.md) · [Implementation Plan](specs/003-p2p-messaging/plan.md) · v2 TLS/ACK/read receipt contract; [90 test-first tasks, 0 completed](specs/003-p2p-messaging/tasks.md); **chưa code**, M1 Gate 1 chưa Verified | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
 | 06 — File transfer | Not Started | M4 |

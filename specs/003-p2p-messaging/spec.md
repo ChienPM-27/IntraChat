@@ -2,7 +2,7 @@
 
 **Feature Branch:** `003-p2p-messaging` (nhánh tài liệu, tạo từ `feat/m1-lan-networking`; không phải trạng thái đã triển khai)
 **Created:** 2026-11-21
-**Status:** **Clarified — CL-03-01…05 confirmed (2026-11-21); chưa implement, chưa plan, chưa tasks, chưa Verified**
+**Status:** **Planned / Tasks defined — CL-03-01…05 confirmed; plan.md và tasks.md (0/90) đã có, M2 chưa implement/chưa Verified**
 **Priority:** P0 (ROADMAP) · **Milestone:** M2 — P2P Chat MVP
 **Input:** [ROADMAP — Giai đoạn 03](../../ROADMAP.md) · [Spec M1](../002-lan-networking/spec.md) · [M1 acceptance](../002-lan-networking/evidence/m1-acceptance-report.md) · [FE mock demo](../001-desktop-frontend/spec.md)
 **Governing:** [IntraChat Constitution](../../.specify/memory/constitution.md) · [Spec M0](../001-project-foundation/spec.md)
@@ -41,7 +41,7 @@ Người dùng trên **hai máy Windows 11 x64 trong cùng LAN** có thể chủ
 
 **Ranh giới cần giữ:** M1 vẫn là diagnostic plaintext chưa xác thực; việc ghi nhớ fingerprint sau xác minh **không** có nghĩa tự chấp nhận inbound. Read receipt là sự kiện **UI hiển thị tin của phía nhận** được gửi qua kênh đã xác minh/bảo vệ, không là bằng chứng con người đã đọc hoặc báo nhận TCP. Người dùng đã chốt **hành vi sản phẩm**; các thuật toán, định dạng fingerprint/SAS, kho khóa, wire types cho application ACK/read receipt, timeout và tiêu chí “đã hiển thị” cụ thể để kiểm thử sẽ được lựa chọn có lý do ở **bước plan**, không cần mở lại năm Clarify.
 
-**M2 chưa triển khai.** Việc xác nhận quyết định chỉ cập nhật spec/checklist và không tự đóng M1 Gate 1 hoặc tạo `plan.md`/`tasks.md`.
+**M2 chưa triển khai.** Clarify đã hoàn tất; hiện có [plan.md](plan.md) và [tasks.md](tasks.md) với **0/90 task hoàn thành**, chỉ là tài liệu thiết kế/triển khai dự kiến. Không tự đóng M1 Gate 1 hoặc coi mã nguồn M2 đã tồn tại.
 
 ## 2. User Scenarios & Testing *(mandatory)*
 
@@ -308,7 +308,7 @@ Read event: peer displays message visibly in active conversation → authenticat
 1. **M1 Gate 1** phải Verified trên hai Windows PC theo [acceptance M1](../002-lan-networking/evidence/m1-acceptance-report.md). Tạo spec/plan song song **không** cho phép tự đánh dấu M1 đã qua gate.
 2. Phương thức xác minh identity, kênh mã hóa, trust/key rotation/revocation và protocol negotiation cho chat phải có **thiết kế và kiểm thử** trước khi chuyển dữ liệu người dùng.
 3. **CL-03-05:** M2 **bắt buộc dùng Messenger FE làm giao diện Live Chat thật** và **giữ chế độ Demo riêng**. Cần tách `MockChatService` và live messaging service với identity/ACK/read receipt thật; không dùng LoginFrame/password demo làm authentication.
-4. `plan.md` và `tasks.md` của 003 chưa tồn tại tại thời điểm chỉ viết spec; không đánh dấu bắt đầu implement/code khi chưa có kế hoạch kỹ thuật và test-first tasks.
+4. [plan.md](plan.md) và [tasks.md](tasks.md) đã được xây dựng sau Clarify (90 task test-first, **0 task đã chạy**). Chưa có code M2; phải review Gate 0, dependency và bảo mật trước khi implement, và hoàn thành M1 Gate 1 trước khi phát hành M2.
 
 ### Explicitly out of scope
 
@@ -331,7 +331,7 @@ Read event: peer displays message visibly in active conversation → authenticat
 | **OD-03-06** | **CL-03-01/04 đã chốt:** tin, nháp, delivery/read receipt chỉ trong RAM phiên; trust fingerprint/credential qua restart. Plan chọn protected storage, xóa/revoke trust, không khôi phục nội dung chat và cleanup RAM/secret | Không dựng History Sync 005 hoặc lưu riêng tư trái CL-03-04 |
 | **OD-03-07** | Ngân sách thời gian phản hồi, timeout và khả năng nhiều peer; test security/soak và hai PC không Internet | Các số phải có căn cứ, gate thật không thể thay bằng loopback |
 
-**Clarify đã hoàn tất:** Người dùng **xác nhận CL-03-01…05** vào 2026-11-21 tại §1.2. Không có quyết định hành vi nào trong năm mục này còn là phương án gợi ý. Các OD-03-* là câu hỏi **thiết kế kỹ thuật cho plan**, không mở lại pairing/manual resend/read receipt/RAM-only/FE Live + Demo. **Chưa tạo plan.md hoặc tasks.md, chưa implement M2**; không hạ thấp bảo mật hoặc thay bằng loopback khi nghiệm thu hai PC thật.
+**Clarify đã hoàn tất:** Người dùng **xác nhận CL-03-01…05** vào 2026-11-21 tại §1.2. Không có quyết định hành vi nào trong năm mục này còn là phương án gợi ý. Các OD-03-* là câu hỏi **thiết kế kỹ thuật cho plan**, không mở lại pairing/manual resend/read receipt/RAM-only/FE Live + Demo. **Plan và Tasks đã tạo (0/90), chưa implement M2**; không hạ thấp bảo mật hoặc thay bằng loopback khi nghiệm thu hai PC thật.
 
 ## 8. Traceability to ROADMAP
 
