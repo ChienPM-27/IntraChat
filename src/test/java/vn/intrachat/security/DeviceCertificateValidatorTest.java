@@ -86,6 +86,25 @@ class DeviceCertificateValidatorTest {
                     ()->DeviceCertificateValidator.validateCandidate(rejected));
     }
 
+    @Test void foreignIssuerCannotImpersonateSelfIssuedDeviceCertificate() throws Exception {
+        KeyPair keys=keys("secp256r1");
+        Instant now=Instant.now();
+        X500Name issuer=new X500Name("CN="+UUID.randomUUID());
+        X500Name subject=new X500Name("CN="+UUID.randomUUID());
+        var builder=new JcaX509v3CertificateBuilder(issuer,BigInteger.valueOf(451),
+                Date.from(now.minusSeconds(60)),Date.from(now.plusSeconds(3600)),
+                subject,keys.getPublic());
+        builder.addExtension(Extension.basicConstraints,true,new BasicConstraints(false));
+        builder.addExtension(Extension.keyUsage,true,new KeyUsage(KeyUsage.digitalSignature));
+        builder.addExtension(Extension.extendedKeyUsage,false,new ExtendedKeyUsage(
+                new KeyPurposeId[]{KeyPurposeId.id_kp_serverAuth,KeyPurposeId.id_kp_clientAuth}));
+        X509Certificate notSelfIssued=new JcaX509CertificateConverter().getCertificate(
+            builder.build(new JcaContentSignerBuilder("SHA256withECDSA").build(keys.getPrivate())));
+        assertDoesNotThrow(()->notSelfIssued.verify(keys.getPublic()));
+        assertThrows(CertificateException.class,
+                ()->DeviceCertificateValidator.validateCandidate(notSelfIssued));
+    }
+
     @Test void unknownCriticalExtensionMustNotBeIgnored() throws Exception {
         KeyPair key=keys("secp256r1");
         Instant now=Instant.now();

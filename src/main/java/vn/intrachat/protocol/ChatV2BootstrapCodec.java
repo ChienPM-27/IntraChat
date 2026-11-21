@@ -18,6 +18,8 @@ public final class ChatV2BootstrapCodec {
     public record Hello(UUID requestId,UUID senderId,String displayName,byte[] nonce) {
         public Hello {
             Objects.requireNonNull(requestId);Objects.requireNonNull(senderId);
+            if(requestId.equals(new UUID(0,0))||senderId.equals(new UUID(0,0)))
+                throw new IllegalArgumentException("Zero request/device UUID is reserved");
             if(displayName==null||displayName.isBlank()||displayName.length()>128)
                 throw new IllegalArgumentException("Invalid display name");
             if(nonce==null||nonce.length!=32)throw new IllegalArgumentException("Requires 32-byte nonce");
@@ -91,12 +93,16 @@ public final class ChatV2BootstrapCodec {
         String raw=required(node,name);
         if(!raw.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
             throw new ProtocolException("JSON_INVALID","Invalid "+name);
-        return UUID.fromString(raw);
+        UUID parsed=UUID.fromString(raw);
+        if(parsed.equals(new UUID(0,0)))throw new ProtocolException("JSON_INVALID","Zero UUID is reserved for unknown target only");
+        return parsed;
     }
 
     public record Accept(UUID requestId,UUID receiverId,String displayName,byte[] nonce) {
         public Accept {
             Objects.requireNonNull(requestId);Objects.requireNonNull(receiverId);
+            if(requestId.equals(new UUID(0,0))||receiverId.equals(new UUID(0,0)))
+                throw new IllegalArgumentException("Zero request/device UUID is reserved");
             if(displayName==null||displayName.isBlank()||displayName.length()>128)
                 throw new IllegalArgumentException("Invalid receiver displayName");
             if(nonce==null||nonce.length!=32)throw new IllegalArgumentException("Expected 32-byte nonce");

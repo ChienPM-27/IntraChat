@@ -32,7 +32,7 @@ public final class DeviceIdentityStore {
             X509Certificate certificate=(X509Certificate)CertificateFactory.getInstance("X.509")
                 .generateCertificate(new ByteArrayInputStream(encodedCertificate));
             DeviceCertificateValidator.validateCandidate(certificate);
-            if(!certificate.getSubjectX500Principal().getName().contains(id.toString()))
+            if(!certificate.getSubjectX500Principal().getName().equalsIgnoreCase("CN="+id))
                 throw new IOException("Credential identity mismatch");
             byte[] challenge=new byte[32];new SecureRandom().nextBytes(challenge);
             Signature sign=Signature.getInstance("SHA256withECDSA");

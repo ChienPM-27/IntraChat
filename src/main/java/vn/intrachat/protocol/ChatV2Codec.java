@@ -87,6 +87,11 @@ public final class ChatV2Codec {
     }
 
     private static void validate(ChatV2Message msg)throws ProtocolException {
+        UUID reserved=new UUID(0,0);
+        if(msg.messageId().equals(reserved)||msg.sessionId().equals(reserved)
+            ||msg.senderId().equals(reserved)||msg.destinationId().equals(reserved)
+            ||msg.conversationId().equals(reserved))
+            throw new ProtocolException("JSON_INVALID","Zero UUID reserved; protected messages need real IDs");
         if(msg.senderId().equals(msg.destinationId()))
             throw new ProtocolException("IDENTITY_MISMATCH","Self addressed CHAT_V2 not supported");
         Map<String,Object> p=msg.payload();
@@ -115,32 +120,42 @@ public final class ChatV2Codec {
             switch(msg.type()){
                 case CHAT_TEXT -> new ChatText((String)p.get("text"));
                 case DELIVERY_ACK -> {
-                    UUID.fromString((String)p.get("originalMessageId"));
-                    Instant.parse((String)p.get("acceptedAtUTC"));
+                    nonZeroUuid((String)p.get("originalMessageId"));
+                    utcInstant((String)p.get("acceptedAtUTC"));
                     if(!"ACCEPTED".equals(p.get("result")))
                         throw new IllegalArgumentException("Invalid ACK result");
                 }
                 case READ_RECEIPT -> {
-                    UUID.fromString((String)p.get("originalMessageId"));
-                    UUID.fromString((String)p.get("readEventId"));
-                    Instant.parse((String)p.get("viewedAtUTC"));
+                    nonZeroUuid((String)p.get("originalMessageId"));
+                    nonZeroUuid((String)p.get("readEventId"));
+                    utcInstant((String)p.get("viewedAtUTC"));
                 }
                 case CHAT_ERROR -> {
                     String code=(String)p.get("errorCode");
                     if(code.isBlank()||code.length()>64||!code.matches("[A-Z_]+"))
                         throw new IllegalArgumentException("Invalid error code");
-                    if(p.containsKey("originalMessageId"))UUID.fromString((String)p.get("originalMessageId"));
+                    if(p.containsKey("originalMessageId"))nonZeroUuid((String)p.get("originalMessageId"));
                 }
                 case PAIR_CONFIRM, PAIR_READY -> {
-                    UUID.fromString((String)p.get("requestId"));
+                    nonZeroUuid((String)p.get("requestId"));
                     String hash=(String)p.get("transcriptHash");
                     if(!hash.matches("[0-9a-fA-F]{64}"))throw new IllegalArgumentException("Invalid transcript");
-                    if(msg.type()==ChatV2Type.PAIR_CONFIRM)UUID.fromString((String)p.get("confirmationId"));
+                    if(msg.type()==ChatV2Type.PAIR_CONFIRM)nonZeroUuid((String)p.get("confirmationId"));
                 }
             }
         }catch(IllegalArgumentException|NullPointerException invalid){
             throw new ProtocolException("JSON_INVALID","Invalid type-specific v2 payload",invalid);
         }
+    }
+    private static UUID nonZeroUuid(String text) {
+        UUID result=UUID.fromString(text);
+        if(result.equals(new UUID(0,0)))throw new IllegalArgumentException("Zero UUID reserved");
+        return result;
+    }
+    private static Instant utcInstant(String text) {
+        if(text==null||!text.endsWith("Z"))
+            throw new IllegalArgumentException("UTC Z timestamp required");
+        return Instant.parse(text);
     }
     private static void fields(JsonNode node,Set<String> allowed)throws ProtocolException{
         Iterator<String> names=node.fieldNames();

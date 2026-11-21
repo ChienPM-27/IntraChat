@@ -12,6 +12,8 @@ public final class DeviceCertificateValidator {
     public static void validateCandidate(X509Certificate certificate) throws GeneralSecurityException {
         if(certificate==null) throw new CertificateException("Missing certificate");
         certificate.checkValidity();
+        if (!certificate.getIssuerX500Principal().equals(certificate.getSubjectX500Principal()))
+            throw new CertificateException("Device certificate must be self-issued");
         if (certificate.hasUnsupportedCriticalExtension())
             throw new CertificateException("Unsupported critical X.509 extension");
         certificate.verify(certificate.getPublicKey()); // self-issued key possession/signature
