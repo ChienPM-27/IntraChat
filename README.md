@@ -1,11 +1,26 @@
-# IntraChat
+# IntraChat Desktop
 
-**IntraChat** là dự án phần mềm nhắn tin trong mạng nội bộ (LAN) bằng **Java**, hướng tới giao tiếp trực tiếp giữa các thiết bị cùng mạng: trò chuyện cá nhân (P2P), trò chuyện nhóm, chia sẻ tệp và nội dung đa phương tiện.
+Bản Frontend demo phong cách Messenger, viết bằng Java Swing và FlatLaf. Chạy độc lập với ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm; không có Server, Socket, Database hay xác thực thật.
 
-> **Trạng thái dự án (21/11/2026):** **M0 Verified** — Java/Swing foundation, Maven Wrapper và 9 JUnit tests đã chạy trên actual Temurin JDK21; GUI 5/5 lần mở/đóng trong JVM chặn Java networking (Windows adapter không bị ngắt). M1 LAN networking **đang bắt đầu triển khai**, chưa Verified; Chat/Group/History Sync/File/Media chưa có.
+> **Trạng thái dự án (21/11/2026):** **M0 Verified (41/41 tasks)** trên Windows 11 + Temurin JDK 21. **M1 LAN Networking đang triển khai (36/60 tasks, trước tích hợp FE)**: TCP P2P, nhập IPv4/port thủ công, Chấp nhận/Từ chối, handshake và PING/PONG chẩn đoán đã chạy **39 JUnit tests + hai GUI process loopback**, nhưng **chưa thử hai máy Windows LAN thật nên M1 chưa Verified**. Kết nối M1 **chưa xác thực, chưa mã hóa** và không cho phép Chat/History/File/Group.
 
-## 1. Mục tiêu và phạm vi
+Dự án chứa **hai giao diện Swing độc lập**: giao diện **M1 kết nối kỹ thuật P2P** tại `vn.intrachat.IntraChatApplication` và giao diện **FE demo Messenger với dữ liệu giả lập** tại `ui.IntraChat`. FE demo không dùng dữ liệu mạng thực. Cả hai được giữ lại sau khi hợp nhất nhánh FE, **chưa được liên kết thành một sản phẩm chat hoàn chỉnh**.
 
+## Chạy thử
+
+**Yêu cầu build đã kiểm chứng:** Windows 11 x64, **Temurin JDK 21**, Maven Wrapper 3.9.16. Dependency chỉ cần tải lần đầu khi chưa được cache.
+
+```powershell
+.\mvnw.cmd clean package
+# M1: Giao diện kết nối LAN P2P, chỉ dữ liệu chẩn đoán:
+java -jar target/intrachat-0.1.0-SNAPSHOT.jar
+# FE: Giao diện Messenger demo độc lập, dùng dữ liệu giả lập:
+java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.IntraChat
+# Kiểm thử local 39+ JUnit cases, không phải test hai máy LAN thật:
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m1.ps1 -Offline
+```
+
+Với **FE demo**, nhập username bất kỳ (tối đa 32 ký tự) và mật khẩu demo không trống; chọn **Đăng ký** thì dùng tối thiểu 4 ký tự. **Không dùng mật khẩu thật.** FE chỉ là dữ liệu mô phỏng, không phải xác thực thực tế. Giao diện M1 riêng chỉ có bước Chấp nhận/Từ chối **không xác thực thiết bị**.
 - Hỗ trợ trao đổi thông tin giữa các máy trong cùng mạng LAN mà không bắt buộc có dịch vụ Internet.
 - Cung cấp giao diện dễ sử dụng để trao đổi văn bản, emoji và tệp đa phương tiện.
 - Hiển thị rõ người gửi, thời gian và trạng thái liên quan đến người dùng/tin nhắn.
@@ -38,11 +53,11 @@ Những tình huống chi tiết (ví dụ: nhóm có quản trị viên hay kh�
 | --- | --- |
 | Ngôn ngữ | **Java** |
 | Môi trường | **Windows** (bản đầu tiên), các máy trong cùng LAN |
-| Kiểu truyền thông | **P2P trực tiếp**, không bắt buộc server trung tâm; plan đề xuất TCP, cơ chế tìm peer triển khai ở giai đoạn 02 |
-| Giao diện | **Swing** — đã triển khai khung cửa sổ M0; chưa có giao diện chat |
-| Build / dependency | **Maven 3.9.16 + Wrapper** — đã triển khai và kiểm chứng build/test trên JDK 25, Java target 21 |
+| Kiểu truyền thông | **TCP P2P trực tiếp**, chỉ IPv4/port thủ công, consent/HELLO/PING/PONG chẩn đoán ở M1; không có auto-discovery |
+| Giao diện | **Swing** — M1 UI kỹ thuật và **FE FlatLaf mock demo** độc lập; chưa tích hợp thành chat thật |
+| Build / dependency | **Maven 3.9.16 + Wrapper**, Java 21 + JUnit 5.14.4, Jackson 2.22.4 và FlatLaf 3.6.2 |
 | Lưu lịch sử | Dự kiến **SQLite tại mỗi peer + History sync P2P** ở giai đoạn 05; chưa triển khai |
-| Định dạng thông điệp | Draft **JSON UTF-8 có version, TCP length-prefix framing** trong plan; chưa triển khai |
+| Định dạng thông điệp | **JSON UTF-8 có version, TCP 4-byte length-prefixed frame** và validate strict, đã kiểm thử local; không hỗ trợ Chat/History/File trên M1 |
 
 ### Phân lớp kiến trúc đề xuất
 
@@ -78,11 +93,11 @@ Không sử dụng Java native serialization từ dữ liệu mạng không đá
 ### Yêu cầu hiện tại
 
 - Windows 11 x64, giao diện desktop; Git và PowerShell.
-- **JDK 21 LTS (khuyến nghị Eclipse Temurin)**. `pom.xml` biên dịch với `--release 21`. Kiểm thử hiện tại đã chạy trên **Oracle JDK 25.0.4** chứ chưa phải runtime JDK 21.
+- **JDK 21 LTS (Eclipse Temurin)**. `pom.xml` biên dịch với `--release 21`. M0 và M1 automated tests đã thực thi trên **actual Temurin JDK 21.0.13.1** tại Windows 11; Oracle JDK 25 cũng có trên máy nhưng không được dùng làm bằng chứng Java21 runtime.
 - Maven Wrapper 3.9.16 được cung cấp bởi `mvnw.cmd` và sẽ tải Maven khi cần. Lần chạy đầu để tải Maven/plugins/dependencies cần Internet (hoặc cache/mirror đã chuẩn bị); **ứng dụng chạy không cần Internet**.
 - Hai máy cùng LAN chỉ cần cho giai đoạn 02 trở đi; M0 chưa mở socket.
 
-### Build, chạy và kiểm thử đã xác minh trên Windows 11 + JDK 25 (Java 21 target)
+### Build, chạy và kiểm thử trên Windows 11 + Temurin JDK21
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-environment.ps1
@@ -96,7 +111,7 @@ java -jar target/intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m0.ps1
 ```
 
-Sau khi cache các dependencies, có thể dùng `.\mvnw.cmd -o test` để test offline. **Đã chạy 9/9 JUnit tests pass và build/package/diagnostics thành công** trên môi trường nêu trên; chưa kiểm thử runtime Java 21. Chi tiết lệnh và bằng chứng: [Quickstart](specs/001-project-foundation/quickstart.md) · [M0 test report](specs/001-project-foundation/evidence/m0-test-results.md).
+Sau khi cache dependencies, `.\mvnw.cmd -o test` chạy offline. **M0: 9/9 JUnit pass trên actual Temurin JDK21**, cùng 5/5 GUI cycles dưới kiểm soát Java-network-denied; [M0 acceptance](specs/001-project-foundation/evidence/m0-acceptance-report.md). **M1: 39 JUnit cases pass**, hai tiến trình GUI độc lập trên cùng máy xác nhận Accept và PING/PONG hai chiều; [M1 test evidence](specs/002-lan-networking/evidence/m1-test-results.md). **Chưa có test hai máy LAN thật**, nên M1 chưa Verified. Xem [M1 quickstart](specs/002-lan-networking/quickstart.md) và [Windows LAN guide](docs/windows-lan-setup.md).
 
 ### Tổ chức dự án
 
@@ -149,18 +164,17 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 
 Thứ tự có thể thay đổi sau khi viết spec; đây không phải tiến độ đã hoàn thành.
 
-## 7. Tiêu chí chấp nhận tối thiểu
+- **Mai Anh:** người dùng online, lịch sử có ảnh và biên nhận Đã xem.
+- **Minh Khang:** người dùng offline; tin gửi trong demo dừng ở Đã gửi.
+- **Nhóm dự án:** hiển thị người gửi, số thành viên, tệp, video, WAV và biên nhận Đã nhận. Nhấn **+** để tạo nhóm khác.
+- **Thanh soạn:** Enter để gửi tin mock, bảng 30 emoji, chọn ảnh/video/tệp hoặc ghi âm tối đa 120 giây. Bấm ảnh để xem đầy đủ, video để mở bằng trình phát mặc định, biểu tượng tải để lưu tệp không ghi đè.
 
-- Hai peer trong LAN có thể trao đổi tin nhắn đúng người gửi, nội dung và thời gian.
-- Nhóm gửi tới đúng thành viên theo quy tắc phân phối đã đặc tả.
-- Truyền tệp không làm hỏng nội dung; có cách nhận biết lỗi/hủy và tránh ghi ra ngoài thư mục đích.
-- Kết nối mất giữa chừng không làm treo UI hoặc làm mất kiểm soát tài nguyên.
-- Các hành vi đã triển khai có kiểm thử tương ứng; kết quả kiểm thử phải được ghi nhận trung thực.
+## Phạm vi
 
-## 8. Đóng góp
+Lịch sử, hội thoại, tài khoản và biên nhận chỉ là dữ liệu mô phỏng trong phiên; đóng ứng dụng sẽ mất thay đổi. Media mẫu và bản ghi sử dụng thư mục tạm; tệp lưu theo lựa chọn của bạn vẫn còn. Ghi và phát tin thoại phụ thuộc thiết bị/quyền âm thanh của hệ điều hành. Ứng dụng không có cuộc gọi, Story hoặc cài đặt nâng cao.
 
-Trước khi viết code, đọc `AGENTS.md` và `.specify/memory/constitution.md`. Mỗi thay đổi tính năng nên đi kèm spec hoặc cập nhật spec, test, và tài liệu liên quan. Không đưa dữ liệu riêng tư, khóa bí mật, tệp lịch sử chat thật hoặc tệp nhận được vào Git.
+`listener.ChatActionHandler` nhận thao tác từ UI và `listener.ChatClientListener` nhận cập nhật. Bản demo chỉ dùng `model.mock.MockChatService`. Xem [đặc tả](specs/001-desktop-frontend/spec.md) và [kế hoạch](specs/001-desktop-frontend/plan.md) để biết giới hạn và hành vi mock.
 
-## 9. Giấy phép
+## Kiểm tra
 
-**Chưa xác định.** Không mặc định dự án được cấp phép mã nguồn mở cho đến khi có tệp `LICENSE`.
+`mvn test` chạy test lịch sử, kiểm tra/lưu media và luồng giao diện mock. Test Swing cần môi trường desktop; ảnh chụp layout nằm trong `target/`. Microphone, âm thanh phát ra loa và trình phát video mặc định cần kiểm tra thủ công trên máy sử dụng.
