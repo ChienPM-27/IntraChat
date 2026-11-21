@@ -1,6 +1,6 @@
 # Quickstart — File 006 Test-first Verification Plan (NOT EXECUTED)
 
-**Feature:** `006-file-transfer` · **Status:** User choices **10/10 confirmed**, **160 implementation tasks / 0 completed**, File implementation/tests **NOT RUN**. [Plan](plan.md) · [160 planned tasks](tasks.md) · [Spec](spec.md) · [Draft wire](contracts/file-v1.md) · [Gate assessment](checklists/architecture-impact-review.md).
+**Feature:** `006-file-transfer` · **Status:** User choices **10/10 confirmed**, **160 implementation tasks / 36 completed**; 27 isolated File domain/source tests PASS, full 165 regression PASS; real File wire/Windows destination/physical tests NOT RUN. [Plan](plan.md) · [160 planned tasks](tasks.md) · [Spec](spec.md) · [Draft wire](contracts/file-v1.md) · [Gate assessment](checklists/architecture-impact-review.md).
 
 ## 1. Before running File tests
 
@@ -41,8 +41,8 @@ $env:Path = (Join-Path $env:JAVA_HOME 'bin') + ';' + $env:Path
 
 ## 4. Evidence rules and blockers
 
-Each executed test must record SHA, JDK, Windows build, machine/peer count, exact command, exit code, duration, result and synthetic test data; redact file content, PIN/SAS, Windows username/home/private paths. No File tests have been run during drafting.
+Each executed test must record SHA, JDK, Windows build, machine/peer count, exact command, exit code, duration, result and synthetic test data; redact file content, PIN/SAS, Windows username/home/private paths. 27 File domain/read-only source JUnit tests have now been run on Java21 with RED→GREEN; see [evidence](evidence/trace-and-tdd.md). No actual FILE_V1 socket/Win11 receiver File E2E tests have been run.
 
 **Blocked for release:** 004 owner signed Group runtime, exact FILE_V1 protocol and Win11 no-clobber independent review, inherited M1/M2 two real Windows-PC Gate 1 and full File security/privacy audit. Group File cannot be silently omitted because user confirmed CL-06-07 **A**, not defer B.
 
-**Result of this document:** verification instructions only; **File 006 NOT IMPLEMENTED / NOT VERIFIED**, **M4 NOT VERIFIED**.
+**Result of this document:** verification instructions only; **File 006 PARTIAL DOMAIN/SOURCE ONLY / NOT VERIFIED**, **M4 NOT VERIFIED**.

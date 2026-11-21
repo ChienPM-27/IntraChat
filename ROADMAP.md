@@ -296,7 +296,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 **Ưu tiên:** P2
 **Spec Kit feature:** `006-file-transfer`
-**Thiết kế (21/11/2026):** [Spec — 8 US / 56 FR / 14 SC / 16 AC](specs/006-file-transfer/spec.md) · [CL-06-01…10 USER CONFIRMED (9 A, 06-03 B)](specs/006-file-transfer/clarifications.md) · [Implementation plan (Gate 0 CONDITIONAL)](specs/006-file-transfer/plan.md) · [FILE_V1 wire DRAFT](specs/006-file-transfer/contracts/file-v1.md) · [Requirements checklist](specs/006-file-transfer/checklists/requirements.md) · [Architecture impact](specs/006-file-transfer/checklists/architecture-impact-review.md) · [Tasks (160 planned; 0 done)](specs/006-file-transfer/tasks.md). **Chưa triển khai File Java code/tests hay independent security approval; 006/M4 NOT VERIFIED.**
+**Thiết kế (21/11/2026):** [Spec — 8 US / 56 FR / 14 SC / 16 AC](specs/006-file-transfer/spec.md) · [CL-06-01…10 USER CONFIRMED (9 A, 06-03 B)](specs/006-file-transfer/clarifications.md) · [Implementation plan (Gate 0 CONDITIONAL)](specs/006-file-transfer/plan.md) · [FILE_V1 wire DRAFT](specs/006-file-transfer/contracts/file-v1.md) · [Requirements checklist](specs/006-file-transfer/checklists/requirements.md) · [Architecture impact](specs/006-file-transfer/checklists/architecture-impact-review.md) · [Tasks (160 planned; 0 done)](specs/006-file-transfer/tasks.md). **36/160 task hoàn thành (File domain/source RED→GREEN); 165/165 JUnit PASS. Chưa có FILE_V1 mạng, Win11 receiver hoặc independent security review; 006/M4 NOT VERIFIED.**
 **Phụ thuộc:** kết nối/giao thức giai đoạn 02–03; mục tiêu tích hợp Group ở giai đoạn 04
 **Phạm vi tính năng:** **File**
 **Mục tiêu:** truyền tệp giữa các peer có tiến độ, hủy truyền và kiểm soát an toàn.
@@ -495,7 +495,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 | 03 — P2P MVP | **In Progress — M2 34/90 tasks checked; partial implementation, 107/107 Java21 JUnit PASS từ commit độc lập** — [Spec CL-03-01…05](specs/003-p2p-messaging/spec.md) · [Plan](specs/003-p2p-messaging/plan.md) · [Tasks](specs/003-p2p-messaging/tasks.md) · [evidence](specs/003-p2p-messaging/evidence/m2-acceptance-report.md); Java21 encrypted real Live GUI loopback 2 JVMs + ACK/view READ tested; **M1 Gate 1, full security review and two physical Win11 LAN PCs still BLOCKED** | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
-| 06 — File transfer | **CLARIFIED 10/10 (9 A, 06-03 B) + PLAN + 160 TASKS (0 done)**, Gate 0 wire/Win11 filesystem/004/security review **OPEN/BLOCKED**; no File code/tests/Verified. [Spec](specs/006-file-transfer/spec.md) · [Decisions](specs/006-file-transfer/clarifications.md) · [Plan](specs/006-file-transfer/plan.md) · [Tasks](specs/006-file-transfer/tasks.md) | M4 |
+| 06 — File transfer | **CLARIFIED 10/10 + 36/160 TASKS DONE** (27 new File policy/read-only JUnit; 165 full PASS), Gate 0 wire/Win11 filesystem/004/security review **OPEN/BLOCKED**; real File network/receiver NOT VERIFIED. [Spec](specs/006-file-transfer/spec.md) · [Decisions](specs/006-file-transfer/clarifications.md) · [Plan](specs/006-file-transfer/plan.md) · [Tasks](specs/006-file-transfer/tasks.md) | M4 |
 | 07 — Multimedia | Not Started | M4 |
 | 08 — Integration & release | Not Started | M5 |
 

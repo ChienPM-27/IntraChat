@@ -67,4 +67,4 @@ Group file profile **disabled until 004 actually Verified**. Only owner-mediated
 - Windows path adversarial cases (UNC, `\\?\`, ADS, junction, symlink, reserved device name), target collision concurrent process and atomic no-clobber, crash after staging fsync.
 - User preauthorizes Downloads once but individually rejects 3rd offer; no stale root/auto Accept. Outsider C receives 0 metadata/content. Group 004 owner/handoff/JOIN/REMOVE only after runtime verified.
 
-**Approval state:** 10/10 **product** decisions confirmed, **protocol binary/crypto/OS technical freeze and independent security reviewer NOT YET APPROVED**. No File source/wire or test was implemented/executed in this drafting step.
+**Approval state:** 10/10 product decisions confirmed. Pure File domain/read-only source helpers now have 27 Java21 JUnit PASS, but **FILE_V1 codec/network and Windows destination receiver remain NOT IMPLEMENTED/NOT TESTED**; independent wire/OS security freeze NOT APPROVED.

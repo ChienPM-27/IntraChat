@@ -1,6 +1,6 @@
 # Conceptual Data Model — Phase 06 File Transfer (NO persistent transfer DB)
 
-**Feature:** `006-file-transfer` · **Status:** 10/10 user CL confirmed (9 A, 06-03 B), **conceptual only**, no File Java classes/DDL/wire implementation/tests. [Plan](plan.md) · [Spec](spec.md) · [Wire draft](contracts/file-v1.md).
+**Feature:** `006-file-transfer` · **Status:** 10/10 user CL confirmed (9 A, 06-03 B), **conceptual model**; isolated Java File domain and read-only source helpers (27 JUnit PASS) now exist, but no File wire, Windows destination or persistent DB. [Plan](plan.md) · [Spec](spec.md) · [Wire draft](contracts/file-v1.md).
 
 ## 1. RAM-only application/domain values
 
@@ -44,4 +44,4 @@ Exceptional: `REJECTED`, `CANCELLED`, `FAILED`, `UNCERTAIN` (sender may be UNCER
 - Do not add SQL/JDBC or History 005 tables for File. Do not persist metadata for progress after restart. No archiving/backup or file preview added during this phase.
 - Group 004 proof events are runtime prerequisites, not synthesized from Group pure-domain records. When 004 is not Verified, Group File is disabled regardless of UI mocks.
 
-**This document is design, not a Java implementation, SQL schema, or tested Windows file operation.**
+**This document remains conceptual design, not a SQL schema or tested Windows destination writer.** Real pure File state/source helpers exist separately; no on-wire File transfer.

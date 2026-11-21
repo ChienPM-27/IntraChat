@@ -1,7 +1,7 @@
 # Implementation Plan — Giai đoạn 06: Secure LAN File Transfer
 
 **Feature/branch:** `006-file-transfer` · **Date:** 2026-11-21 · **Priority:** P2 · **Milestone:** M4 = 006 File **AND** 007 Multimedia
-**Status:** **160 IMPLEMENTATION TASKS PLANNED / 0 DONE; 10/10 CL-06 USER CONFIRMED (9 × A, CL-06-03 B); technical Gate 0 CONDITIONAL/BLOCKED, no File code/tests or release acceptance.**
+**Status:** **36/160 TASKS EXECUTED — 27 isolated File Java21 tests PASS, full 165/165 regression/package PASS; 10/10 CL USER CONFIRMED (9 A, CL-06-03 B). Production FILE_V1/Win11 receiver/Group/security Gate 0 BLOCKED; no release acceptance.**
 **Sources:** [Spec](spec.md) · [Confirmed decisions](clarifications.md) · [Architecture impact](checklists/architecture-impact-review.md) · [Research/ADRs](research.md) · [Data model](data-model.md) · [FILE_V1 contract draft](contracts/file-v1.md) · [Quickstart](quickstart.md) · [160 RED→GREEN implementation tasks](tasks.md) · [Constitution I–VII](../../.specify/memory/constitution.md) · [ROADMAP 06.01–08](../../ROADMAP.md) · [M2 v2](../003-p2p-messaging/contracts/chat-v2.md) · [Group 004](../004-group-chat/spec.md) · [History 005](../005-chat-history/spec.md).
 
 ## 1. Decisions frozen by user
@@ -38,9 +38,9 @@
 | II. Protocol-first | **CONDITIONAL** | Final FILE_V1 version/encoding, canonical capability transcript and v2-only downgrade vectors reviewed |
 | III. Bounded/nonblocking | **CONDITIONAL** | Shared 4 sessions/16 frames/2MiB queue; File chunk/heap/fairness/EDT benchmark not measured |
 | IV. Security/privacy | **BLOCKED** | Independent Win11 Downloads ACL/junction/atomic no-clobber/crash security review and M2 signature/capability review missing |
-| V. Test-backed | **CONDITIONAL** | Prior Java21 138 tests are M0–M2/History domain baseline, **0 File tests**, no 2-PC File evidence |
+| V. Test-backed | **CONDITIONAL** | Prior Java21 138 baseline tests plus **27 new File pure-domain/read-only tests** = 165 full PASS; no File on-wire/Win11 receiver or 2-PC File evidence |
 | VI. Honest Live UI | **DESIGN PASS / runtime OPEN** | Per-offer Accept even with approved Downloads, no fake receiver complete/read/auto-open |
-| VII. Spec-driven | **DESIGN PASS / implementation OPEN** | 10 CL confirmed; 8 US/56 FR/14 SC/16 AC; **tasks.md planned 0/160**, no File code or File QA |
+| VII. Spec-driven | **DESIGN PASS / implementation OPEN** | 10 CL confirmed; 8 US/56 FR/14 SC/16 AC; **tasks.md 36/160 done**, pure File domain/source tests exist, but production File wire/Win11 receiver not implemented |
 
 **Gate 0.0: 10/10 user Clarify DONE.** G0.1 File wire/capability profile freeze **OPEN**. G0.2 Windows FS path/atomic no-clobber security review **OPEN**. G0.3 Group signed original-source/owner 004 runtime **BLOCKED**. G0.4 capacity/timeout fairness measurements **NOT RUN**. G0.5 independent security/privacy signoff **NOT EVIDENCED**. Product confirmation does not sign off these gates.
 
@@ -169,7 +169,7 @@
 
 ## 10. Test-first RED→GREEN implementation schedule
 
-The [160-task implementation list](tasks.md) now exists; **0/160 tasks are implemented or checked**. This section is the RED→GREEN implementation strategy only, not a record of tests executed.
+The [160-task implementation list](tasks.md) now exists; **36/160 tasks are completed** with real Java21 RED→GREEN evidence; this section remains strategy for the 124 unchecked tasks, not proof of secure File E2E.
 
 | Stream | RED tests (write and run first) | GREEN implementation and exit |
 | --- | --- | --- |
@@ -201,7 +201,7 @@ The [160-task implementation list](tasks.md) now exists; **0/160 tasks are imple
 
 ## 12. Deliverables, release rules and next actions
 
-**Documentation produced in this update:** confirmed `clarifications.md`; CL-aligned `spec.md`; `plan.md` (this document); supporting [architecture research](research.md), [conceptual model](data-model.md), [draft FILE_V1 wire](contracts/file-v1.md), [test plan](quickstart.md), and [impact review](checklists/architecture-impact-review.md); checklists/ROADMAP status updated. **160 tasks are now authored in [tasks.md](tasks.md) (0 completed); no Java File code or File tests were created/run by task authoring.**
+**Documentation produced in this update:** confirmed `clarifications.md`; CL-aligned `spec.md`; `plan.md` (this document); supporting [architecture research](research.md), [conceptual model](data-model.md), [draft FILE_V1 wire](contracts/file-v1.md), [test plan](quickstart.md), and [impact review](checklists/architecture-impact-review.md); checklists/ROADMAP status updated. **[tasks.md](tasks.md) now records 36/160 checked tasks; File domain/read-only source classes and 27 new JUnit tests were executed subsequently. See [RED→GREEN evidence](evidence/trace-and-tdd.md) and [verified blockers](evidence/execution-blockers.md). No File wire/Win11 receiver was implemented.**
 
 **Gate 0 exit:** product CL now DONE; independent protocol version/handshake signed transcript review, Win11 safe root/no-clobber filesystem review and exact resource budgeting must be reviewed before production codec/disk/network changes. Group 004 missing real runtime remains a separate external blocker. No claim of approved native Win32 library, successful atomic rename on Windows, measured capacity or independent reviewer.
 

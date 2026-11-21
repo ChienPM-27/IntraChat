@@ -45,4 +45,4 @@
 3. **Resource/privacy** — memory/queue/EDT/2-PC rates at 256 MiB, no transfer metadata persistence, safe logs/warnings, per-recipient consent.
 4. **Group 004** — real signed original member proof/owner epoch/roster/commit/handoff runtime first, then per-recipient Group File tests.
 
-**Not verified:** No File Java code, native dependency security review, two-PC File transfer test, or acceptance. These are design ADR proposals, not executed/approved implementation.
+**Not verified:** 27 isolated File domain/read-only Java21 JUnit tests now PASS, but **no real File network/Win11 Downloads writer**, native dependency/Windows/protocol independent review, two-PC File transfer or AC acceptance. ADR proposals remain unapproved for production.

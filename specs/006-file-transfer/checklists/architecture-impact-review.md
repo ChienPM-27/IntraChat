@@ -1,7 +1,7 @@
 # Architecture Impact Review — Stage 06 confirmed CL decisions
 
 **Feature:** `006-file-transfer` · **Date:** 2026-11-21
-**Status:** **10/10 CL USER CONFIRMED (9 A, CL-06-03 B); design integrated into plan. Technical independent Gate 0 and Gate 1 still OPEN/BLOCKED.** [Spec](../spec.md) · [Choices](../clarifications.md) · [Plan](../plan.md) · [Wire draft](../contracts/file-v1.md) · [ROADMAP](../../../ROADMAP.md).
+**Status:** **10/10 CL USER CONFIRMED (9 A, CL-06-03 B); 36/160 isolated domain/read-only source task completions with 27 Java21 File JUnit PASS. Independent technical Gate 0/Gate 1 still BLOCKED.** [Spec](../spec.md) · [Choices](../clarifications.md) · [Plan](../plan.md) · [Wire draft](../contracts/file-v1.md) · [ROADMAP](../../../ROADMAP.md).
 
 ## 1. Decision → architecture → FR/AC trace
 
@@ -48,6 +48,6 @@
 
 ## 4. Document and workflow completeness
 
-The [plan](../plan.md) traces **8 US, 56 FR, 14 SC, 16 AC** and eight ROADMAP 06.01–08 items. [Data model](../data-model.md) is conceptual RAM-only model + transient staging/final file, [FILE_V1 wire](../contracts/file-v1.md) is a strict **DRAFT**, [quickstart](../quickstart.md) is a test *plan*, not a test run. [160 planned implementation tasks](../tasks.md) now exist (0 completed); Java File transfer code is **not** generated or tested.
+The [plan](../plan.md) traces **8 US, 56 FR, 14 SC, 16 AC** and eight ROADMAP 06.01–08 items. [Data model](../data-model.md) is conceptual RAM-only model + transient staging/final file, [FILE_V1 wire](../contracts/file-v1.md) is a strict **DRAFT**, [quickstart](../quickstart.md) is a test *plan*, not a test run. [160 tasks](../tasks.md) now record **36 completed** including Java File domain/read-only helper tests; real File V1 network/Win11 Downloads receiver/Group integration remains unimplemented and untested.
 
 **Next:** independent File protocol+Win11 secure filesystem review and Group 004 runtime gap; then execute [160 tasks](../tasks.md) RED→GREEN under honest Gate0/Group blockers. Keep local dirty 003 main worktree untouched.
