@@ -1,11 +1,18 @@
-# IntraChat
+# IntraChat Desktop
 
-**IntraChat** là dự án phần mềm nhắn tin trong mạng nội bộ (LAN) bằng **Java**, hướng tới giao tiếp trực tiếp giữa các thiết bị cùng mạng: trò chuyện cá nhân (P2P), trò chuyện nhóm, chia sẻ tệp và nội dung đa phương tiện.
+Bản Frontend demo phong cách Messenger, viết bằng Java Swing và FlatLaf. Chạy độc lập với ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm; không có Server, Socket, Database hay xác thực thật.
 
+## Chạy thử
 > **Trạng thái dự án (21/11/2026):** Giai đoạn 01 đã có **Java/Swing foundation**, Maven Wrapper, mô hình metadata và JUnit tests. **Chưa** triển khai kết nối LAN, Chat P2P/Group, History Sync, File hoặc Media. M0 mới được kiểm tra một phần trên JDK 25 bằng bytecode target 21; runtime JDK 21 còn cần xác minh.
 
-## 1. Mục tiêu và phạm vi
+Yêu cầu JDK 17 trở lên và Maven để build. Maven tải dependency khi cần; file JAR đã đóng gói không cần mạng để chạy.
 
+```shell
+mvn clean package
+java -jar target/intrachat-0.1.0.jar
+```
+
+Nhập một username bất kỳ (tối đa 32 ký tự) và mật khẩu demo không trống. Nếu chọn **Đăng ký**, nhập mật khẩu demo ít nhất 4 ký tự. Không dùng mật khẩu thật.
 - Hỗ trợ trao đổi thông tin giữa các máy trong cùng mạng LAN mà không bắt buộc có dịch vụ Internet.
 - Cung cấp giao diện dễ sử dụng để trao đổi văn bản, emoji và tệp đa phương tiện.
 - Hiển thị rõ người gửi, thời gian và trạng thái liên quan đến người dùng/tin nhắn.
@@ -149,18 +156,17 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 
 Thứ tự có thể thay đổi sau khi viết spec; đây không phải tiến độ đã hoàn thành.
 
-## 7. Tiêu chí chấp nhận tối thiểu
+- **Mai Anh:** người dùng online, lịch sử có ảnh và biên nhận Đã xem.
+- **Minh Khang:** người dùng offline; tin gửi trong demo dừng ở Đã gửi.
+- **Nhóm dự án:** hiển thị người gửi, số thành viên, tệp, video, WAV và biên nhận Đã nhận. Nhấn **+** để tạo nhóm khác.
+- **Thanh soạn:** Enter để gửi tin mock, bảng 30 emoji, chọn ảnh/video/tệp hoặc ghi âm tối đa 120 giây. Bấm ảnh để xem đầy đủ, video để mở bằng trình phát mặc định, biểu tượng tải để lưu tệp không ghi đè.
 
-- Hai peer trong LAN có thể trao đổi tin nhắn đúng người gửi, nội dung và thời gian.
-- Nhóm gửi tới đúng thành viên theo quy tắc phân phối đã đặc tả.
-- Truyền tệp không làm hỏng nội dung; có cách nhận biết lỗi/hủy và tránh ghi ra ngoài thư mục đích.
-- Kết nối mất giữa chừng không làm treo UI hoặc làm mất kiểm soát tài nguyên.
-- Các hành vi đã triển khai có kiểm thử tương ứng; kết quả kiểm thử phải được ghi nhận trung thực.
+## Phạm vi
 
-## 8. Đóng góp
+Lịch sử, hội thoại, tài khoản và biên nhận chỉ là dữ liệu mô phỏng trong phiên; đóng ứng dụng sẽ mất thay đổi. Media mẫu và bản ghi sử dụng thư mục tạm; tệp lưu theo lựa chọn của bạn vẫn còn. Ghi và phát tin thoại phụ thuộc thiết bị/quyền âm thanh của hệ điều hành. Ứng dụng không có cuộc gọi, Story hoặc cài đặt nâng cao.
 
-Trước khi viết code, đọc `AGENTS.md` và `.specify/memory/constitution.md`. Mỗi thay đổi tính năng nên đi kèm spec hoặc cập nhật spec, test, và tài liệu liên quan. Không đưa dữ liệu riêng tư, khóa bí mật, tệp lịch sử chat thật hoặc tệp nhận được vào Git.
+`listener.ChatActionHandler` nhận thao tác từ UI và `listener.ChatClientListener` nhận cập nhật. Bản demo chỉ dùng `model.mock.MockChatService`. Xem [đặc tả](specs/001-desktop-frontend/spec.md) và [kế hoạch](specs/001-desktop-frontend/plan.md) để biết giới hạn và hành vi mock.
 
-## 9. Giấy phép
+## Kiểm tra
 
-**Chưa xác định.** Không mặc định dự án được cấp phép mã nguồn mở cho đến khi có tệp `LICENSE`.
+`mvn test` chạy test lịch sử, kiểm tra/lưu media và luồng giao diện mock. Test Swing cần môi trường desktop; ảnh chụp layout nằm trong `target/`. Microphone, âm thanh phát ra loa và trình phát video mặc định cần kiểm tra thủ công trên máy sử dụng.
