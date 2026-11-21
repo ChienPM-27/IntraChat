@@ -296,6 +296,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 **Ưu tiên:** P2
 **Spec Kit feature:** `006-file-transfer`
+**Đặc tả (21/11/2026):** [Spec DRAFT — 8 US / 56 FR / 14 SC / 16 AC](specs/006-file-transfer/spec.md) · [10 câu hỏi Clarify PENDING](specs/006-file-transfer/clarifications.md) · [Checklist yêu cầu](specs/006-file-transfer/checklists/requirements.md). **Chưa có plan/tasks/File protocol runtime; 006/M4 NOT VERIFIED.**
 **Phụ thuộc:** kết nối/giao thức giai đoạn 02–03; mục tiêu tích hợp Group ở giai đoạn 04
 **Phạm vi tính năng:** **File**
 **Mục tiêu:** truyền tệp giữa các peer có tiến độ, hủy truyền và kiểm soát an toàn.
@@ -494,7 +495,7 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 | 03 — P2P MVP | **In Progress — M2 34/90 tasks checked; partial implementation, 107/107 Java21 JUnit PASS từ commit độc lập** — [Spec CL-03-01…05](specs/003-p2p-messaging/spec.md) · [Plan](specs/003-p2p-messaging/plan.md) · [Tasks](specs/003-p2p-messaging/tasks.md) · [evidence](specs/003-p2p-messaging/evidence/m2-acceptance-report.md); Java21 encrypted real Live GUI loopback 2 JVMs + ACK/view READ tested; **M1 Gate 1, full security review and two physical Win11 LAN PCs still BLOCKED** | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
-| 06 — File transfer | Not Started | M4 |
+| 06 — File transfer | **Specified DRAFT — 10/10 CL-06 PENDING**, chưa có File transfer code/test hoặc secure release gate. [Spec](specs/006-file-transfer/spec.md) · [Clarify](specs/006-file-transfer/clarifications.md) | M4 |
 | 07 — Multimedia | Not Started | M4 |
 | 08 — Integration & release | Not Started | M5 |
 
