@@ -2,3 +2,31 @@
 /.idea/
 *.iml
 /.vscode/
+# Maven output
+target/
+*.log
+logs/
+*.tmp
+*.bak
+*.swp
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+# OS
+.DS_Store
+Thumbs.db
+# Runtime data
+data/
+runtime/
+received-files/
+downloads/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+# Never ignore source, tests or Maven wrapper
