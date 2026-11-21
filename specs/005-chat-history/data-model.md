@@ -1,6 +1,6 @@
 # History 005 — logical data model and state transitions
 
-**Status:** DRAFT (candidate A CL-05-01…10 still PENDING) · [spec](spec.md) · [plan](plan.md) · [contract](contracts/history-v1.md). **No SQL schema/migration or Java History code created yet.**
+**Status:** CL-05-01…10 **USER CONFIRMED (all A)**; logical design only, concrete SQL schema/encrypted driver **NOT FROZEN** · [spec](spec.md) · [plan](plan.md) · [contract](contracts/history-v1.md). **No SQL schema/migration or Java History code created yet.**
 
 ## 1. Entities and invariants
 
@@ -18,10 +18,10 @@
 | `HistorySyncCheckpoint` | scope, peerId, authenticatedRun, durableAppliedIDs or safe digest cursor, lastSyncAttempt/status | Advance only after durable apply; reload requires new permission check |
 | `GroupHistoryEligibility` | groupId, memberId, verifiedSpki, joinCommitRevision/sequence, removeCommitRevision/sequence?, ownerEpoch/proof | Only events AFTER JOIN, none newly issued after REMOVE; handoff continuity required |
 
-## 2. Candidate database tables/indexes — **NOT FROZEN**
+## 2. SQLite encrypted database schema sketch — **technical DDL NOT FROZEN**
 
 ~~~sql
--- Encrypted SQLite/SQLCipher-compatible driver only after approval.
+-- CL-05-02 CONFIRMED: SQLite MUST be fully encrypted at rest; select approved cipher driver first.
 -- No literal user chat/keys in application logs or plaintext DB/WAL/temp.
 CREATE TABLE history_profile(
   profile_id INTEGER PRIMARY KEY,
@@ -77,7 +77,7 @@ CREATE TABLE history_checkpoint(
 );
 ~~~
 
-**Not yet DDL-approved:** SQL timestamps versus integer epoch, canonical payload length, Group owner routing proof tables, foreign keys, key rotation and metadata checksum, encrypted index/WAL behavior and delete fence compaction need actual ADR/security review and tests. Do **not** execute this as unreviewed production migration.
+**User-confirmed choices fixed:** opt-in, encrypted SQLite/DPAPI/ACL, 90d+500MiB user-adjustable, manual sync, 2-device P2P, current owner Group, local tombstone deletion, no ACK/READ receipt persistence, immutable conflict quarantine, no backup/export. **Not yet DDL-approved:** SQL timestamps versus integer epoch, canonical payload length, Group owner routing proof tables, foreign keys, key rotation and metadata checksum, encrypted index/WAL behavior and delete fence compaction need actual ADR/security review and tests. Do **not** execute this as unreviewed production migration.
 
 ## 3. State machines
 
@@ -109,4 +109,4 @@ owner retired/ambiguous handoff → PAUSED until successor proof accepted
 5. `deleteLocal`: capture exact user selection, atomically persist deletion intent/tombstone and remove content; maintain non-resurrection generation on restart; no remote-wipe claim.
 6. `expire/compact`: apply confirmed retention, protect tombstone fences, verify encrypted side files, leave trust/group metadata unaffected.
 
-**Privacy:** all data shown here is conceptual. Never log content or dump real SQL rows in evidence. DPAPI-wrapped key doesn't encrypt the SQLite engine unless an encrypted driver actually implements page protection.
+**Privacy:** receipt ACK/READ tables/columns must NOT be introduced (CL-05-08); History local saved/sync state is separate. No backup/export jobs (CL-05-10). Retention by age/total size 90d+500MiB default with durable tombstone fences (CL-05-03/07). All data shown here is conceptual. Never log content or dump real SQL rows in evidence. DPAPI-wrapped key doesn't encrypt the SQLite engine unless an encrypted driver actually implements page protection.

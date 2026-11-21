@@ -1,8 +1,8 @@
 # Requirements Quality Checklist — Giai đoạn 05 Chat History & LAN P2P Sync
 
 **Feature:** `005-chat-history` · **Date:** 2026-11-21
-**Status:** **SPEC DRAFT + PROVISIONAL PLAN written; 10/10 Clarify PENDING user confirmation. No History tasks/code/test/Verified.**
-**Source:** [spec](../spec.md) · [choices](../clarifications.md) · [provisional plan](../plan.md) · [data model](../data-model.md) · [History V1 draft](../contracts/history-v1.md) · [ROADMAP Giai đoạn 05](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
+**Status:** **10/10 CL-05 USER CONFIRMED (all A); spec and implementation plan aligned. Independent encrypted SQLite/security approval and History tasks/code/test/Verified still OPEN.**
+**Source:** [spec](../spec.md) · [choices](../clarifications.md) · [confirmed-decision plan](../plan.md) · [data model](../data-model.md) · [History V1 draft](../contracts/history-v1.md) · [ROADMAP Giai đoạn 05](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
 
 ## 1. Requirements scope, language and consistency
 
@@ -14,20 +14,20 @@
 - [x] Ranh giới ngoài phạm vi tách biệt: cloud/multi-device account, draft/outbox, media, Group E2EE, remote wipe guaranteed, automatic reconnect/election, Demo mock.
 - [x] Không tự đánh dấu Group 004/M1/M2/M3 VERIFIED chỉ vì đã viết spec.
 
-## 2. Clarifications — PENDING (user has NOT approved)
+## 2. Clarifications — USER CONFIRMED 2026-11-21 (10/10 option A)
 
-- [ ] **CL-05-01** — History opt-in/opt-out mặc định và điểm bắt đầu lưu.
-- [ ] **CL-05-02** — Storage engine/mã hóa at rest/DPAPI/wal-temp/ACL và dependency approval.
-- [ ] **CL-05-03** — Retention/quota mặc định và dọn dữ liệu theo ngày/dung lượng.
-- [ ] **CL-05-04** — Sync thủ công hay tự động sau verified reconnect; xác nhận một/hai đầu.
-- [ ] **CL-05-05** — P2P History chỉ 2 verified device IDs hay multi-device account linking.
-- [ ] **CL-05-06** — Group sync nguồn owner hiện hành hay authorized member-to-member; mốc JOIN/REMOVE không được hạ.
-- [ ] **CL-05-07** — Xóa local vs propagate remote; tombstone và giới hạn “remote wipe”.
-- [ ] **CL-05-08** — Chính sách persist/sync delivery/read evidence (không tạo READ giả).
-- [ ] **CL-05-09** — Conflict/tombstone policy, immutable event vs edit/delete.
-- [ ] **CL-05-10** — Backup/export/migration scope và key recovery.
+- [x] **CL-05-01** — Đã xác nhận A: mặc định opt-in, chỉ ghi tin mới sau consent.
+- [x] **CL-05-02** — Đã xác nhận A: fully encrypted SQLite + DPAPI CurrentUser + ACL; security review driver **vẫn đang mở**.
+- [x] **CL-05-03** — Đã xác nhận A: 90 ngày và 500 MiB tổng mặc định, áp dụng cả hai giới hạn, có thể điều chỉnh.
+- [x] **CL-05-04** — Đã xác nhận A: user bấm Đồng bộ thủ công theo từng conversation.
+- [x] **CL-05-05** — Đã xác nhận A: P2P History chỉ hai verified deviceId/SPKI của conversation.
+- [x] **CL-05-06** — Đã xác nhận A: current Group owner, có epoch/roster proof và mốc JOIN→REMOVE.
+- [x] **CL-05-07** — Đã xác nhận A: local delete + durable tombstone, không remote delete.
+- [x] **CL-05-08** — Đã xác nhận A: không persist/restore/sync application ACK/READ receipts.
+- [x] **CL-05-09** — Đã xác nhận A: immutable events, same ID different signer/body → quarantine.
+- [x] **CL-05-10** — Đã xác nhận A: không tự backup/export; chỉ schema migration an toàn.
 
-**Rule:** Cần người dùng xác nhận các lựa chọn trước khi chuyển spec thành implementation plan; “gợi ý baseline” trong spec **không** phải quyết định đã phê duyệt.
+**Rule:** Người dùng **đã xác nhận 10/10 phương án A**. Chỉ có native encrypted SQLite driver, crypto/wire/canonical vectors, performance benchmarks và independent review chưa có chứng cứ phê duyệt. Không dùng các việc còn mở để phủ nhận các quyết định CL đã chốt.
 
 ## 3. Functional and acceptance coverage
 
@@ -36,31 +36,31 @@
 - [x] **12 numbered SC-05** có thể đo/đối chiếu với test evidence.
 - [x] **16 AC-05-A…P**; A–F giữ yêu cầu ROADMAP, G–P bổ sung Group membership/owner handoff, privacy và release.
 - [x] Truy vết đủ **ROADMAP 05.01…05.09** tới FR và AC, không bỏ Sync hoặc quyền theo hội thoại.
-- [x] Không gán số mặc định retention/quota/timer hoặc thuật toán storage/crypto chưa được người dùng chốt thành yêu cầu bắt buộc.
+- [x] **Đã khóa** các ngưỡng retention/quota user-confirmed: 90 ngày và 500 MiB mặc định, có thể điều chỉnh. Các giá trị batch/timeout/RAM và exact native crypto còn là **technical targets chưa đo/chưa security-review**, không gán thành test PASS.
 - [x] Tính eventual consistency giới hạn theo authorized and reachable peers; không claim global ordering, forever exactly-once hoặc remote erase.
 - [x] Group mới join không nhận pre-JOIN events, removed member không nhận future delta, owner handoff verified proof.
 - [x] Duplicate/replay same-ID khác payload/signer phải quarantine/reject, không last-write-wins dựa timestamp.
-- [x] Không đồng nhất saved/synced với delivered/read; Live/Demo hoàn toàn biệt lập.
+- [x] Không đồng nhất saved/synced với delivered/read; **không lưu/sync ACK/READ receipts (CL-05-08)**; Live/Demo hoàn toàn biệt lập.
 
 ## 4. Security, resilience and non-functional test plan quality
 
-- [x] History at rest protected for Windows user; không plaintext leakage ở WAL/temp/log/backup; DPAPI wrong-user corruption fail closed.
+- [x] Đã chỉ rõ CL-05-02 **fully encrypted SQLite + DPAPI + ACL** và CL-05-10 **no backup/export** (ở mức yêu cầu/plan); kiểm thử WAL/temp/log/other-user còn OPEN, không coi review đã PASS.
 - [x] Sync only after verified M2 TLS + explicit History protocol capability và conversation-specific auth; no M1 transport fallback.
 - [x] Group History authority cần current Group owner epoch/roster và signed origin/member proof.
-- [x] Local delete/tombstone không tự hồi sinh; remote-copy revocation limits được nói đúng.
+- [x] **Local-only delete** + durable tombstone không tự hồi sinh; **không remote delete**; remote-copy revocation limits được nói đúng.
 - [x] Page/queue/frame/disk/memory bounds, cancellation and EDT responsiveness được yêu cầu; giá trị cụ thể chờ plan/performance measurement.
 - [x] Error/crash/migration/duplicate/oversized payload/unknown type tests và signed event security tests có trong scenarios.
 - [x] 2-peer P2P sync, ≥3 process Group và **2 physical Win11 LAN PCs** là release evidence bắt buộc, không lấy localhost để giả hai PCs.
 - [x] Independent dependency, crypto, storage and privacy security review vẫn là release blocker, Constitution Gate 1 không được tự sign off.
 
-## 5. Before implementation — intentionally incomplete
+## 5. Implementation/security gates — intentionally OPEN
 
-- [ ] Người dùng xác nhận `CL-05-01…10` (có thể thay baseline; sửa spec tương ứng).
-- [x] Đã **soạn bản [plan.md](../plan.md) PROVISIONAL** với Constitution Check I–VII, ADRs, at-rest encrypted storage, History V1 wire draft, event model, ACL/delete, resource budgets và release gates; **chưa phê duyệt/freeze**, vì 10 CL còn PENDING và independent review chưa có.
+- [x] Người dùng đã xác nhận `CL-05-01…10` = **10/10 A**, cập nhật [spec](../spec.md), [decisions](../clarifications.md) và [plan](../plan.md).
+- [x] Đã đồng bộ [plan.md](../plan.md) theo **10/10 CL CONFIRMED**, có Constitution I–VII, encrypted SQLite+DPAPI+ACL, History V1 wire draft, event model/ACL/delete/resource gates. **Technical Gate 0 vẫn CONDITIONAL**, vì native driver, exact signature vectors và independent security review chưa được duyệt.
 - [ ] Lập `tasks.md` với RED→GREEN tests và gate dependencies, tránh sửa mã cùng file với công việc M2/004 đang dở.
 - [ ] Implement History local store, Live history UI, P2P sync và Group History integration theo đúng các quyết định đã được duyệt.
 - [ ] Chạy actual Java21 tests + 2-peer/3-client encrypted LAN, corruption/permissions/negative tests, record AC-05-A…P.
 - [ ] Khép lại inherited M1/M2/004 release gates và independent security/privacy review trước khi tuyên bố 005 Verified.
 - [ ] M3 Verified **chỉ khi cả 004 Group lẫn 005 History đã Verified**.
 
-**Conclusion:** Spec + plan draft đủ để quyết định 10 Clarify; plan, contract, driver và numeric targets vẫn conditional, không phải approved design freeze, release report, code hay test evidence.
+**Conclusion:** 10/10 CL đã CONFIRMED và được phản ánh trong plan; hợp đồng wire, driver, chữ ký, resource budgets và Gate 1 còn chờ kiểm chứng độc lập. Đây là hoàn tất bước Clarify, không phải code hay acceptance test evidence.

@@ -4,8 +4,8 @@
 
 ## 1. Safety and gate checks
 
-1. Review and **confirm CL-05-01…10**. Do not treat baseline A in the plan as consent.
-2. Resolve independent review and supply-chain approval for any native encrypted SQLite driver; verify DPAPI CurrentUser, ACL, DB/WAL/journal/temp encryption on Win11 x64. If no reviewed encrypted storage, **STOP** instead of plaintext fallback.
+1. **CL-05-01…10 already user-confirmed (all A) on 2026-11-21.** Review the [confirmed choices](clarifications.md), align the technical plan and require independent security/wire/driver approval before sensitive implementation.
+2. **CL-05-02 requires fully encrypted SQLite**; resolve independent review/supply-chain approval for its encrypted native/JDBC driver and verify DPAPI CurrentUser, ACL, DB/WAL/journal/temp encryption on Win11 x64. If no approved driver, **STOP**, not plaintext SQLite or an alternative store.
 3. Confirm M1/M2 Gate 1 status and keep Group History disabled until Group 004 owner handoff, signed membership and Group wire are actually implemented and security-reviewed.
 4. Use **a separate clean worktree** for 005 to preserve uncommitted changes in 003 and remaining Group 004 work. Keep real chats, PIN/SAS, keys, encrypted DB/profile, event logs with private content out of Git.
 
@@ -33,7 +33,7 @@ Record actual commit, Java version, command, exit code, JUnit XML counts; no pas
 | History codec | v1/v2/Group downgrade, duplicate JSON keys, frame limits, invalid UTF-8, replays | Strict independent HISTORY_V1 only after post-TLS confirmation |
 | Two-peer sync | Verified M2 A↔B, missing event, interrupted chunk, repeated ID, outsider C | B sends only eligible signed events; A durable applies and resumes without duplicates |
 | Group sync | A/B/C owner, late joiner D, removed C, owner handoff, ≥3 real JVM processes | No pre-JOIN history or post-REMOVE new deltas |
-| Live UI | Opt-in/disable, paging, user delete/tombstone, Demo isolation and foreground READ | SAVED/SYNCED never implies DELIVERED/READ, EDT responsive |
+| Live UI | Opt-in/disable, 90d/500MiB adjustable retention, local-only delete/tombstone, Demo isolation, no persisted/read receipt | SAVED/SYNCED never implies DELIVERED/READ, EDT responsive |
 | Release | Cross-account DPAPI, disk stress, privacy scan, two **physical** Windows LAN PCs, independent review | Actual AC-05-A…P test evidence and Gate 1 signoff |
 
 ## 4. Multi-process scenarios (future acceptance)
@@ -54,7 +54,7 @@ Record actual commit, Java version, command, exit code, JUnit XML counts; no pas
 Date, commit, branch: <observed>
 Win11 physical PCs, distinct JVMs, Windows users: <observed counts>
 Java and Maven versions: <observed>
-CL-05 decisions/approved storage driver: <approval refs>
+CL-05: 10/10 CONFIRMED all A (2026-11-21); encrypted SQLite vendor/dependency/security signoff: <review ref or BLOCKED>
 RED test command/exit/failure: <actual>
 GREEN test command/exit/count: <actual>
 Local restart saved event (same account): <actual>

@@ -2,12 +2,12 @@
 
 **Feature/branch:** `005-chat-history`
 **Date:** 2026-11-21
-**Status:** **PROVISIONAL PLAN / DESIGN-ONLY — 10/10 CL-05 PENDING user confirmation; NO History implementation, NO History test executions, NOT VERIFIED**
-**Spec:** [spec.md](spec.md) · [10 proposed decisions](clarifications.md) · [requirements checklist](checklists/requirements.md)
-**Design artifacts:** [research/ADRs](research.md) · [logical data model](data-model.md) · [proposed wire contract](contracts/history-v1.md) · [test quickstart](quickstart.md)
+**Status:** **IMPLEMENTATION PLAN — 10/10 CL-05 USER CONFIRMED (all A); technical security/driver/wire Gate 0 still CONDITIONAL; NO History code/tests/Verified**
+**Spec:** [spec.md](spec.md) · [10 user-confirmed decisions](clarifications.md) · [requirements checklist](checklists/requirements.md)
+**Design artifacts:** [research/ADRs](research.md) · [logical data model](data-model.md) · [draft wire contract](contracts/history-v1.md) · [test quickstart](quickstart.md) · [decision impact review](checklists/architecture-impact-review.md)
 **Governing:** [Constitution I–VII](../../.specify/memory/constitution.md) · [ROADMAP 05.01–05.09](../../ROADMAP.md) · [M2 protocol](../003-p2p-messaging/contracts/chat-v2.md) · [Group plan](../004-group-chat/plan.md)
 
-**Planning guard:** All assumptions marked `A` below are **recommendations**, not decisions made by the user. This plan is a **candidate for review**, not an approved implementation baseline. After the user confirms CL-05-01…10, update ADRs, numeric limits, wire fields and relevant FR/AC before generating `tasks.md` or enabling sensitive storage/network code. Immutable/security requirements inherited from M1/M2/004 are not optional.
+**Planning guard:** Người dùng đã xác nhận **CL-05-01…10 = A (10/10)**. Các quyết định sản phẩm dưới đây là **binding**; các chi tiết bản driver SQLite/native/crypto signatures, exact wire schema và performance benchmarks vẫn **đòi security review, thiết kế freeze và test thực** trước khi bật History. Không tự đổi sang phương án B, dùng SQLite plaintext hay coi xác nhận CL là Gate 1 PASS. M1/M2/004 binding vẫn giữ nguyên.
 
 ## 1. Summary and prerequisite state
 
@@ -15,17 +15,17 @@ A Windows 11 x64 Java 21/Swing IntraChat Live client keeps an encrypted, per-Win
 
 **Current actual baseline:** branch `005-chat-history` was created from commit `9188f04` of 004 (pure Group domain). M0 previously Verified. M1/M2 two-physical-Windows-LAN Gate 1 and independent security review remain **NOT VERIFIED**. Group 004 has **18/124 tasks** with 15 pure-domain JUnit Group tests; no real Group wire/FE implementation. Committed 004 evidence recorded Java21 **122/122 M0–M2 + pure Group JUnit PASS**; those results are historical **not** History runs. No History classes, SQLite driver, encryption integration, sync protocol or tests are implemented on this planning branch. Treat those facts as release blockers, not a reason to claim a Group sync path exists.
 
-### 1.1 Binding user/product requirements vs conditional design
+### 1.1 Binding user/product requirements vs technical implementation gates
 
-| Authority | Binding | Provisional A design if approved |
+| Authority | Binding | Architecture consequence |
 | --- | --- | --- |
 | M0 CL-01-04 | Per-authorized-device local copies, LAN P2P eventual sync; no server | Two-party direct reconciliation, source-authenticated immutable events |
 | M1 CL-02 | Manual IPv4:port/inbound Accept every time, v1 diagnostic only | Reuse same verified M2 socket, no new listener |
 | M2 CL-03 | TLS1.3 pinned human pairing, M2 RAM-only baseline, real READ only on foreground view | 005 writes **future opted-in** messages, does not backfill lost RAM; no saved/synced→READ |
 | Group CL-04 | Owner relay+handoff, 5 devices, protected metadata, join-cutoff/no prejoin history, REMOVE at durable owner commit | Owner-only Group sync, member eligibility interval, owner proof; Group sync disabled before 004 Gate 1 |
-| **CL-05-01…10** | **PENDING** | Opt-in; encrypted SQLite/DPAPI; 90d/500MiB; manual sync; 2-device P2P; owner Group sync; local delete+tombstones; no persisted receipts; immutable events; no auto backup |
+| **CL-05-01…10** | **USER CONFIRMED — 10/10 A** | Opt-in; full encrypted SQLite/DPAPI/ACL (pending driver review); **90d AND 500MiB guardrails** user-adjustable; manual per-conversation sync; exact verified P2P two peers; current owner Group; local delete+tombstones; no receipt persistence/sync; immutable events; no backup/export |
 
-**Spec-driven precedence:** user-confirmed CL (once received) and Constitution → `spec.md` WHAT/AC → plan ADRs → data-model/contract → tests/code. An A baseline must not silently become CONFIRMED. Any decision requiring group pre-JOIN backfill, user-account merging or plaintext persistence conflicts with approved earlier behavior and requires explicit scope review.
+**Spec-driven precedence:** Constitution + **user-confirmed CL-05** → `spec.md` requirements/AC → plan ADRs → data model/wire contract → tasks/tests/code. Các CL đã được chốt; không thêm Group pre-JOIN backfill, account linking, remote wipe, receipt persistence hoặc plaintext storage vì sẽ mâu thuẫn các quyết định đã duyệt.
 
 ## 2. Technical context — repository-backed integration
 
@@ -38,10 +38,10 @@ A Windows 11 x64 Java 21/Swing IntraChat Live client keeps an encrypted, per-Win
 | Session constraints | `NetworkConfig` max **4 active**, 16 outbound frames and 2MiB queued per peer, max secure frame 65,536 bytes | Shared M2 registry; no extra/history sockets, cap History queues within global quotas; targets measured before release |
 | P2P message | `P2PConversation` binds two verified deviceIds+SPKI; `LiveChatService` RAM-only events | History opt-in event port records only authenticated/source-verifiable events starting at enablement |
 | Group 004 | Pure domain Java + JUnit, Group secure wire/owner handoff/FE not implemented | Group History behind typed Group service/owner proof adapter; **disabled** until 004 runtime + Gate 1 established |
-| Storage | Existing DPAPI `ProtectedLocalFile` for small identity files, no durable message DB | **New** encrypted, transactional local History store (A: reviewed SQLite cipher driver + DPAPI-wrapped independent database key); never dump whole DB in DPAPI credential helper |
+| Storage | Existing DPAPI `ProtectedLocalFile` for small identity files, no durable message DB | **New full encrypted SQLite History store**; approved cipher-enabled driver, DB key wrapped with DPAPI CurrentUser + owner ACL; no alternate unencrypted backend, never DPAPI-wrap entire DB as a credential blob |
 | Third-party dependencies | Existing Jackson/BC/JNA; no SQLite/SQLCipher artifact pinned yet | Security/CVE/license/native distribution review REQUIRED before adding DB dependency; no plaintext SQLite fallback |
 
-**Storage decision caveat:** Standard SQLite/JDBC is **not encrypted by default**. A request for “SQLite + DPAPI” does not make plaintext DB/WAL safe. The implementation may use a reviewed SQLCipher-compatible JDBC/native build with full-page encryption and encrypted journal/WAL, or, after explicit ADR/user acceptance, a bounded encrypted event-page store. Until verified on the actual Windows binary, **never claim History at rest protected**.
+**Storage enforcement (CL-05-02 CONFIRMED):** Standard SQLite/JDBC is **not encrypted by default**; wrapping a key with DPAPI does not encrypt plaintext DB/WAL. **Only SQLite with demonstrated full-page encryption and protected WAL/journal/temp via security-reviewed, license-approved native/JDBC distribution** satisfies scope. Without it, **STOP / BLOCKED**; no plaintext fallback or silent substitution of an alternative event-store. No such driver is yet installed, integrated or tested.
 
 ## 3. Constitution Check — Gate 0 (design-level, not release signoff)
 
@@ -53,9 +53,9 @@ A Windows 11 x64 Java 21/Swing IntraChat Live client keeps an encrypted, per-Win
 | **IV. Security/privacy (MUST)** | **BLOCKED FOR IMPLEMENTATION/RELEASE** | No plaintext DB/WAL/temp/backup, DPAPI user key, ACL, verified conversation ACL, no Group prejoin/backfill; independent dependency+crypto review needed |
 | **V. Test-backed** | **CONDITIONAL** | RED→GREEN unit/integration with JDK21; actual two-peer TLS, ≥3 Group JVM and two physical Windows LAN PCs; History tests not run |
 | **VI. Honest UX** | **DESIGN PASS; RUNTIME OPEN** | Saved/synced separate from delivered/read, truthful partial/errors, opt-in/disable/delete, Demo isolation, no fake READ on scroll |
-| **VII. Spec-driven** | **PASS for draft; CONFIRMATION OPEN** | 48 FR, 12 SC, 16 AC A–P, nine ROADMAP items; 10 CL pending, plan provisional, no release claim |
+| **VII. Spec-driven** | **CL CONFIRMED; TECHNICAL GATE CONDITIONAL** | 48 FR, 12 SC, 16 AC A–P, nine ROADMAP items; 10/10 user-confirmed, still no code/security review/release proof |
 
-**Gate 0 exit criteria:** user confirms 10 CLs; plan/ADR/wire/contract validated and reviewed, approved dependency/protected storage implementation strategy and deterministic security test vectors. **Gate 1** additionally requires executed History AC-05-A…P, inherited M1/M2/004 external gates and independent security review. Design-level PASS does **not** authorize enabling History.
+**Gate 0 exit criteria:** **10/10 user CL confirmation DONE**; still required: plan/ADR/contract review, independent approval for encrypted SQLite dependency/native/wal/temp/ACL, deterministic canonical crypto/wire test vectors and security threat review. **Gate 1** additionally requires executed History AC-05-A…P, inherited M1/M2/004 external gates and independent security review. Design-level PASS does **not** authorize enabling History.
 
 ## 4. Architecture and dependency direction
 
@@ -94,32 +94,32 @@ Windows user-local encrypted database + protected DB-key reference (DPAPI)
 **Single-writer scheduling:** one short transaction writer per local History store, bounded worker queue; immutable inserts and tombstones serialized for a given conversation. Never hold EDT or TLS reader lock while executing SQLite transactions. Prevent M2+Group+History head-of-line blocking via shared session quota and bounded fairness.
 
 
-## 5. Proposed CL-05 architecture decisions (A baseline; PENDING)
+## 5. CL-05 architecture decisions — **10/10 USER CONFIRMED (all A)**
 
-| CL | Candidate A consequences for implementation | Alternate B forces explicit redesign |
+| CL | Quyết định bắt buộc áp dụng | Hệ quả thiết kế / test |
 | --- | --- | --- |
-| **01 Opt-in** | Default DISABLED; first-time consent shows local storage, sync sharing, retention. `HistoryConsent` persisted protected. Capture starts after committed ENABLE event; disable stops new capture immediately | Auto-enabled upgrade must define disclosure, legacy RAM behavior and revocation/rollout |
-| **02 Encrypted SQLite** | Reviewed native SQLCipher-compatible implementation, all DB pages/WAL/temp encrypted, new random 256-bit DB key DPAPI-wrapped CurrentUser, ACL; transactions and indexed paging | Encrypted append-only pages need custom crash consistency, indexing, compaction, backup review |
-| **03 90d/500MiB** | Suggested quota with configurable cap, warning before compaction; no silent evict where tombstone policy would cause resurrection | Keep-until-delete requires different disk cap/retention/migration and stress matrix |
-| **04 Manual sync** | Only explicit Live Sync button after verified READY/capability; user selects scope; no background socket | Auto-sync after opt-in changes consent, throttling, battery/privacy behavior |
-| **05 Two device IDs** | P2P ACL is exactly verified A↔B deviceId/SPKI identities. No derived “same user” identity | Additional user/device trust enrollment, key recovery, multi-device ACL |
-| **06 Owner Group** | History Group served by **current signed owner**, no member-to-member relay, same owner handoff/membership boundary as 004 | Distributed Group source requires additional independent proof/revocation/forwarding graph |
-| **07 Local delete** | User deletes at current Windows account, persist non-resurrection local tombstone/fence, no remote-wipe claim | Remote propagation requires signatures, per-peer consent, offline deletion guarantees |
-| **08 No receipt archive** | Store immutable text/emoji + identity/provenance, separate SAVED/SYNCED; prior ephemeral ACK/READ are **not** restored or inferred | Persist original receipt proof with signed origin and strict audience/privacy/retention |
-| **09 Immutable conflicts** | Same event ID + different hash/signature → quarantine, never last-write-wins; tombstone dominates local reimport | Edits and delete events need causal version/vector clock semantics and UI |
-| **10 No backup** | No automatic backup/export; only reviewed transactional schema migration; importing copies from another Windows user is not implicit | Explicit encrypted export/import, key recovery, file safety and consent |
+| **01 — Opt-in** | Ban đầu **DISABLED**, chỉ capture text/emoji **sau khi người dùng đồng ý rõ** | Consent record protected, activation boundary; không import phiên M2 đã mất hoặc Demo |
+| **02 — Encrypted SQLite** | **SQLite mã hóa toàn bộ + DPAPI CurrentUser + owner-only ACL** qua security review | Random independent 256-bit DB key wrapped DPAPI; tất cả DB/WAL/temp encrypted; **không fallback** sang plaintext hay event store khác |
+| **03 — 90d/500MiB** | **90 ngày hoặc 500 MiB tổng mặc định, có thể điều chỉnh** | Cả age retention và capacity đều được áp dụng; chạm ngưỡng nào phải xử lý theo policy an toàn/cảnh báo; tombstone/fence vẫn phải được giữ để chống reimport |
+| **04 — Manual sync** | **Nút Đồng bộ thủ công theo từng conversation**, sau M2 verified READY | Không auto background connect/sync, yêu cầu scope permission/capability từng lần |
+| **05 — 2-device P2P** | **Chỉ hai verified deviceId/SPKI của chính P2P conversation** | Không multi-device accounts, username alias/IP không là identity/ACL |
+| **06 — Current Group owner** | **Chỉ owner hiện hành** phục vụ Group History, đúng khoảng quyền JOIN→REMOVE | Check signed ownerEpoch/roster/membershipRevision và source proof trước mỗi frame; PAUSED khi owner offline/ambiguity |
+| **07 — Local delete** | **Xóa tại Windows user hiện tại + durable tombstone**, không remote delete | Phải ngăn reimport sau restart, retention/compaction; không hứa thu hồi dữ liệu ở peer |
+| **08 — No ACK/READ archive** | **Không persist, restore hoặc sync application ACK/READ receipts** | Chỉ content/provenance + local SAVED/SYNCED; không dùng History để suy ra hoặc phát READ/DELIVERED |
+| **09 — Immutable conflict** | **Sự kiện bất biến**, cùng eventId nhưng sai hash/signer → quarantine | Không overwrite hoặc last-write-wins bằng source clock; giữ tombstone local |
+| **10 — No backup/export** | **Không backup/export**, chỉ **schema migration an toàn** | Không tạo backup lịch sử tự động hoặc user export/import; migration phải atomic/rollback, không để tệp nội dung tạm plaintext |
 
-**Decision freeze rule:** No schema, SQLCipher/native Maven dependency, full signature vectors or History capability code should be treated production-approved until the corresponding CLs are confirmed and the independent security review signs off. Document all deviations from A as amended ADRs.
+**Phạm vi đã chốt vs technical review:** 10 lựa chọn **không còn mở**. Những việc còn phải hoàn thành là **chọn và security-review bản driver SQLite thực sự mã hóa, kiểm chứng SQLCipher/JDBC/license/native/WAL/temp, approve canonical signer vectors và test**, không phải hỏi lại CL-05-01…10. Nếu không có backend đáp ứng CL-05-02, **blocker** cho storage/release; không tự đổi sang phương án B. Xem [decision impact review](checklists/architecture-impact-review.md).
 
 ## 6. Local protected History store lifecycle
 
-### 6.1 Storage layout / key handling (candidate, not tested)
+### 6.1 Storage layout / key handling (confirmed choice, unimplemented and untested)
 
 - Per Windows user private directory, for example `%LOCALAPPDATA%\IntraChat\history\`. Separate `history.v1.db` (full encrypted SQLite database), `history.key.dpapi` (wrapped random database key) and protected settings/tombstone state. No message content in path names. Never store DB key beside database as raw bytes or derive it from a chat password, key alias, UUID or display name.
 - Create independent random 256-bit database key with JCA `SecureRandom`. Protect key using **DPAPI CurrentUser**, with Windows owner-only ACL on directory and each file, atomic creation/replace, strict path/canonicalization/ACL checks on **reads and writes**; deny reparse point/symlink substitution. Reuse only approved M2 DPAPI helper concepts, not its small 1MiB credential file for whole transcript.
 - **SQLCipher driver/native binary must be security-reviewed** (version, signature, license, provenance, CVE, Windows 11 x64 and JVM21 compatibility, encryption algorithm, KDF, WAL/journal/temp files). Plain `org.xerial:sqlite-jdbc` with a DPAPI-wrapped secret does **not** encrypt SQLite pages. If vetted encrypted driver is unavailable: **BLOCKED**, never fall back to plaintext SQLite or log content.
 - Verify DB open cipher state, key mismatch, page integrity, WAL/journal/temp/spill policy, connection locking and native failure. Required testing includes strings extracted from on-disk DB/WAL/temp and attempted open by wrong Windows user; never commit raw files/ciphertext/real chat in evidence.
-- A successful local write requires durable SQLite transaction commit, clear error if fsync/commit fails, and no `SAVED` before success; configure and test suitable `synchronous` and journal/transaction settings. DB migrations use schema version + explicit transactional migration/backup decision; no auto-delete of unknown/corrupt DB.
+- A successful local write requires durable SQLite transaction commit, clear error if fsync/commit fails, and no `SAVED` before success; configure and test suitable `synchronous` and journal/transaction settings. **CL-05-10 forbids backup/export**, including automatic pre-migration copies; schema migration must be transactionally safe and rollback without exposing plaintext/creating backup artefacts; unknown/corrupt DB is never auto-deleted.
 - Java process holds decrypted content while rendering/validating; DPAPI/encrypted DB protect **at rest**, not an unlocked account/process, memory dump, clipboard or malicious local admin. Document this threat boundary rather than claiming full device compromise protection.
 - History DB, M2 pinned trust and 004 GroupMetadataStore are **different** protected data sets with independent retention/deletion. Deleting History does not destroy device identity or Group roster. Never leak History into app diagnostic logs.
 
@@ -146,7 +146,7 @@ HistoryConsent: DISABLED --explicit OPT_IN--> LOCAL_ONLY
 - Opt-in is per Windows user, display exact retention/storage/sync sharing implications, and starts capture **from an explicit local activation boundary**. No “scan RAM to reconstruct previous chat” unless user explicitly agrees and every source event is still authentically evidenced.
 - Local delete is a durable operation with two logical results: remove protected content and persist a **non-resurrection tombstone/fence** in the encrypted store. For whole conversation deletion, assign local deletion generation and prohibit old-generation imports; require fresh user opt-in to resume receiving new eligible event ranges.
 - Tombstone retention and compaction cannot silently erase anti-reimport evidence while source peers may still offer old events. If tombstone capacity exhausted, **block reimport** or require user-directed reset with clear loss/reimport risk, not automatic acceptance.
-- Quotas/90d/500MiB are only baseline A. Cleanup must protect user privacy and maintain coherent deletion fences, avoid deleting message content while falsely claiming archive complete. Never auto delete trust keys/membership when cleaning History.
+- **90 days and 500 MiB** are user-confirmed default policy (CL-05-03); implementation must apply both conditions, allow configurable limits and preserve tombstone fences. Cleanup must protect user privacy and maintain coherent deletion fences, avoid deleting message content while falsely claiming archive complete. Never auto delete trust keys/membership when cleaning History.
 - No remote wipe guarantee. Revoking Group membership terminates **new information issuance** to former member; already held local copies remain according to that device's policy.
 
 ## 7. History wire protocol and authentication boundary
@@ -242,7 +242,7 @@ A/B: reverse eligible direction if permitted; DONE only after scoped digest proo
 | Sync concurrency | one per conversation, two local active sessions total | cancel/parallel Group/P2P |
 | Memory | History cache/workers ≤4 MiB **additional** to M2/Group budget, subject to benchmark | heap/GC, slow peer |
 | Writer queue | shared existing M2 max 16 frames/2MiB per peer, no separate History socket | fair scheduling/backpressure |
-| Local retention | candidate A: 90 days or 500 MiB user-configurable | cleanup/tombstone correctness |
+| Local retention | CL-05-03 **confirmed default: 90 days AND 500 MiB total**; user-adjustable within safe bounds; age expiration and total-size cap must both be enforced | cleanup/tombstone correctness, no silent reimport |
 | Timeouts | candidate OPEN 10s, idle 20s, overall 120s/user run | half-open/suspend/cancel |
 | Log/privacy | 0 plaintext message bytes, keys or SAS in routine logs/Git | file/log scan and reviewer |
 
@@ -271,7 +271,7 @@ A/B: reverse eligible direction if permitted; DONE only after scoped digest proo
 
 ## 11. Test-first implementation and acceptance matrix
 
-**Sequence:** confirm CLs and Gate 0 → domain/event/ACL/immutability tests → protected store and corruption/Windows user tests → signed origin and strict History codec → 2-JVM M2 verified P2P sync → Live UI with paging/consent → Group owner-bound sync only after 004 runtime → 3-JVM Group/5 devices + adversarial/load tests → physical two-PC LAN and independent reviewer → final release decision.
+**Sequence:** **CLs confirmed 10/10**; complete technical Gate 0 approvals → domain/event/ACL/immutability tests → protected store and corruption/Windows user tests → signed origin and strict History codec → 2-JVM M2 verified P2P sync → Live UI with paging/consent → Group owner-bound sync only after 004 runtime → 3-JVM Group/5 devices + adversarial/load tests → physical two-PC LAN and independent reviewer → final release decision.
 
 - RED→GREEN each behavior: actual Java21 command, exit, expected RED failure, focused GREEN and full M0/M1/M2/004 regression; log sanitized evidence under future `evidence/`.
 - **AC-05-A/D/L:** consent, encrypted store restart, wrong user, corrupted DB/key, WAL/temp/ACL, atomic crash/migration, rollback.
@@ -286,6 +286,6 @@ Run an actual `mvnw.cmd -o test` and `mvnw.cmd -o package` on Java21 only during
 
 Open ADRs: verified encrypted SQLite distribution and license; database key rotation/DPAPI migration; exact canonical signed event vectors; optional v2 preface/profile negotiation with legacy peers; whether original P2P event seal is transmitted at live capture; tombstone compaction and retention; Group epoch and ownerSequence eligible time windows; measured quotas.
 
-**Planning deliverable definition:** This provisional plan includes Constitution I–VII, technical dependencies, architecture, encrypted storage/key handling, versioned wire, authenticated event provenance, ACL, dedup/order/retry/restore, Group JOIN/REMOVE/handoff, time/resource budgets and acceptance test/release gates. It is ready for user clarification review **but not approved**.
+**Planning deliverable definition:** This user-clarified and CL-aligned plan includes Constitution I–VII, technical dependencies, architecture, encrypted storage/key handling, versioned wire, authenticated event provenance, ACL, dedup/order/retry/restore, Group JOIN/REMOVE/handoff, time/resource budgets and acceptance test/release gates. User product decisions are **approved (10/10)**, while independent security/driver/wire review, resource measurements and release Gate 1 are **not yet approved or passed**.
 
-**Hard release rule:** No History code/acceptance is claimed in this document. Feature 005 remains **DRAFT / NOT VERIFIED** and milestone M3 requires **both** verified 004 Group and verified 005 History. No `tasks.md` or History Java code is generated in this plan step.
+**Hard release rule:** No History code/acceptance is claimed in this document. Feature 005 remains **CLARIFIED / NOT IMPLEMENTED / NOT VERIFIED** and milestone M3 requires **both** verified 004 Group and verified 005 History. No `tasks.md` or History Java code was generated by this clarification update.

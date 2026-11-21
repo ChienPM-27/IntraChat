@@ -1,6 +1,6 @@
 # Wire Contract Draft — HISTORY_V1 on verified M2 TLS
 
-**Phase:** 005-chat-history · **Status:** **DRAFT, NOT APPROVED/IMPLEMENTED** · **CL-05-01…10 PENDING**
+**Phase:** 005-chat-history · **Product decisions:** **CL-05-01…10 USER CONFIRMED (all A)** · **Wire format/proof vectors:** **DRAFT, NOT CRYPTO-APPROVED/IMPLEMENTED**
 **Source:** [spec.md](../spec.md) · [plan.md](../plan.md) · [data-model.md](../data-model.md) · [Group V1](../../004-group-chat/contracts/group-v1.md) · [M2 CHAT_V2](../../003-p2p-messaging/contracts/chat-v2.md).
 
 ## 1. Separation, authentication and compatibility
@@ -9,7 +9,7 @@
 
 **Capabilities:** current M2 preface allows just `CHAT_TLS13_V2`. Extend optional data-free `HISTORY_V1` offer only after compatibility review. Preface can be altered by a MITM and is **never an authorization grant**. After M2 both `PAIR_READY`, both peers exchange protected nonce-bound `HISTORY_CAPS_OFFER` + `HISTORY_CAPS_CONFIRM` binding raw preface offers, verified device IDs and SPKI hashes, pairing sessionId/requestId and transcript. Only exact mutual confirmation sets `historyProfileReady=true`. A v2-only peer continues private v2 chat but cannot receive History V1. Unknown type/version/prepared capability mismatch **fails closed**, not downgrade to plaintext M1.
 
-**Other gates:** before any `SYNC_OPEN`/manifest, verify opted-in local policy and exact conversation/group scope; M2 pin alone does not authorize all histories. On Group, only current signed owner proof may serve under candidate CL-05-06 A. If Group 004 runtime unavailable, all Group History types are disabled.
+**Binding confirmed CL-05-04/05/06/08:** Sync is **manual per conversation**, only two verified device IDs for P2P, only current owner for Group, and **no ACK/READ receipt persistence or propagation**. The History APPLY_ACK confirms the *copy*, not application delivery. **Other gates:** before any `SYNC_OPEN`/manifest, verify opted-in local policy and exact conversation/group scope; M2 pin alone does not authorize all histories. On Group, only current signed owner proof may serve the user-confirmed CL-05-06 A. If Group 004 runtime unavailable, all Group History types are disabled.
 
 ## 2. Proposed JSON envelope (inside TLS only)
 
@@ -38,7 +38,7 @@
 }
 ~~~
 
-**This is an illustrative example, not a tested golden vector.** A Group scope sets `kind=GROUP`, `scopeId=groupId` and signed current-owner epoch/revision proof. Encode/null field policy, binary canonical signature input, base64url padding and strict JSON schema must be frozen in TDD wire tests. No unrestricted nested maps or peer-supplied disk path.
+**This is an illustrative example, not a tested golden vector.** All 10 user-level CL decisions are CONFIRMED; numeric wire syntax/version and crypto canonicalization still need independent technical freeze and tests. A Group scope sets `kind=GROUP`, `scopeId=groupId` and signed current-owner epoch/revision proof. Encode/null field policy, binary canonical signature input, base64url padding and strict JSON schema must be frozen in TDD wire tests. No unrestricted nested maps or peer-supplied disk path.
 
 ### Envelope invariants
 
@@ -100,7 +100,7 @@ Any timeout/cancel/corruption/revoke → PARTIAL/ERROR/PAUSED (no fake SYNCED)
 
 - A successful delta receipt is **not** a durable history copy until transaction commit; after lost ACK, resend same batch ID, idempotent apply.
 - Reconnect creates a **new** authenticated History authorization and safe reconciliation; never trust stale cursor independent of session/peer.
-- Store conflict (same ID changed signer/digest) quarantines affected event, does not overwrite source. Tombstone/local deletion fence wins over re-import attempts under candidate CL-05-07.
+- Store conflict (same ID changed signer/digest) quarantines affected event, does not overwrite source. Tombstone/local deletion fence wins over re-import attempts under confirmed CL-05-07.
 - Group owner rechecks current roster/epoch **before each** manifest/delta chunk. New joiner gets no pre-join events. Removed member gets no new History frames after durable remove commit; precommit bytes cannot be revoked.
 - A revoked/unknown verified signer is not authenticated by the owner’s TLS hop. The receiver must independently verify original origin and relevant Group owner proof.
 - No exactly-once over all restarts, no global causal ordering by timestamp, no guaranteed remote wipe, no synthetic M2 delivery/READ.
@@ -121,4 +121,4 @@ Any timeout/cancel/corruption/revoke → PARTIAL/ERROR/PAUSED (no fake SYNCED)
 | Deleted event offered again | reject using local deletion fence; do not rehydrate silently |
 | Read receipt suggested by History import | **never emit**; History has no authority to make a viewer-signed READ |
 
-**Verification:** deterministic codec/schema/golden-vector, M2 v1/v2/Group compatibility and downgrade regression, 2-JVM actual TLS P2P, ≥3 independent Group JVM after Group 004, malformed/race/revoke/owner handoff, two physical Win11 LAN hosts and independent cryptographic review. **All are NOT RUN in this document-only plan.**
+**Verification (NOT RUN):** deterministic codec/schema/golden-vector, M2 v1/v2/Group compatibility and downgrade regression, 2-JVM actual TLS P2P, ≥3 independent Group JVM after Group 004, malformed/race/revoke/owner handoff, two physical Win11 LAN hosts and independent cryptographic review. **All are NOT RUN in this document-only plan.**

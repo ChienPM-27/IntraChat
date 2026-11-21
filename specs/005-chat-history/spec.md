@@ -2,8 +2,8 @@
 
 **Feature:** `005-chat-history` · **Branch:** `005-chat-history`
 **Created:** 2026-11-21 · **Priority:** P1 · **Milestone:** M3 = Group 004 **và** History 005
-**Status:** **DRAFT SPEC + PROVISIONAL IMPLEMENTATION PLAN — 10/10 CL-05 PENDING user confirmation; no History tasks/code/tests/Verified**
-**Design:** [Clarification choices](clarifications.md) · [Provisional plan](plan.md) · [Research](research.md) · [Data model](data-model.md) · [History V1 contract](contracts/history-v1.md) · [Test quickstart](quickstart.md)
+**Status:** **CLARIFIED — 10/10 CL-05 USER CONFIRMED (all A); implementation plan updated, no History tasks/code/tests/Verified**
+**Design:** [Clarification choices](clarifications.md) · [Implementation plan](plan.md) · [Research](research.md) · [Data model](data-model.md) · [History V1 contract](contracts/history-v1.md) · [Test quickstart](quickstart.md)
 **Sources:** [ROADMAP Giai đoạn 05](../../ROADMAP.md) · [Constitution](../../.specify/memory/constitution.md) · [Foundation CL-01-04](../001-project-foundation/spec.md) · [M2 secure P2P](../003-p2p-messaging/spec.md) · [Group 004](../004-group-chat/spec.md) · [M2 release blockers](../003-p2p-messaging/evidence/m1-blocker-at-m2.md)
 
 ## 1. Tổng quan, mục tiêu và ranh giới
@@ -47,24 +47,24 @@
 - “Remote wipe” chắc chắn nội dung mà peer khác đã sở hữu; Group E2EE đối với relay owner (không có ở 004); auto-election của coordinator; chạy History qua v1 plaintext.
 - Sáp nhập Demo mock vào dữ liệu Live, tự tạo tin hoặc tự tạo bằng chứng delivered/read để “làm đầy” lịch sử.
 
-## 2. Clarify để phê duyệt `plan.md` — PENDING (chưa được người dùng xác nhận)
+## 2. Clarification Decisions — **USER CONFIRMED 2026-11-21 (10/10; phương án A)**
 
-Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không phải yêu cầu đã phê duyệt. Các yêu cầu bảo mật/không vượt quyền từ Constitution và 004 là **không thể hạ** bằng baseline.
+**Precedence:** Các quyết định dưới đây **ràng buộc sản phẩm và thay thế toàn bộ gợi ý A/B trong bản draft trước**. Không cần hỏi lại trước khi xây dựng tasks; các thuật toán crypto, native driver và benchmark vẫn phải được review/test độc lập. Xem [biên bản xác nhận](clarifications.md) và [tác động kiến trúc](checklists/architecture-impact-review.md).
 
-| ID | Câu hỏi cần chốt | Gợi ý ban đầu để thảo luận | Phương án đáng cân nhắc / tác động |
-| --- | --- | --- | --- |
-| **CL-05-01** | History lưu mặc định hay người dùng phải bật riêng? | **Opt-in khi bật History lần đầu**, giải thích thiết bị/đường lưu, chỉ lưu tin mới từ lúc bật | Auto-enable theo bản nâng cấp tăng rủi ro lộ nội dung trên đĩa; opt-in giảm tính bất ngờ |
-| **CL-05-02** | Storage engine và mã hóa dữ liệu ở trạng thái nghỉ? | **SQLite cục bộ + encryption at rest**, key bảo vệ bằng DPAPI CurrentUser, file owner-only ACL; không plaintext WAL/temp | File store encrypted bespoke hoặc SQLite extension phù hợp giấy phép; phải review thư viện/cấu hình, không chốt kỹ thuật khi chưa có plan |
-| **CL-05-03** | Retention/quota mặc định? | **Giới hạn có thể cấu hình**, ví dụ giữ 90 ngày hoặc 500 MiB tổng, dọn có cảnh báo | Giữ đến khi tự xóa, theo số tin hoặc vô hạn có rủi ro đầy đĩa; giá trị hard cap phải chốt và stress test |
-| **CL-05-04** | Khi đã kết nối TLS/pin thì History tự sync hay cần nút xác nhận? | **Nút Đồng bộ thủ công** mỗi conversation/Group sau reconnect; không mở socket tự động | Auto sync sau verified READY tiết kiệm thao tác nhưng dễ vô tình chia sẻ nội dung; phải rõ cả hai đầu consent |
-| **CL-05-05** | P2P sync phạm vi hai thiết bị hay nhiều thiết bị cùng user? | **Chỉ hai verified deviceId tham gia P2P conversation**; không tài khoản/nhiều thiết bị của một người | Multi-device account cần identity linking/ủy quyền mới; không suy “cùng user” từ displayName |
-| **CL-05-06** | Group sync nguồn là ai và mốc sự kiện nào? | **Chỉ owner hiện hành** cung cấp/sắp lịch sync Group; member chỉ nhận những event **sau own JOIN commit và trước REMOVE**, không tự chuyển cho peer khác | Peer-to-peer member replication tăng availability nhưng quyền chuyển tiếp/handoff/phòng lộ cần thiết kế riêng |
-| **CL-05-07** | Xóa History chỉ ở máy hiện tại hay phát yêu cầu xóa sang máy khác? | **Local delete + tombstone chống tự hồi sinh**, không tuyên bố xóa bản sao remote | Delete propagation/both-sides deletion có thể yêu cầu quyền, receipt, offline pending và chính sách miễn trừ |
-| **CL-05-08** | Lưu/sync DELIVERED/READ receipts không? | **Chỉ lưu nội dung và trạng thái gửi thực có evidence; không tạo READ replay hoặc đồng bộ READ cho peer khác theo mặc định** | Lưu receipt đã ký theo chính sách riêng tăng dữ liệu nhạy cảm và yêu cầu chứng cứ/correlation/retention |
-| **CL-05-09** | Khi hai bản sao xung đột cùng messageId hoặc edit/delete thì giải quyết thế nào? | **Immutable events**, cùng ID khác body/signer => quarantine, không last-write-wins theo đồng hồ; tombstone cục bộ thắng reimport | Conflict merge hoặc edit-in-place làm phức tạp nguồn gốc/dedup và có thể tái xuất hiện dữ liệu đã xóa |
-| **CL-05-10** | Backup/export/migration lịch sử v1 có trong 005? | **Không backup/export tự động**, chỉ migrate schema an toàn khi nâng phiên bản, thông báo không thể giải mã/không thể import | User-initiated encrypted backup/export cần key management, privacy và test riêng |
+| ID | Quyết định đã chốt | Hệ quả bắt buộc |
+| --- | --- | --- |
+| **CL-05-01** | **Opt-in History lần đầu, chỉ lưu tin mới** | Mặc định DISABLED, yêu cầu người dùng đồng ý trước khi ghi nội dung; không tự khôi phục M2 RAM cũ |
+| **CL-05-02** | **SQLite mã hóa toàn bộ + DPAPI CurrentUser + owner-only ACL, qua review** | Cấm SQLite plaintext/kho phụ WAL/temp plaintext, không fallback thiếu mã hóa; cần xét duyệt driver/native/crypto thực tế |
+| **CL-05-03** | **Retention 90 ngày hoặc tổng dung lượng 500 MiB mặc định, cho phép điều chỉnh** | Hai ngưỡng tuổi/dung lượng đều phải được giám sát; chạm một ngưỡng phải xử lý an toàn theo policy, cảnh báo, không xoá tombstone gây hồi sinh |
+| **CL-05-04** | **Bấm Đồng bộ thủ công cho từng hội thoại** | Không auto reconnect/auto sync, mỗi lần yêu cầu cần M2 verified READY + History capability + exact scope ACL |
+| **CL-05-05** | **P2P sync chỉ giữa hai verified device IDs trong hội thoại** | Không tự liên kết nhiều thiết bị cùng user/tên và không cấp quyền khi chỉ có pin TLS ngoài conversation |
+| **CL-05-06** | **Chỉ owner Group hiện hành phục vụ History trong mốc JOIN→REMOVE** | Phải kiểm owner epoch/revision, signed roster và quyền theo owner commit, không backfill pre-JOIN, không delta mới sau REMOVE |
+| **CL-05-07** | **Xóa tại máy hiện tại + tombstone chống hồi sinh** | Không gửi lệnh remote-delete, không hứa xóa bản sao ở máy khác; checkpoint/tombstone phải durable |
+| **CL-05-08** | **Không lưu hoặc sync application delivery ACK / READ receipts** | Chỉ lưu content/nguồn gốc cùng trạng thái History riêng SAVED/SYNCED; không restore/giả READ/DELIVERED |
+| **CL-05-09** | **Immutable events, xung đột ID khác nguồn/body thì quarantine** | Không overwrite/last-write-wins; tombstone local chống reimport |
+| **CL-05-10** | **Không tự backup/export; chỉ migration schema an toàn** | Không tạo bản sao nội dung lịch sử phục vụ export/backup; migration transaction/rollback không làm mất dữ liệu bền vững |
 
-**Đặt trước bước plan:** Nếu bất kỳ lựa chọn nào khác baseline, cập nhật WHAT/AC và checklist cho phù hợp. Không “xác nhận thay người dùng” hoặc đưa giả định retention, export, auto sync, Group backfill thành đã chốt.
+**Bảo mật vẫn phải được thẩm định:** Xác nhận CL-05-02 **không** xác nhận bất kỳ bản native SQLCipher/JDBC hoặc review độc lập nào đã PASS. Nếu chưa có SQLite driver mã hóa an toàn và test Windows ACL/DPAPI/WAL/temp thì **bảo lưu blocker**, không chọn phương án file-store thay thế hoặc plaintext một cách âm thầm. Các target hiệu năng và schema/wire canonical tiếp tục là thiết kế cần freeze/test.
 
 ## 3. User Scenarios & Testing (mandatory)
 
@@ -164,23 +164,23 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 - **FR-05-004:** History bản địa **MUST** lưu P2P text/emoji hợp lệ kể từ lúc History được bật theo chính sách đã chốt; **MUST NOT** dựng lại RAM-only M2 từ các phiên không còn tồn tại, mock Demo, hoặc private chat chưa verified.
 - **FR-05-005:** Group History **MUST** bảo toàn `groupId + ownerEpoch + membershipRevision + original origin + owner relay proof` cần thiết để kiểm tra quyền theo thời gian, không tự suy ra owner chỉ từ tên hoặc highest epoch packet.
 - **FR-05-006:** Mỗi History event **MUST** có trạng thái durable storage/local-sync riêng với message sending, recipient APP_ACK và viewer-signed READ; `SAVED`/**SYNCED** **MUST NOT** đồng nghĩa `DELIVERED/READ`.
-- **FR-05-007:** Không được tạo application ACK/READ mới khi import, reload, scroll History hoặc nhận sync delta; mọi receipt status được giữ chỉ khi có chính sách đã chốt và bằng chứng hợp lệ từ **actual recipient/viewer**.
+- **FR-05-007:** **MUST NOT** tạo application ACK/READ mới khi import, reload, scroll History hoặc nhận sync delta; theo **CL-05-08 CONFIRMED**, **không** persist, restore hay đồng bộ ACK/READ receipts (kể cả signed receipts). Chỉ actual M2/004 foreground viewer receipt ở runtime mới có authority READ.
 - **FR-05-008:** History **MUST NOT** âm thầm khôi phục/truyền bản nháp, unacknowledged send attempt, private key, SAS, session token hay offline outbox; khác biệt với lưu message đã giao nhận phải hiển thị rõ.
 - **FR-05-009:** `sourceMessageId`/`sourceSentAtUTC`/verified sender và content bytes của event đã commit **MUST** bất biến; đổi alias, timezone hoặc đồng hồ hệ thống không được viết lại nguồn gốc.
 
 ### B. Local persistence, migration, load và isolation
 
 - **FR-05-010:** History store **MUST** có versioned schema, durable commit boundary, atomic write/transaction hoặc cơ chế tương đương; app crash giữa ghi không tạo false saved record hoặc phá dữ liệu đã commit.
-- **FR-05-011:** History content/roster/sender metadata **MUST** được bảo vệ at rest cho **Windows user** phù hợp, không lưu plaintext ngoài vùng dữ liệu cho phép hoặc silent fallback khi DPAPI/key/ACL không sẵn sàng; cơ chế cụ thể được quyết định tại CL-05-02/plan.
+- **FR-05-011:** Theo **CL-05-02 CONFIRMED**, History text/sender metadata **MUST** lưu trong **SQLite được mã hóa toàn bộ** bằng giải pháp đã security-review, DB key độc lập được DPAPI CurrentUser bảo vệ với owner-only Windows ACL. Toàn bộ DB/WAL/journal/temp nhạy cảm **MUST NOT** plaintext; không fallback khi thiếu encrypted driver/key/ACL; cross-Windows-user tests là release gate.
 - **FR-05-012:** History **MUST** chỉ dùng application-approved user-local path, không cho peer supply đường dẫn; xử lý symlink/reparse, file permissions và truy cập khác Windows user trong test bảo mật.
 - **FR-05-013:** Bản ghi History **MUST** chỉ có nội dung/loại dữ liệu thuộc tính năng đang được duyệt (P2P/Group text+emoji); media/file binary/attachments phải được từ chối hoặc biểu diễn placeholder **không chứa nội dung file** cho đến các spec 006/007.
 - **FR-05-014:** App **MUST** phục hồi các bản ghi đã commit đúng conversation và stable IDs sau restart cùng user mà **không đòi peer online**; corruption/key unavailable phải fail closed và báo lỗi có thể hiểu.
 - **FR-05-015:** History **MUST** hỗ trợ paginated/cursor load có giới hạn, phân tách nhiều hội thoại/Group, không đọc toàn bộ tệp lên UI hoặc làm block Swing EDT.
 - **FR-05-016:** Danh sách và message timeline **MUST** hiển thị đúng verified sender, UTC source timestamp chuyển sang timezone local, nhóm ngày và ordering/tie-break ổn định, không dùng `sentAt` để khẳng định global causal order.
-- **FR-05-017:** Ứng dụng **MUST** có đường nâng schema/version an toàn: kiểm tra tương thích, migration có rollback/crash consistency hoặc từ chối rõ ràng với schema mới hơn; không tự xóa store khi lỗi.
+- **FR-05-017:** Theo **CL-05-10 CONFIRMED**, ứng dụng **MUST** chỉ hỗ trợ migration schema an toàn với rollback/crash consistency và từ chối version mới hơn; **MUST NOT** sinh backup/export tự động hoặc đưa user export/import vào scope, không tự xóa store khi lỗi.
 - **FR-05-018:** History **MUST** tách khỏi GroupMetadataStore 004, M2 DeviceIdentityStore/PinnedPeerStore và Demo mock storage; xóa History không được xóa key/pin hoặc Group roster trừ khi có lệnh riêng.
-- **FR-05-019:** History storage **MUST** có retention/quota có thể mô tả, giới hạn disk/memory/queue và chính sách xử lý khi đầy; các giá trị/dọn dữ liệu cần được chốt ở CL-05-03 trước plan và test.
-- **FR-05-020:** Bật/tắt History, xem thông tin lưu trữ, xóa local History và các trạng thái lỗi/saved/sync **MUST** được hiển thị trong Live UI theo consent/retention policy đã phê duyệt.
+- **FR-05-019:** Theo **CL-05-03 CONFIRMED**, History **MUST** có ngưỡng mặc định 90 ngày và 500 MiB tổng, có khả năng điều chỉnh trong giới hạn an toàn được plan/test; khi một ngưỡng chạm tới phải áp dụng chính sách retention/quota, cảnh báo rõ và bảo vệ tombstones/deletion fences, không silent drop bản ghi đã commit.
+- **FR-05-020:** Bật/tắt History theo explicit opt-in, hiển thị retention 90 ngày + 500 MiB mặc định có thể điều chỉnh, xem thông tin lưu trữ, xóa local + tombstone và các trạng thái lỗi/saved/sync **MUST** được hiển thị rõ trong Live UI, không nâng ACK/READ.
 
 ### C. LAN P2P sync, anti-dup và trạng thái đối soát
 
@@ -190,16 +190,16 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 - **FR-05-024:** Sync engine **MUST** hỗ trợ summary/chunked delta đối soát **event thiếu/trùng**, không dựa riêng vào max timestamp/wall clock hoặc sự kiện tới cuối cùng để kết luận hai kho bằng nhau.
 - **FR-05-025:** Sync **MUST** có stable event IDs + content digest dedup, chống replay và idempotent durable apply; retry cùng event không được thêm bubble trùng hoặc tăng giả counter.
 - **FR-05-026:** Hai event có cùng ổn định ID nhưng khác immutable signer/payload/digest **MUST** bị đánh dấu conflict/quarantine; không last-write-wins bằng đồng hồ/alias hoặc ghi đè event cục bộ có căn cứ.
-- **FR-05-027:** Sync **MUST** hỗ trợ loss/disconnect/half-open/timeout/cancel và resume/checkpoint xác minh, có thể thử lại sau verified reconnect theo CL-05-04; không báo “Sync complete” trước khi đủ event được durable-commit và confirmation hợp lệ.
+- **FR-05-027:** Sync **MUST** hỗ trợ loss/disconnect/half-open/timeout/cancel và resume/checkpoint xác minh, người dùng phải **bấm Đồng bộ thủ công cho đúng hội thoại sau verified reconnect** (CL-05-04 CONFIRMED); **MUST NOT** tự auto-sync hoặc hiện “Sync complete” trước khi các event hợp lệ được durable commit/đối soát.
 - **FR-05-028:** Sync **MUST** tách việc copy History với sending/resending chat text; không tự gửi lại draft/outbox hoặc sinh ACK/READ từ event lịch sử.
 - **FR-05-029:** Khi peer offline hoặc owner Group PAUSED, History Sync **MUST** dừng/hiển thị trạng thái chờ; không tự mở socket, auto reconnect, broadcast, auto relay hoặc fallback sang M1.
 - **FR-05-030:** Sync **MUST** có giới hạn frame, batch, tổng event/bytes, đồng thời/chờ, timeouts, checksum/integrity và backpressure để không làm treo UI hoặc ngốn tài nguyên; con số được chốt tại plan và kiểm thử dưới dữ liệu lớn.
-- **FR-05-031:** Phần đồng bộ đa máy **MUST** theo thiết bị verified deviceId riêng; không tự xem hai thiết bị cùng displayName là một tài khoản hoặc tự tạo liên kết multi-device khi chưa có approval CL-05-05.
+- **FR-05-031:** Theo **CL-05-05 CONFIRMED**, P2P History sync **MUST** chỉ giữa **hai deviceId/SPKI đã xác minh** cấu thành chính verified P2P conversation; không tự xem hai thiết bị cùng tên là một tài khoản, không cấp quyền cho thiết bị thứ ba.
 - **FR-05-032:** History sync **MUST** cho phép hai peer có bản sao được phép tiến dần tới cùng tập event khi có kết nối liên tục đủ lâu, với semantic **eventual consistency** và giới hạn rõ khi offline/quota/revocation.
 
 ### D. Group access boundaries và revoke
 
-- **FR-05-033:** Group History **MUST** kiểm tra verified Group authority hiện hành (ownerEpoch, membershipRevision, signed owner/roster state, verified member origin) trước khi cung cấp summary/delta hoặc nhận event Group; kiến trúc sync source cụ thể chờ CL-05-06.
+- **FR-05-033:** Theo **CL-05-06 CONFIRMED**, **chỉ current verified owner của Group** được cấp History, và **MUST** xác thực ownerEpoch, membershipRevision, signed owner/roster/transfer proof cùng JOIN/REMOVE eligibility trước khi trả summary/delta. Không member-to-member forwarding; owner offline/không rõ quyền → PAUSED.
 - **FR-05-034:** Mốc `JOIN commit` là earliest eligible event boundary của member mới: **MUST NOT** trả về event được chấp nhận trước mốc đó, kể cả owner vẫn lưu, member đã ghim khóa hoặc chủ động xin backfill.
 - **FR-05-035:** Sau `REMOVE commit`, hệ thống **MUST** từ chối mọi History request mới cho member đã mất quyền, kể cả tin nhắn cũ; **MUST NOT** hứa xóa được bytes đã truyền trước revoke.
 - **FR-05-036:** Owner handoff Group **MUST** đòi signed continuity proof cũ+mới và roster epoch/revision mới trước khi cấp History; owner cũ không được tiếp tục sync với authority cũ.
@@ -207,15 +207,15 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 
 ### E. Deletion, retention, privacy & faults
 
-- **FR-05-038:** Xóa local History **MUST** yêu cầu thao tác rõ, có trạng thái durable deletion/tombstone hoặc cơ chế tương đương **ngăn silent resurrection** do sync sau này; chính sách remote propagation chờ CL-05-07.
+- **FR-05-038:** Theo **CL-05-07 CONFIRMED**, xóa History **MUST** là thao tác local explicit và commit durable tombstone/deletion generation để chống silent resurrection do sync. Không phát lệnh remote delete và không hứa xóa bản sao peer đã nhận.
 - **FR-05-039:** Sau local delete, app **MUST** giải thích giới hạn thu hồi remote copies: peer có thể đã lưu nội dung trước đó; không ghi “đã xóa khỏi mọi máy” nếu thiếu protocol/bằng chứng xác nhận.
-- **FR-05-040:** History **MUST** áp dụng retention/quota/delete trong phạm vi mỗi Windows user/conversation và an toàn khi app crash/restart; không giấu lỗi mất bản ghi hoặc tự chuyển sang plaintext.
+- **FR-05-040:** History **MUST** áp dụng CL-05-03 **90 ngày và 500 MiB** mặc định có thể điều chỉnh theo giới hạn an toàn, giữ tombstone chống reimport và an toàn khi crash/restart; không giấu lỗi ghi hoặc tự hạ xuống plaintext.
 - **FR-05-041:** Nếu store/key không mở được, bị hỏng, migration lỗi, disk full hoặc corrupted page, app **MUST** fail safely và báo lỗi, không tự reset/overwrite store, không tuyên bố persisted/synced thành công khi chưa commit.
 - **FR-05-042:** Routine logs, crash/error reports và Git evidence **MUST NOT** chứa chat content, private key, SAS, secret tokens, plaintext recipient roster hay dữ liệu cá nhân; chỉ mã lỗi, counters đã được sanitize.
-- **FR-05-043:** History provenance/security **MUST** phân biệt local-authored and remote-imported events, quarantine malformed/forged provenance và không cho peer sửa timeline thuộc conversation khác.
+- **FR-05-043:** History provenance/security **MUST** phân biệt local-authored và remote-imported events, quarantine malformed/forged/cùng-ID-khác signer/hash theo **CL-05-09 CONFIRMED**, không overwrite và không cho peer sửa timeline thuộc conversation khác.
 - **FR-05-044:** HISTORY Sync và history pagination **MUST** chạy ngoài Swing EDT, có cancellation/cleanup cho I/O/timer/worker, fail closed trước frame lớn/Unicode không hợp lệ và giữ các cuộc chat khác hoạt động.
 - **FR-05-045:** History **MUST** có kiểm thử Windows CurrentUser protection/ACL/other user/corrupt file, user deletion/restart, cross-conversation unauthorized peer, replay/duplicate, owner handoff/revoke, resource stress và privacy leak; unavailable physical/independent review phải được đánh dấu BLOCKED trung thực.
-- **FR-05-046:** Khi UI quay lại Live, persisted history/remote sync **MUST NOT** tự tạo viewer-signed READ hoặc thay đổi per-recipient proof state; việc lưu receipt cũ nếu có chỉ sau khi CL-05-08 quyết định và test xác minh signature.
+- **FR-05-046:** Theo **CL-05-08 CONFIRMED**, History store/sync **MUST NOT** ghi, khôi phục hay đồng bộ application ACK hoặc viewer-signed READ receipts; việc mở lại History/đồng bộ **MUST NOT** tự tạo READ hoặc nâng per-recipient delivered/read. M2/004 receipts chỉ thuộc session runtime và semantics riêng.
 - **FR-05-047:** Hệ thống **MUST** công bố rõ status `DISABLED / LOCAL_ONLY / SYNC_PENDING / PARTIAL / SYNCED / ERROR` hoặc tương đương; “SYNCED” chỉ khi scope/cursor được chứng minh, không có nghĩa mọi thiết bị trên LAN đã có dữ liệu.
 - **FR-05-048:** Before release, History **MUST** pass Constitution I–VII, inherited M1/M2 security/physical LAN gates, Group 004 gate cho Group History, dependency/security/privacy review độc lập và AC-05 evidence; hoàn thành 005 riêng **không** tự nhận M3 Verified nếu 004 còn BLOCKED.
 
@@ -232,7 +232,7 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 | Group REMOVE tại r+1 nhưng member còn ciphertext/tin cũ | Dừng cấp History mới; không thể thu hồi bytes đã nhận, cảnh báo UI trung thực |
 | Owner handoff bị crash sau A retired, trước B activated | Group Sync PAUSED cho tới có dual signed proof/verified current roster; không auto election |
 | P2P peer C có M2 pin nhưng không thuộc conversation A↔B | Không leak summary/delta/count/metadata, kể cả đoán được conversationId |
-| Dọn local History rồi reconnect với B giữ record cũ | Không auto reimport những event đã local-delete; chính sách tombstone/remote delete cần CL-05-07 |
+| Dọn local History rồi reconnect với B giữ record cũ | Không auto reimport những event đã local-delete; tombstone local theo CL-05-07 CONFIRMED, không remote delete |
 | Quá quota, disk full, blocked ACL, DPAPI lỗi, file corruption | Chỉ báo SAVED sau durable commit, fail closed, báo lỗi và đưa hướng xử lý; không silent plaintext reset |
 | Chạy trên Windows khác user hoặc chuyển nguyên tệp data | Không tự giải mã được khi chưa có authorized key recovery/CL-05-10, không “đăng nhập lại” để vượt DPAPI |
 | WAL/temp/index chứa plaintext vô tình | Không chấp nhận coi “DB chính mã hóa” là đủ; mọi file phụ, crash dump/log phải tuân bảo mật |
@@ -251,7 +251,7 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 - **SC-05-007:** **0** READ/DELIVERED nâng sai do load/scroll/sync/owner ACK; trạng thái local durable/sync và recipient receipts được phân biệt ở Live.
 - **SC-05-008:** Có test restart, crash before/after durable commit, corrupt encrypted store, unsupported schema và wrong Windows user; không có silent data reset/cleartext fallback hay UI crash.
 - **SC-05-009:** Test invalid UTF-8, malformed/unknown wire version, oversize chunks, replay, tampered event và disk/queue pressure cho thấy rejection bounded và EDT không bị chặn; các target định lượng được định nghĩa ở plan và **đo thực**, không tự PASS bằng design.
-- **SC-05-010:** Áp dụng đúng retention/consent/delete policy được xác nhận, có kiểm thử local tombstone không hồi sinh qua subsequent sync; hành vi remote-copy được mô tả rõ.
+- **SC-05-010:** Áp dụng consent opt-in và **90 ngày / 500 MiB mặc định đều được giám sát, có thể điều chỉnh**, local-only deletion với tombstone không hồi sinh sau sync; không backup/export, không remote-delete; kết quả test/UX thể hiện giới hạn bản sao ở peer.
 - **SC-05-011:** Bộ thử nghiệm Java21 tự động và ít nhất **2 peer/processes P2P**; Group History được thử với **≥3 independent JVM/client**, đồng thời có gate kế thừa **≥2 Windows 11 LAN PCs vật lý** và independent security review cho phát hành.
 - **SC-05-012:** Trace đầy đủ **48/48 FR-05**, 16 AC-05-A…P và 9 hạng mục ROADMAP 05.01…05.09; release report nêu rõ Gate 1 blockers và không ghi M3 Verified khi Group 004 còn Partial.
 
@@ -274,7 +274,7 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 | **AC-05-K** | Load/sync History trong lúc tin chưa có app ACK, C chưa xem; Demo mock chạy song song | Không nâng READ/DELIVERED giả, không đưa Demo events vào History Live |
 | **AC-05-L** | Protected store trên cùng Windows user, rồi sai user/ACL/reparse/changed key, inspect side files/logs | Protection fail closed, không có plaintext History/secret trong temp/WAL/log; wrong user bị chặn |
 | **AC-05-M** | Sync cancel/restart/quota, malformed version/UTF-8, replay/delta flood và peer half-open | Fail bounded, giữ last durable checkpoint, báo PARTIAL/ERROR, các conversation khác không treo |
-| **AC-05-N** | Consent/policy: enable/disable History, retention/quota, delete, recovery explanation | Theo CL-05 đã phê duyệt, có thao tác rõ và không persist ngoài chính sách |
+| **AC-05-N** | Opt-in enable/disable; hai ngưỡng mặc định 90 ngày và 500 MiB, cấu hình lại, local delete/tombstone, không backup/export | Chỉ ghi tin mới sau consent; retention/quota/dọn có cảnh báo, không reimport local deleted, không remote wipe, không phát sinh backup hay receipt persisted |
 | **AC-05-O** | E2E ≥3 JVM Group + ≥2 physical Win11 PCs LAN không Internet, manual inbound Accept/SAS, old M2/Group regression | Có evidence thực về verified identities, correct Group authority; không thay localhost bằng “2 PCs” |
 | **AC-05-P** | Constitution I–VII/release: M1/M2 security/physical gates, Group 004, dependency/security/privacy review, toàn bộ FR/SC/AC | Chỉ đánh dấu History 005 Verified khi mọi mandatory gates có evidence; M3 chỉ Verified nếu **cả** 004 và 005 Verified |
 
@@ -289,7 +289,7 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 | **NFR-05-05 Eventual consistency** | Đối soát dần khi cả hai peer authorized/online; không toàn cục exactly-once, không time-based last-write-wins |
 | **NFR-05-06 Honesty** | Phân biệt sender original time, local saved time, copy/sync status và M2/004 ACK/READ evidence; UI nói rõ remote delete limitations |
 | **NFR-05-07 Testability** | Pure store/ACL/merge + corrupt/key/authorization tests, two-JVM actual TLS P2P, ≥3-JVM Group and physical LAN Gate 1 |
-| **NFR-05-08 Compliance** | Không chứa chat content trong Git/log, backup/sync chỉ đúng quyền, review independent dependency/security/privacy, Constitution I–VII |
+| **NFR-05-08 Compliance** | Không chứa chat content trong Git/log; không backup/export tự động; sync chỉ đúng quyền, review independent dependency/security/privacy, Constitution I–VII |
 | **NFR-05-09 Backward compatibility** | M1 raw v1 diagnostic unchanged; M2 CHAT_V2 strict; Group V1 owner relay/epoch; History capability negotiation có version/denial |
 
 ## 9. Conceptual data model (WHAT, không khóa DB/schema trước plan)
@@ -301,7 +301,7 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 | **HistoryGroupEligibility** | groupId, memberId/key, join commit boundary, remove boundary, owner epoch/revision and signed proof | Để lọc event trước JOIN và chặn cấp thêm sau REMOVE |
 | **HistoryLocalCommit** | eventId, durable commit marker, storedAt local, retention eligibility | Phân biệt local SAVED với sender delivered/read và SYNCED |
 | **HistorySyncSession** | verified peer, conversation scope, capability version, requestId, summary, bounded cursor/chunk IDs, timeout/cancel state | Ephemeral; không tự lập kết nối hoặc tạo message ACK |
-| **HistoryTombstone** | local deletion intent, target event/conversation IDs or cryptographic digest, created/committed timestamp | Phải chặn reimport; remote-delete semantics chờ CL-05-07 |
+| **HistoryTombstone** | local deletion intent, target event/conversation IDs or cryptographic digest, created/committed timestamp | Phải chặn reimport; remote deletion ngoài phạm vi CL-05-07 CONFIRMED |
 | **HistoryConflict** | eventId and conflicting signer/hash/version, detection result/quarantine flag | Không overwrite in-place, không log raw private content |
 | **HistoryStoreProfile** | schema version, encrypted key reference, user-local ACL, quotas, migration state | Phải bảo vệ side-files và dữ liệu nhạy cảm, không nhầm với M2 pin store |
 
@@ -323,4 +323,4 @@ Các lựa chọn “gợi ý” chỉ là **baseline thảo luận**, không ph
 
 **Dependencies/gates (not claimed complete):** M0 verified per prior evidence; M1/M2 multi-physical-Win11-LAN/security Gate 1 not yet Verified. Group 004 is currently partial domain only; Group History requires 004 verified Group messaging/owner handoff before acceptance. Full milestone **M3 requires verified 004 + 005**, neither is established by this spec. No tasks/code/tests of 005 were executed as part of writing the spec.
 
-**Next step:** user selects/approves [CL-05-01…10](clarifications.md) using the proposed answers or custom choices, then **finalize the existing [provisional plan](plan.md)**, freeze reviewed storage/wire/security design and write `tasks.md` for RED→GREEN implementation. No History code/tests are claimed; do not mark History Verified from documentation alone.
+**Next step:** 10/10 [CL-05 đã được người dùng xác nhận](clarifications.md) và [plan](plan.md) đã được đồng bộ theo A. Tiếp theo cần review độc lập SQLite mã hóa/crypto, chốt wire canonical vectors và [Gate 0](checklists/architecture-impact-review.md) trước khi lập `tasks.md` và implement RED→GREEN. Chưa có History code/test; không tuyên bố 005/M3 Verified.
