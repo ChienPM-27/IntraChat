@@ -258,7 +258,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 ## 7. Giai đoạn 05 — Chat History
 
 **Ưu tiên:** P1
-**Spec Kit feature:** `005-chat-history`
+**Spec Kit feature:** `005-chat-history` — [Feature specification (DRAFT; CL-05 pending)](specs/005-chat-history/spec.md) · [Requirements checklist](specs/005-chat-history/checklists/requirements.md)
 **Phụ thuộc:** mô hình message giai đoạn 03; tích hợp group với giai đoạn 04
 **Phạm vi tính năng:** **History**, liên kết Sender/Time/State
 **Mục tiêu:** xem lại lịch sử sau khi đóng/mở ứng dụng và đồng bộ lịch sử hội thoại được phép giữa các máy qua P2P khi kết nối lại.
