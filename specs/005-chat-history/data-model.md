@@ -1,6 +1,6 @@
 # History 005 — logical data model and state transitions
 
-**Status:** CL-05-01…10 **USER CONFIRMED (all A)**; logical design only, concrete SQL schema/encrypted driver **NOT FROZEN** · [spec](spec.md) · [plan](plan.md) · [contract](contracts/history-v1.md). **No SQL schema/migration or Java History code created yet.**
+**Status:** CL-05-01…10 **USER CONFIRMED (all A)**; logical design only, concrete SQL schema/encrypted driver **NOT FROZEN** · [spec](spec.md) · [plan](plan.md) · [contract](contracts/history-v1.md). **No SQL schema/migration or secure History wire created yet.** Pure `domain/history` entities/policies (nonpersistent) have been added with [Java21 test evidence](evidence/history-domain-red-green.md); this document remains conceptual for the encrypted SQLite schema.
 
 ## 1. Entities and invariants
 

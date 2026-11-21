@@ -1,7 +1,7 @@
 # Requirements Quality Checklist — Giai đoạn 05 Chat History & LAN P2P Sync
 
 **Feature:** `005-chat-history` · **Date:** 2026-11-21
-**Status:** **10/10 CL-05 USER CONFIRMED (all A); 136 planned tasks in `tasks.md` (0 done); independent encrypted SQLite/security approval and History implementation/test/Verified still OPEN.**
+**Status:** **10/10 CL-05 CONFIRMED (all A); 22/136 tasks complete, Java21 138/138 tests PASS (16 new domain/ACL), encrypted SQLite/History wire/Group E2E and security release gates BLOCKED; 005 NOT VERIFIED.**
 **Source:** [spec](../spec.md) · [choices](../clarifications.md) · [confirmed-decision plan](../plan.md) · [data model](../data-model.md) · [History V1 draft](../contracts/history-v1.md) · [ROADMAP Giai đoạn 05](../../../ROADMAP.md) · [Constitution](../../../.specify/memory/constitution.md).
 
 ## 1. Requirements scope, language and consistency
@@ -57,10 +57,10 @@
 
 - [x] Người dùng đã xác nhận `CL-05-01…10` = **10/10 A**, cập nhật [spec](../spec.md), [decisions](../clarifications.md) và [plan](../plan.md).
 - [x] Đã đồng bộ [plan.md](../plan.md) theo **10/10 CL CONFIRMED**, có Constitution I–VII, encrypted SQLite+DPAPI+ACL, History V1 wire draft, event model/ACL/delete/resource gates. **Technical Gate 0 vẫn CONDITIONAL**, vì native driver, exact signature vectors và independent security review chưa được duyệt.
-- [x] Đã xây dựng [tasks.md](../tasks.md) **136 tasks**, chia 10 phase/7 US, có RED→GREEN, explicit Depends/Done, file owner và security/physical release gates; **0/136 tasks implemented or checked**.
+- [x] Đã xây dựng [tasks.md](../tasks.md) **136 tasks**, chia 10 phase/7 US, có RED→GREEN, explicit Depends/Done, file owner và security/physical release gates; **22/136 tasks checked after actual evidence**.
 - [ ] Implement History local store, Live history UI, P2P sync và Group History integration theo đúng các quyết định đã được duyệt.
 - [ ] Chạy actual Java21 tests + 2-peer/3-client encrypted LAN, corruption/permissions/negative tests, record AC-05-A…P.
 - [ ] Khép lại inherited M1/M2/004 release gates và independent security/privacy review trước khi tuyên bố 005 Verified.
 - [ ] M3 Verified **chỉ khi cả 004 Group lẫn 005 History đã Verified**.
 
-**Conclusion:** 10/10 CL đã CONFIRMED và được phản ánh trong plan; hợp đồng wire, driver, chữ ký, resource budgets và Gate 1 còn chờ kiểm chứng độc lập. Đây là hoàn tất bước Clarify, không phải code hay acceptance test evidence.
+**Conclusion:** Clarify 10/10 DONE; domain + P2P scope policy RED→GREEN [22/136 tasks](../tasks.md) and [138/138 Java21 JUnit PASS](../evidence/history-domain-red-green.md). Secure driver/crypto/004 dependencies are [verified BLOCKED](../evidence/execution-blockers.md); full History AC/physical LAN tests are NOT RUN; 005/M3 NOT VERIFIED.

@@ -2,7 +2,7 @@
 
 **Feature:** `005-chat-history` · **Branch:** `005-chat-history`
 **Created:** 2026-11-21 · **Priority:** P1 · **Milestone:** M3 = Group 004 **và** History 005
-**Status:** **TASKS PLANNED — 10/10 CL-05 USER CONFIRMED (all A), 0/136 tasks completed; no History code/tests/Verified**
+**Status:** **PARTIALLY IMPLEMENTED — 22/136 tasks completed; 10/10 CL-05 confirmed; Java21 138/138 JUnit PASS (122 baseline + 16 new History domain/policy). Secure SQLite/wire/Group E2E BLOCKED; 005/M3 NOT VERIFIED.**
 **Design:** [Confirmed Clarifications](clarifications.md) · [Implementation plan](plan.md) · [136 implementation tasks](tasks.md) · [Research](research.md) · [Data model](data-model.md) · [History V1 contract](contracts/history-v1.md) · [Test quickstart](quickstart.md)
 **Sources:** [ROADMAP Giai đoạn 05](../../ROADMAP.md) · [Constitution](../../.specify/memory/constitution.md) · [Foundation CL-01-04](../001-project-foundation/spec.md) · [M2 secure P2P](../003-p2p-messaging/spec.md) · [Group 004](../004-group-chat/spec.md) · [M2 release blockers](../003-p2p-messaging/evidence/m1-blocker-at-m2.md)
 
@@ -321,6 +321,6 @@
 | **05.08** P2P summary/delta/resume/offline | FR-05-021…032 | AC-E/F/M |
 | **05.09** Auth/ACL/revoke/conflict/Group eligibility | FR-05-003/023/026/033…039/045/048 | AC-F/H/I/J/O/P |
 
-**Dependencies/gates (not claimed complete):** M0 verified per prior evidence; M1/M2 multi-physical-Win11-LAN/security Gate 1 not yet Verified. Group 004 is currently partial domain only; Group History requires 004 verified Group messaging/owner handoff before acceptance. Full milestone **M3 requires verified 004 + 005**, neither is established by this spec. No tasks/code/tests of 005 were executed as part of writing the spec.
+**Dependencies/gates (not claimed complete):** M0 verified per prior evidence; M1/M2 multi-physical-Win11-LAN/security Gate 1 not yet Verified. Group 004 is currently partial domain only; Group History requires 004 verified Group messaging/owner handoff before acceptance. Full milestone **M3 requires verified 004 + 005**, neither is established by this spec. Các task/code/tests 005 đã thực thi về sau chỉ thuộc **domain/ACL**, theo [báo cáo](evidence/history-domain-red-green.md); không có secure History storage/network/Group acceptance.
 
-**Next step:** [136 tasks](tasks.md) đã được chia theo 10 phase, với test-first RED→GREEN và các điểm chặn cụ thể. **0/136 task completed** tại thời điểm viết. Bắt đầu bằng preflight/threat/independent SQLite+crypto review [Gate 0](checklists/architecture-impact-review.md); các pure-domain tests có thể tiến hành trong worktree riêng, nhưng không bật sensitive storage/wire khi thiếu phê duyệt. Chưa có History code/test; không tuyên bố 005/M3 Verified.
+**Execution:** [22/136 tasks completed](tasks.md) bằng actual RED→GREEN, full Java21 `mvnw.cmd -o package` **138/138 PASS**. [Evidence](evidence/history-domain-red-green.md) · [Verified blockers](evidence/execution-blockers.md) · [Gate 0 conditional](checklists/constitution-gate0.md). Phần thuần domain/ACL là code thật, nhưng **chưa** có encrypted SQLite, signed HISTORY_V1, authenticated sync hoặc Group History E2E. Chỉ tiếp tục các phần đó sau independent review và hoàn tất 004; không tuyên bố 005/M3 Verified.

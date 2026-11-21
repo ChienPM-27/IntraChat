@@ -2,7 +2,7 @@
 
 **Feature/branch:** `005-chat-history`
 **Date:** 2026-11-21
-**Status:** **IMPLEMENTATION PLAN + 136 TASKS READY — 10/10 CL-05 USER CONFIRMED; 0/136 tasks done, technical security/driver/wire Gate 0 CONDITIONAL; NO History code/tests/Verified**
+**Status:** **PARTIAL EXECUTION — 22/136 tasks completed; Java21 138/138 JUnit PASS (16 new pure domain/ACL), encrypted SQLite/signature/wire/004 release gates BLOCKED; 005/M3 NOT VERIFIED.**
 **Spec:** [spec.md](spec.md) · [10 user-confirmed decisions](clarifications.md) · [136 task plan](tasks.md) · [requirements checklist](checklists/requirements.md)
 **Design artifacts:** [research/ADRs](research.md) · [logical data model](data-model.md) · [draft wire contract](contracts/history-v1.md) · [test quickstart](quickstart.md) · [decision impact review](checklists/architecture-impact-review.md)
 **Governing:** [Constitution I–VII](../../.specify/memory/constitution.md) · [ROADMAP 05.01–05.09](../../ROADMAP.md) · [M2 protocol](../003-p2p-messaging/contracts/chat-v2.md) · [Group plan](../004-group-chat/plan.md)
@@ -288,4 +288,4 @@ Open ADRs: verified encrypted SQLite distribution and license; database key rota
 
 **Planning deliverable definition:** This user-clarified and CL-aligned plan includes Constitution I–VII, technical dependencies, architecture, encrypted storage/key handling, versioned wire, authenticated event provenance, ACL, dedup/order/retry/restore, Group JOIN/REMOVE/handoff, time/resource budgets and acceptance test/release gates. User product decisions are **approved (10/10)**, while independent security/driver/wire review, resource measurements and release Gate 1 are **not yet approved or passed**.
 
-**Hard release rule:** No History code/acceptance is claimed in this document. Feature 005 remains **CLARIFIED / NOT IMPLEMENTED / NOT VERIFIED** and milestone M3 requires **both** verified 004 Group and verified 005 History. The [136 task execution plan](tasks.md) now exists, **all 136 tasks unchecked**. No History Java code or History tests are generated/executed in this task-authoring step.
+**Hard release rule:** Only pure History domain/ACL policy is implemented and tested; secure SQLite/wire/UI/Group History have **NOT** been implemented or accepted. Feature 005 remains **PARTIAL / NOT VERIFIED** and milestone M3 requires **both** verified 004 Group and verified 005 History. The [136 task execution list](tasks.md) now records **22 DONE, 114 OPEN**. Actual [domain/ACL Java21 RED→GREEN and 138/138 tests](evidence/history-domain-red-green.md) have run; [blockers](evidence/execution-blockers.md) prevent unreviewed encrypted storage/signature/Group E2E. No History release/acceptance pass.

@@ -41,10 +41,10 @@ Do **not** silently choose any former B alternative: default-on History, unencry
 | **G0.2 Encrypted SQLite distribution** | **OPEN / NOT APPROVED** | Reviewed version, binary provenance/signature, license/CVE/transitive artifacts, Win11 x64/Java21, encrypted DB+WAL+temp, no fallback |
 | **G0.3 Key protection and ACL** | **OPEN / NOT TESTED** | DPAPI CurrentUser separate DB key; owner-only ACL directory/files, reparse protection, separate authorized Windows account negative tests |
 | **G0.4 History source signature/profile** | **OPEN / NOT FROZEN** | Canonical signed event vectors reviewed independently, M2 origin proof limitations, protected HISTORY_V1 capability transcript with v2-only compatibility regression |
-| **G0.5 History resource and deletion semantics** | **DESIGN ONLY** | Benchmark frame 65,536 bytes, proposed batches/page/concurrency, 90d/500MiB quota, tombstone retention, disk-full/crash outcomes |
+| **G0.5 History resource and deletion semantics** | **Pure domain 16 JUnit tests PASS; disk/runtime still NOT TESTED** | Benchmark frame 65,536 bytes, proposed batches/page/concurrency, 90d/500MiB quota, tombstone retention, disk-full/crash outcomes |
 | **G1.1 Inherited M1/M2 Gate 1** | **BLOCKED** | ≥2 distinct authorized Win11 LAN physical PCs, manual human inbound consent/SAS, no Internet and security approval |
 | **G1.2 Group 004 dependency** | **BLOCKED** | Verified owner relay, member origin sign, durable owner handoff/JOIN/REMOVE and ≥3-JVM Group acceptance |
-| **G1.3 History AC-05-A…P** | **NOT RUN / NO IMPLEMENTATION** | Java21 test-first source, two-peer P2P sync, 3-JVM Group, full negative/fault/privacy test evidence, independent signoff |
+| **G1.3 History AC-05-A…P** | **16 new pure domain/ACL tests PASS; secure feature/E2E AC NOT RUN** | Java21 test-first source, two-peer P2P sync, 3-JVM Group, full negative/fault/privacy test evidence, independent signoff |
 
 **Constitution I–VII:** Plan contains a design Gate 0 assessment. Confirming 10 product decisions resolves the former **clarification** blocker only; Principles II/III/IV/V and physical/security gates remain conditional/blocked. No Group 004/M3 release claim.
 
@@ -52,4 +52,4 @@ Do **not** silently choose any former B alternative: default-on History, unencry
 
 Reviewed documentation: `spec.md`, `clarifications.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/history-v1.md`, `quickstart.md`, `checklists/requirements.md` and `ROADMAP.md`. Every CL-05 requirement maps to a concrete architecture impact and AC; all 48 FR, 12 SC, 16 AC and ROADMAP 05.01–05.09 remain in scope.
 
-**Next:** [136-task implementation list](../tasks.md) prepared with RED→GREEN, independent encrypted-SQLite/cryptographic review and canonical vectors required first for sensitive paths. Then execute tests and implementation with actual Java21/Maven/2-PC evidence; **0/136 tasks complete**, no History tests run. Documentation QA is not a History functional test.
+**Execution:** [22/136 tasks done](../tasks.md) with [RED→GREEN and Java21 138/138 JUnit PASS](../evidence/history-domain-red-green.md) for pure domain/P2P policy only. [Directly verified blockers](../evidence/execution-blockers.md) remain on encrypted SQLite vendor approval, signed canonical vectors, 004 runtime and two physical PCs; no secure History E2E/release test PASS. Documentation QA is not a History functional test.

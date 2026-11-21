@@ -30,4 +30,4 @@
 
 **Đã chốt:** cả 10 CL, ranh giới quyền truy cập/lưu/xóa/đồng bộ, hành vi user-facing và architecture direction SQLite encrypted.
 
-**Chưa phê duyệt kỹ thuật/chưa thực hiện:** native encrypted SQLite artifact/cryptographic vectors, history wire schema freeze và independent security signoff; Java History classes, DB, tests, 2 physical Windows LAN PCs và Group E2E. Các giới hạn batch/page/timeouts trong [plan](plan.md) là **design targets**, không phải benchmark đã PASS.
+**Chưa phê duyệt kỹ thuật/chưa thực hiện:** native encrypted SQLite artifact/cryptographic vectors, history wire schema freeze và independent security signoff, History DB, 2 physical Windows LAN PCs và Group E2E. **Đã thực hiện** pure History domain/ACL Java classes và **16 History unit tests** [RED→GREEN](evidence/history-domain-red-green.md); **22/136 tasks**. Không có secure History wire/DB test pass. Các giới hạn batch/page/timeouts trong [plan](plan.md) là **design targets**, không phải benchmark đã PASS.
