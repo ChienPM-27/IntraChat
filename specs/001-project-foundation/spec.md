@@ -2,7 +2,7 @@
 
 **Feature Branch:** `001-project-foundation` (dự kiến; chưa tạo nhánh Git)
 **Created:** 2026-11-21
-**Status:** Clarified — đã có plan và tasks; chưa triển khai hoặc kiểm thử ứng dụng
+**Status:** **Verified (M0)** — JDK21 build/test, 5/5 Windows GUI cycles under process-level network denial, 9/9 JUnit; see evidence
 **Clarification Date:** 2026-11-21
 **Input:** Yêu cầu xây dựng nền tảng cho ứng dụng Chat mạng LAN bằng Java; [ROADMAP — giai đoạn 01](../../ROADMAP.md)
 **Governing:** [Constitution](../../.specify/memory/constitution.md) · [AGENTS](../../AGENTS.md)

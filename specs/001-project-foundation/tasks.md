@@ -2,7 +2,7 @@
 
 **Feature:** `001-project-foundation`
 **Date:** 2026-11-21
-**Status:** In Progress — 38/41 tasks đã thực hiện và có bằng chứng; M0 chưa Verified
+**Status:** **Verified — 41/41 tasks**; actual Temurin JDK21 tests and process-level network-denied GUI evidence (2026-11-21)
 **Input:** [spec.md](spec.md) · [plan.md](plan.md) · [Constitution](../../.specify/memory/constitution.md)
 **Goal:** Đạt **M0 — Foundation Ready**: dự án Java desktop Windows có thể build/run/test, ứng dụng khung hoạt động, có kiến trúc và hợp đồng thông điệp làm nền cho LAN P2P.
 
@@ -100,7 +100,7 @@
 - [x] **T022 [US2]** Tạo `src/main/java/vn/intrachat/ui/MainWindow.java` làm UI Swing tối thiểu: title `IntraChat`, nhãn “Chưa kết nối — Chat chưa sẵn sàng”, đóng cửa sổ theo vòng đời đúng; không hiển thị tin nhắn/peer giả.
 - [x] **T023 [US2]** Cập nhật `src/main/java/vn/intrachat/IntraChatApplication.java` để khởi tạo UI trên Swing EDT bằng `SwingUtilities.invokeLater`, xử lý lỗi khởi chạy có kiểm soát và không tạo worker/socket ngầm. **Phụ thuộc:** T022; kiểm tra lại lệnh run của US1.
 - [x] **T024 [US2]** Chạy kiểm tra thủ công 5 lần mở/đóng trên Windows GUI thật; theo dõi process, startup/exit, title và trạng thái; ghi kết quả **PASS/FAIL/NOT RUN** vào `specs/001-project-foundation/evidence/us2-lifecycle.md`. **Xong khi:** nếu chưa đủ 5/5 thì US2 chưa được verified.
-- [ ] **T025 [US2]** Kiểm thử khởi động **không có peer và không cần Internet**, lỗi hiển thị, đóng ngay sau mở; cập nhật kết quả vào `specs/001-project-foundation/evidence/us2-lifecycle.md`. **Xong khi:** UI không thể hiện kết nối hay delivered/read khi chưa có tính năng.
+- [x] **T025 [US2]** Kiểm thử khởi động **không có peer và không cần Internet**, lỗi hiển thị, đóng ngay sau mở; cập nhật kết quả vào `specs/001-project-foundation/evidence/us2-lifecycle.md`. **Xong khi:** UI không thể hiện kết nối hay delivered/read khi chưa có tính năng.
 
 **Checkpoint US2:** Có cửa sổ dùng để demo nền tảng và thoát ổn định; chưa có chat hoặc kết nối mạng. T020 → T021 → T022/T023 → T024/T025 là đường chính. Nếu muốn kiểm thử tự động GUI, phải bảo đảm test ổn định trên Windows; không thay thế kiểm tra thủ công thực tế.
 
@@ -153,8 +153,8 @@
 - [x] **T037 [P]** Review `specs/001-project-foundation/contracts/protocol-v1-draft.md` và `specs/001-project-foundation/contracts/history-sync-design.md` cho security/permission, offline, dedup, timestamp, framing/limit và unknown version; ghi quyết định còn chờ 002/005, tránh dùng `displayName` hay IP làm authentication.
 - [x] **T038** Hoàn thiện `README.md`: platform Windows 11, Java 21, lệnh build/run/test **đã kiểm chứng**, giới hạn offline build lần đầu, chưa có chat/socket/sync/file/media thật và dẫn tới `specs/001-project-foundation/quickstart.md`; đồng bộ `ROADMAP.md` nếu thực trạng thay đổi. **Phụ thuộc:** T033 và báo cáo test.
 - [x] **T039** Chạy `scripts/verify-m0.ps1`, `git diff --check`, kiểm tra artifacts và `git status`; xác nhận tệp runtime không bị theo dõi, JUnit test count lớn hơn 0, không có report giả. Ghi kết quả tại `specs/001-project-foundation/evidence/m0-test-results.md`. **Phụ thuộc:** T035/T038.
-- [ ] **T040** Review Constitution Gate 1 lần cuối và đối chiếu **AC-01-A…I** với `specs/001-project-foundation/evidence/m0-acceptance-report.md`; chỉ thay trạng thái M0 thành `Verified` nếu từng điều kiện có bằng chứng và không còn vi phạm MUST chưa xử lý. **Phụ thuộc:** T036–T039.
-- [ ] **T041** Bàn giao `specs/001-project-foundation/evidence/m0-acceptance-report.md` cùng quyết định/chỗ còn mở cho `002-lan-networking`: topology P2P, địa chỉ/port, handshake/pairing, framing, auth boundary, sẵn sàng prototype 2 peer. Không viết code 002 tại task này. **Phụ thuộc:** T040.
+- [x] **T040** Review Constitution Gate 1 lần cuối và đối chiếu **AC-01-A…I** với `specs/001-project-foundation/evidence/m0-acceptance-report.md`; chỉ thay trạng thái M0 thành `Verified` nếu từng điều kiện có bằng chứng và không còn vi phạm MUST chưa xử lý. **Phụ thuộc:** T036–T039.
+- [x] **T041** Bàn giao `specs/001-project-foundation/evidence/m0-acceptance-report.md` cùng quyết định/chỗ còn mở cho `002-lan-networking`: topology P2P, địa chỉ/port, handshake/pairing, framing, auth boundary, sẵn sàng prototype 2 peer. Không viết code 002 tại task này. **Phụ thuộc:** T040.
 
 **Checkpoint cuối:** M0 đạt khi mọi AC/SC theo spec và Constitution có bằng chứng; nếu có mục FAIL/NOT RUN/BLOCKED phải báo rõ. Chuyển 002 chỉ sau khi nghiệm thu.
 

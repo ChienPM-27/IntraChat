@@ -3,7 +3,7 @@
 **Branch:** `001-project-foundation` *(tên đề xuất; hiện không tự đổi nhánh Git)*
 **Date:** 2026-11-21
 **Spec:** [spec.md](spec.md)
-**Status:** Implementation in progress — Swing foundation built/tested; full M0 gate still open
+**Status:** **M0 Verified** — Java/Swing foundation and tests on actual Temurin JDK21; network-denied GUI evidence and reproducibility verified
 **Scope:** Giai đoạn 01, mốc M0 — Foundation Ready
 **Authority:** [.specify/memory/constitution.md](../../.specify/memory/constitution.md)
 
@@ -35,7 +35,7 @@ Thiết lập nền tảng **ứng dụng desktop Java cho Windows**, không c�
 | Constraints | Không Internet runtime; không socket I/O trên EDT; không secrets trong Git; không public Internet endpoint | Ràng buộc Constitution I–VII |
 | Scale/Scope | Một desktop app; 11 chức năng định hướng, **M0 chỉ foundation** | Không đưa Group, File hoặc sync thật vào code của M0 |
 
-**Tình trạng nguồn (sau triển khai):** đã có `pom.xml`, Maven Wrapper, Swing entrypoint, typed domain/protocol metadata và 9 JUnit tests. Build/package/tests/diagnostics chạy được trên **Windows 11 + Oracle JDK 25.0.4**, bytecode target 21; **chưa xác minh JDK 21 runtime** và chưa có chức năng LAN/History/File/Media. [Báo cáo M0](evidence/m0-acceptance-report.md).
+**Tình trạng sau M0 Gate 1 (2026-11-21):** đã có `pom.xml`, Maven Wrapper, Swing entrypoint, typed domain/protocol metadata và 9 JUnit tests. Build/package/test/diagnostics **đã chạy trên actual Temurin JDK21 Windows 11**, 5/5 GUI trong JVM network-denied (0 TCP/UDP), clean-source offline-cache build; M0 Verified. **Chưa có** LAN/History/File/Media. [Báo cáo M0](evidence/m0-acceptance-report.md).
 
 **Phân biệt Internet:** ứng dụng chạy và giao tiếp LAN không phụ thuộc Internet. Lần đầu Maven tải dependency/plugin có thể cần Internet hoặc Maven repository nội bộ; sau khi cache sẵn có thể kiểm thử offline bằng `mvnw.cmd -o test`. Không dùng điều này để tuyên bố checkout sạch hoàn toàn offline có thể build nếu chưa có cache.
 
