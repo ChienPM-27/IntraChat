@@ -2,7 +2,7 @@
 
 **Feature:** 003-p2p-messaging
 **Created:** 2026-11-21
-**Status:** **In Progress — 15/90 tasks checked with local Java21 evidence; M2 PARTIAL / NOT VERIFIED; M1 Gate 1 and two physical Windows LAN PCs remain BLOCKED**
+**Status:** **In Progress — 16/90 tasks checked with local Java21 evidence; M2 PARTIAL / NOT VERIFIED; M1 Gate 1 and two physical Windows LAN PCs remain BLOCKED**
 **Branch:** 003-p2p-messaging
 **Inputs:** [spec](spec.md) · [plan](plan.md) · [research](research.md) · [data model](data-model.md) · [chat v2 contract](contracts/chat-v2.md) · [quickstart](quickstart.md) · [requirements checklist](checklists/requirements.md) · [Constitution](../../.specify/memory/constitution.md)
 
@@ -56,7 +56,7 @@
 
 - [x] T011 [P] Viết RED test src/test/java/vn/intrachat/security/DeviceIdentityTest.java cho P-256 ECDSA, key/identity lifetime, SHA-256 DER SPKI fingerprint, key rotation and malformed key. **Done:** actual RED command recorded; no private key in test logs.
 - [x] T012 [US1] Tạo DeviceIdentity.java + DeviceCertificateFactory.java bằng Java JCA/approved BC; pin dependencies in pom.xml only after T003; làm T011 GREEN. **Depends:** T011/T003. **Done:** Java21 validates self-signed X509 and private key separated.
-- [ ] T013 [P] Viết RED DeviceCertificateValidatorTest.java (src/test/java/vn/intrachat/security/) cho expired/not-yet-valid, weak/wrong algorithm, invalid signature/key usage, changed SPKI, spoofed UUID. **Done:** invalid candidates rejected.
+- [x] T013 [P] Viết RED DeviceCertificateValidatorTest.java (src/test/java/vn/intrachat/security/) cho expired/not-yet-valid, weak/wrong algorithm, invalid signature/key usage, changed SPKI, spoofed UUID. **Done:** invalid candidates rejected.
 - [ ] T014 [US1] Triển khai src/main/java/vn/intrachat/security/DeviceCertificateValidator.java, exact key verification; GREEN T013. **Depends:** T012/T013/T004. **Done:** candidate self-signed TLS possession is **not** a trusted messaging peer.
 - [ ] T015 [P] Viết RED DeviceIdentityStoreTest.java cho Windows CurrentUser DPAPI wrap/unprotect, per-user ACL, restart, corrupt blob, cross-user access, partial atomic write and no plaintext. **Done:** unavailable Windows second-user test recorded BLOCKED rather than fake PASS.
 - [ ] T016 [US1] Triển khai DeviceIdentityStore.java dùng DPAPI/JNA, protected local key/cert storage, no plaintext fallback; GREEN T015. **Depends:** T012/T015/T003. **Done:** store corruption fails closed and never silently regenerates trusted identity.
