@@ -225,7 +225,7 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 ## 6. Giai đoạn 04 — Group Chat
 
 **Ưu tiên:** P1
-**Spec Kit feature:** `004-group-chat`
+**Spec Kit feature:** `004-group-chat` — [Feature specification (DRAFT)](specs/004-group-chat/spec.md) · [Requirements checklist](specs/004-group-chat/checklists/requirements.md)
 **Phụ thuộc:** giai đoạn 03
 **Phạm vi tính năng:** **Group**, tái sử dụng Sender/Time/State/Emoji
 **Mục tiêu:** hỗ trợ trao đổi tin nhắn giữa nhiều thành viên trong LAN.
