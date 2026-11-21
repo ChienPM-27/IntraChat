@@ -1,6 +1,6 @@
 # Quickstart & Verification Plan — 004 Group Chat
 
-**Status:** **TEST PROCEDURE ONLY — Group code/tests do not exist yet, AC-04-A…L NOT RUN**
+**Status:** **PARTIAL DOMAIN IMPLEMENTATION — 15 Group Java21 unit tests PASS; no Group network/FE/3-JVM or physical acceptance, AC-04-A…L NOT RUN**
 **Date:** 2026-11-21
 **References:** [Spec](spec.md) · [Implementation plan](plan.md) · [Contract](contracts/group-v1.md) · [Group data model](data-model.md).
 
@@ -10,7 +10,7 @@
 - No public Internet needed; manually input IPv4:port (default `47321/TCP`); each incoming TCP connection manually **Accept/Reject**. Do not silently enable public firewall profile, discovery or auto-reconnect.
 - Each pair of Group members needs verified **pinned SPKI** to authenticate each other's Group source signatures; first-contact M2 TLS/SAS/human confirmation is necessary. Group invite acceptance alone is not sufficient cryptographic verification.
 - M1 Gate 1 physical LAN and M2 Gate 1 TLS/peer authentication/privacy reviews **MUST** be completed before Group feature can be released. Current blockers: [M2 blocker memo](../003-p2p-messaging/evidence/m1-blocker-at-m2.md).
-- **Feature is not yet implemented**; there is no `verify-m3.ps1` or Group test class in this branch. This document does not instruct you to claim those commands already pass.
+- **Group feature is not end-to-end implemented.** Pure Group domain Java classes and 15 JUnit tests now exist and are [recorded](evidence/domain-red-green.md), but there is **no** `verify-m3.ps1`, real Group network/FE service or Group acceptance run in this branch. Do not claim any unrun scenario passed.
 
 ## 2. Existing Java21 project preflight (not Group acceptance)
 

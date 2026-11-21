@@ -2,7 +2,7 @@
 
 **Feature:** `004-group-chat` · **Branch:** `004-group-chat`
 **Created:** 2026-11-21 · **Priority:** P1 · **Milestone:** M3 (Group + History; History thuộc 005)
-**Status:** **CLARIFIED (8/8 confirmed) / PLANNED — chưa triển khai Group, chưa Verified**
+**Status:** **IN PROGRESS — 18/124 tasks; pure Group domain Java21 implemented/tested (15 Group unit tests), network Group not implemented; NOT VERIFIED**
 **Source:** [ROADMAP — Giai đoạn 04](../../ROADMAP.md) · [Constitution](../../.specify/memory/constitution.md) · [M1 spec](../002-lan-networking/spec.md) · [M2 spec](../003-p2p-messaging/spec.md) · [M2 blockers](../003-p2p-messaging/evidence/m1-blocker-at-m2.md)
 
 ## 1. Tổng quan, mục tiêu và điều kiện đầu vào
@@ -266,7 +266,7 @@ Các quyết định hành vi này được **người dùng xác nhận** ngày
 | **AC-04-K** | ≥3 JVM/client và LAN Windows không Internet | Log evidence thực tế topology, actual JDK21/OS, consent, TLS, test results và physical hosts |
 | **AC-04-L** | Release/prerequisite/Constitution I–VII | CL-04 đã chốt, plan/threat/contract/tasks/test/evidence review, **M1/M2 Gate 1 Verified**, không vi phạm MUST |
 
-**Actual status ngày viết:** AC-04-A…L = **NOT RUN**; 8/8 CL-04 đã được xác nhận, nhưng Group chưa có mã nguồn triển khai/test riêng. Tạo spec không chứng minh tính năng đang hoạt động. Mốc **M3** còn cần History giai đoạn 05, nên Group 004 Verified **không** đồng nghĩa M3 Verified.
+**Actual status thực thi 2026-11-21:** AC-04-A…L = **NOT RUN**; 8/8 CL-04 confirmed; pure Group domain classes + 15 Group unit tests **PASS**, còn Group TLS wire, member invite/handoff, metadata DPAPI, READ UI và multi-client acceptance **NOT IMPLEMENTED/NOT RUN**. Tạo spec không chứng minh tính năng đang hoạt động. Mốc **M3** còn cần History giai đoạn 05, nên Group 004 Verified **không** đồng nghĩa M3 Verified.
 
 ### 9.1 Test matrix bắt buộc trong plan/tasks
 
@@ -302,4 +302,4 @@ Các quyết định hành vi này được **người dùng xác nhận** ngày
 | VI Honest UX | Per-recipient status, không fake all-delivered/read, không mock Live |
 | VII Spec-driven | CL-04 xác nhận, viết plan/contract/data-model/tasks, chỉ Verified khi AC có evidence |
 
-**Bước tiếp theo:** (1) 8/8 CL-04 đã xác nhận; (2) xem [plan.md](plan.md), [research](research.md), [data model](data-model.md), [wire contract](contracts/group-v1.md); (3) theo dõi [tasks.md](tasks.md) với **0/124 task được thực hiện**; (4) implement sau khi M1/M2 Gate 1; (5) nghiệm thu ≥3 clients và LAN vật lý có evidence. **Không tuyên bố Group/M3 Verified khi chưa có code/test/release signoff.**
+**Bước tiếp theo:** (1) 8/8 CL-04 đã xác nhận; (2) xem [plan.md](plan.md), [research](research.md), [data model](data-model.md), [wire contract](contracts/group-v1.md); (3) theo dõi [tasks.md](tasks.md) với **18/124 task có evidence; secure Group wire vẫn BLOCKED**; (4) implement sau khi M1/M2 Gate 1; (5) nghiệm thu ≥3 clients và LAN vật lý có evidence. **Không tuyên bố Group/M3 Verified khi chưa có code/test/release signoff.**

@@ -2,7 +2,7 @@
 
 **Feature/branch:** `004-group-chat`
 **Date:** 2026-11-21
-**Status:** **PLANNED — 8/8 CL-04 user-confirmed; chưa triển khai Group, chưa chạy acceptance hoặc security review**
+**Status:** **IN PROGRESS — 18/124 tasks; pure Group domain implemented/tested, 15 Group unit tests + 107 regressions PASS; secure protocol/storage/FE and Group acceptance NOT IMPLEMENTED/NOT VERIFIED**
 **Spec:** [spec.md](spec.md) · [requirements checklist](checklists/requirements.md)
 **Supporting artifacts:** [Research/ADRs](research.md) · [Data model/state machine](data-model.md) · [Group v1 contract](contracts/group-v1.md) · [Test quickstart](quickstart.md)
 **Governing:** [Constitution v1.0.0](../../.specify/memory/constitution.md) · [ROADMAP 04](../../ROADMAP.md) · [M2 plan](../003-p2p-messaging/plan.md) · [M2 v2 contract](../003-p2p-messaging/contracts/chat-v2.md)
@@ -271,7 +271,7 @@ Member states: `INVITED` (no access), `ACTIVE` (authorized), `LEFT`, `REMOVED`; 
 - Consent: every inbound TCP Accept, first peer fingerprint/SAS per M2 and group key verification per member; no public Internet, no auto port opening, correct TLS1.3.
 - For owner relay, verify B sends to A, A relays to C, C signed app-ACK/READ arrives B; D outsider 0 data. Cover invite approval, owner handoff, restarted metadata and no chat replay.
 - Capture deterministic JUnit XML, sanitized console log, screenshots of Live UI status and state snapshots; **no actual chat content, private key, SAS secret or real personal metadata in evidence**.
-- **No acceptance test execution in this docs-only task.** Existing 107/107 Java21 M2 tests cannot stand in for Group tests.
+- **No Group secure-network/acceptance test executed.** Initial pure-domain implementation has 15 Group JUnit tests (RED→GREEN) and the existing 107 M0–M2 regressions; Java21 offline package 122/122 PASS. See [evidence](evidence/domain-red-green.md) and [blockers](evidence/execution-blockers.md).
 
 ## 9. Risk register, ADRs và implementation sequence
 
@@ -303,7 +303,7 @@ Member states: `INVITED` (no access), `ACTIVE` (authorized), `LEFT`, `REMOVED`; 
 ## 10. Definition of Done and explicit BLOCKERS
 
 - **Planning artifact DONE:** spec 8/8 CL, this plan and design artifacts consistent; links/references and internal counters checked, Git commit/push verified separately.
-- **Implementation NOT DONE:** no new Group Java service, protocol, storage, UI or tests in this task; no plan statuses converted into feature PASS.
+- **Partial implementation only:** new pure Group domain Java + 15 executed Group unit tests; **no** Group network service/protocol, protected Group metadata storage, handoff runtime, receipt or Live UI. No Group acceptance/Verified claim. [Gate 0 assessment](checklists/constitution-gate0.md) remains CONDITIONAL/BLOCKED for secure wire.
 - **Inherited blockers:** (B1) M1/M2 acceptance on **two physical Win11 LAN machines** not available/verified; (B2) dependency/license/CVE and security/privacy peer review not signed; (B3) Group pairwise signer verification, DPAPI cross-user + handoff safety must be implemented and tested.
 - **Gate 1 Group NOT VERIFIED:** must run actual multi-client Group test, negative/fault/resource checks, per-recipient READ tests, real LAN & independent security review, and keep M0/M1/M2 regressions. Constitution I–VII MUST requirements remain binding.
 - **M3 NOT VERIFIED:** M3 includes History 005, which is a separate future feature and cannot be claimed by completing Group 004 alone.

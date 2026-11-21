@@ -1,6 +1,6 @@
 # Data Model & State Machines — 004 Group Chat
 
-**Status:** DESIGN ONLY, no Java classes or schema implemented · **Date:** 2026-11-21
+**Status:** LOGICAL DESIGN; pure GroupIdentity/Metadata/Member/Roster/Authorization/Snapshot/MembershipReducer/RecipientStatus Java classes now locally implemented and JUnit-tested; protected storage, wire and Group services NOT IMPLEMENTED · **Date:** 2026-11-21
 **References:** [Spec](spec.md) · [Plan](plan.md) · [Group wire contract](contracts/group-v1.md) · [M2 data model](../003-p2p-messaging/data-model.md).
 
 ## 1. Identity and key rules

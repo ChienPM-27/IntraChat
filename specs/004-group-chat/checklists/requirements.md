@@ -1,6 +1,6 @@
 # Requirements & Plan Quality Checklist — 004 Group Chat
 
-**Date:** 2026-11-21 · **Status:** **8/8 Clarifications CONFIRMED; planning documents written; Group feature NOT IMPLEMENTED/VERIFIED**
+**Date:** 2026-11-21 · **Status:** **8/8 Clarifications CONFIRMED; 18/124 tasks, Group domain-only Java/JUnit in progress; Group network/UI NOT IMPLEMENTED or VERIFIED**
 **Documents:** [spec](../spec.md) · [plan](../plan.md) · [research](../research.md) · [data model](../data-model.md) · [contract](../contracts/group-v1.md) · [verification quickstart](../quickstart.md).
 
 ## 1. Clarifications — user confirmed 2026-11-21
@@ -53,4 +53,4 @@
 - [ ] Record Group AC-04-A…L results, security signoff, full regressions and release decision.
 - [ ] Complete History 005 separately before calling milestone M3 Verified.
 
-**Summary:** Document planning can be reviewed now; **not an implemented or verified Group product**. All actual Group functional acceptance scenarios remain **NOT RUN**.
+**Summary:** Pure Group domain has [15 executed JUnit cases](../evidence/domain-red-green.md) and 107 baseline regressions = **122/122 Java21 PASS**. Signed protocol/reviewer, DPAPI metadata, UI, actual three-client and physical LAN remain [blocked/open](../evidence/execution-blockers.md). All AC-04-A…L functional acceptance scenarios **NOT RUN**; Group product NOT VERIFIED.

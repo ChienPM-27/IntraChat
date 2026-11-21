@@ -2,7 +2,7 @@
 
 **Feature:** `004-group-chat` · **Branch:** `004-group-chat`
 **Created:** 2026-11-21
-**Status:** **PLANNED — 0/124 tasks completed; chưa có Group implementation, Group test hay acceptance evidence. M1/M2 Gate 1 còn BLOCKED.**
+**Status:** **IN PROGRESS — 18/124 tasks completed; pure Group domain Java21 RED→GREEN + evidence only. Secure Group protocol/TLS/DPAPI/UI NOT IMPLEMENTED; Gate 0 CONDITIONAL, M1/M2 Gate 1 BLOCKED.**
 **Confirmed:** **CL-04-01…08 (8/8)**, [spec](spec.md) · [plan](plan.md) · [research](research.md) · [data model](data-model.md) · [Group v1 wire contract](contracts/group-v1.md) · [test quickstart](quickstart.md) · [checklist](checklists/requirements.md) · [Constitution](../../.specify/memory/constitution.md).
 
 ## 0. Cách đọc task, kiểm chứng và release gates
@@ -15,7 +15,7 @@
 - **Tài nguyên:** Plan `7 đưa **design targets chưa đo** (5 members, 8 Groups, TLS ≤65,536 bytes, text ≤8,000 codepoints/32KiB, 16 frames/2MiB session, 8MiB process RAM gồm M2+Group, 1,024 dedup IDs/30min, 30s recipient ACK); các task phải **implement/measure** trước khi coi là limit thật. Khi capacity vượt, báo rõ, không tự evict P2P/treo EDT.
 - **Release B1/B2:** M1/M2 chưa có nghiệm thu **hai Win11 physical LAN PCs** và independent dependency/security/privacy review. Có thể chuẩn bị code Group với isolation/test dưới rủi ro được ghi; **không** bật Group trong bản phát hành hoặc ghi “Verified” cho tới M1/M2 Gate 1, các Group AC-04-A…L và Gate 1 bảo mật đều có bằng chứng. M3 còn cần History 005.
 - **Git/worktree:** không tự chạm các thay đổi đang dở trên `003-p2p-messaging`; file chung như `pom.xml`, `TcpListener.java`, `SecureChatCoordinator.java`, `TlsChatSession.java`, `MainChatFrame.java`, `LiveChatAdapter.java` phải có **một owner chỉnh tại một thời điểm**, chạy toàn bộ M1/M2 regression khi đổi. **Không** commit mật khẩu/chat riêng/key/SAS/DPAPI secrets/test payload thật.
-- **Các thư mục `evidence/` và test/class mới** chưa được tạo; task tạo chúng khi có kết quả thực. Task tracker chỉ là kế hoạch; **0 task được đánh dấu xong tại thời điểm viết**.
+- **Thực thi 2026-11-21:** đã tạo [evidence](evidence/domain-red-green.md) và pure Group domain classes/tests; 18 task được check sau command thực. Đây **không** phải Group gửi tin qua mạng. T005/T006 remain BLOCKED; T010 is a **CONDITIONAL design assessment**, not an approval to enable Group wire. See [Gate 0](checklists/constitution-gate0.md) and [blocker register](evidence/execution-blockers.md).
 
 ## Task index, story, phụ thuộc và checkpoint
 
@@ -38,33 +38,33 @@
 
 ## Phase 1 — Setup, design freeze, threat model, Constitution Gate 0 (T001–T010)
 
-- [ ] **T001** Audit commit/branch, current Constitution, 8 CL-04, M1/M2 status and source integration; create `specs/004-group-chat/evidence/phase4-baseline.md`. **Depends:** none. **Done:** exact commit, Java21/M2 status and missing real LAN/review stated honestly; do not overwrite M2 edits.
-- [ ] **T002 [P]** Review `spec.md` vs `plan.md`, `research.md`, `data-model.md`, `contracts/group-v1.md` for all CL-04-01…08; write `evidence/clarification-trace-review.md`. **Depends:** T001. **Done:** owner relay, proposal approval, handoff, protected metadata, 5 cap, READ, join cutoff, remove commit all consistent.
-- [ ] **T003 [P]** Audit M2 actual `NetworkConfig`, `TlsChatSession`, `SecureChatCoordinator`, `LiveChatService` and GUI entry, record `evidence/m2-integration-gap.md` including physical-LAN/security blockers. **Depends:** T001. **Done:** group doesn't promise unimplemented M2 queue/8MiB/capability features.
-- [ ] **T004 [P]** Create `evidence/group-threat-model.md` trust boundaries: malicious LAN, owner observing/forging origin, viewer spoof, membership replay, DPAPI rollback, handoff split-brain, resource exhaustion. **Depends:** T001. **Done:** threat→test→owner→severity and stop rule for each.
+- [x] **T001** Audit commit/branch, current Constitution, 8 CL-04, M1/M2 status and source integration; create `specs/004-group-chat/evidence/phase4-baseline.md`. **Depends:** none. **Done:** exact commit, Java21/M2 status and missing real LAN/review stated honestly; do not overwrite M2 edits.
+- [x] **T002 [P]** Review `spec.md` vs `plan.md`, `research.md`, `data-model.md`, `contracts/group-v1.md` for all CL-04-01…08; write `evidence/clarification-trace-review.md`. **Depends:** T001. **Done:** owner relay, proposal approval, handoff, protected metadata, 5 cap, READ, join cutoff, remove commit all consistent.
+- [x] **T003 [P]** Audit M2 actual `NetworkConfig`, `TlsChatSession`, `SecureChatCoordinator`, `LiveChatService` and GUI entry, record `evidence/m2-integration-gap.md` including physical-LAN/security blockers. **Depends:** T001. **Done:** group doesn't promise unimplemented M2 queue/8MiB/capability features.
+- [x] **T004 [P]** Create `evidence/group-threat-model.md` trust boundaries: malicious LAN, owner observing/forging origin, viewer spoof, membership replay, DPAPI rollback, handoff split-brain, resource exhaustion. **Depends:** T001. **Done:** threat→test→owner→severity and stop rule for each.
 - [ ] **T005 [P]** Review `pom.xml` dependency license/CVE/provenance and JDK21 JSSE/DPAPI/ECDSA support; `evidence/group-dependency-review.md`. **Depends:** T001. **Done:** reviewer approves/rejects actual artifacts; never assume M2 dependency review already signed.
 - [ ] **T006 [P]** Freeze `contracts/group-v1.md` including exact canonical binary field order/type tags, preface+post-TLS capability binding, signer-key requirements, version downgrade policy and synthetic golden vectors. **Depends:** T002/T004. **Done:** no TBD field encoding, independently checked source→signature/receipt/handoff vectors; review signoff required before codec code.
-- [ ] **T007 [P]** Document 5-device resource and owner 4-session coexistence design in `evidence/group-capacity-review.md` using `NetworkConfig.MAX_ACTIVE_SESSIONS` and aggregate RAM targets. **Depends:** T003. **Done:** single shared quota, no hidden Group sockets/automatic eviction and test metrics defined.
-- [ ] **T008 [P]** Write `evidence/group-file-ownership.md` for domain/protocol/security/transport/FE test seams and shared files; reserve one owner per concurrent change. **Depends:** T003. **Done:** module boundaries, proposed filenames and merge/regression strategy explicit.
-- [ ] **T009** Prepare Java21 Maven/JUnit test-first and independent multi-JVM harness plan in `evidence/test-matrix.md`; run baseline only if environment available. **Depends:** T001/T003. **Done:** command/exit/JUnit count captured if run, or explicit BLOCKED; no fabricated test PASS.
-- [ ] **T010** Complete Constitution I–VII Gate 0 review in `checklists/constitution-gate0.md`, list unresolved M2/security design items and signoff criteria. **Depends:** T002–T009. **Done:** PASS/CONDITIONAL/BLOCKED per principle, **not** Gate 1 Verified.
+- [x] **T007 [P]** Document 5-device resource and owner 4-session coexistence design in `evidence/group-capacity-review.md` using `NetworkConfig.MAX_ACTIVE_SESSIONS` and aggregate RAM targets. **Depends:** T003. **Done:** single shared quota, no hidden Group sockets/automatic eviction and test metrics defined.
+- [x] **T008 [P]** Write `evidence/group-file-ownership.md` for domain/protocol/security/transport/FE test seams and shared files; reserve one owner per concurrent change. **Depends:** T003. **Done:** module boundaries, proposed filenames and merge/regression strategy explicit.
+- [x] **T009** Prepare Java21 Maven/JUnit test-first and independent multi-JVM harness plan in `evidence/test-matrix.md`; run baseline only if environment available. **Depends:** T001/T003. **Done:** command/exit/JUnit count captured if run, or explicit BLOCKED; no fabricated test PASS.
+- [x] **T010** Complete Constitution I–VII Gate 0 review in `checklists/constitution-gate0.md`, list unresolved M2/security design items and signoff criteria. **Depends:** T002–T009. **Done:** PASS/CONDITIONAL/BLOCKED per principle, **not** Gate 1 Verified.
 
 **Checkpoint:** test-first foundations may start with documented unresolved external gates. Actual Group user-data release remains blocked until B1/B2 closure and secure implementations.
 
 ## Phase 2 — Pure Group domain, roster policy and member trust (T011–T022)
 
-- [ ] **T011 [P] [US1]** Write RED `src/test/java/vn/intrachat/domain/group/GroupIdentityTest.java`: random nonzero UUID, separate P2P IDs, Unicode names, blank/oversized names and same-name groups. **Depends:** T010. **Done:** expected failures captured before new entity exists.
-- [ ] **T012 [US1]** Implement `domain/group/GroupIdentity.java` / `GroupMetadata.java` primitives, GREEN T011. **Depends:** T011. **Done:** equality by groupId, independent displayName, UTC creation and strict validation.
-- [ ] **T013 [P] [US1]** Write RED `src/test/java/vn/intrachat/domain/group/GroupRosterTest.java` for owner+4 verified devices cap, dup UUID/SPKI, same display names and removed members. **Depends:** T010. **Done:** 5 devices allowed, 6th rejected before allocation.
-- [ ] **T014 [US1]** Implement `domain/group/GroupMember.java` + `GroupRoster.java` immutable snapshots, GREEN T013. **Depends:** T012/T013. **Done:** one OWNER, at most 5, identity not alias/IP.
-- [ ] **T015 [P] [US2]** RED `src/test/java/vn/intrachat/domain/group/GroupAuthorizationTest.java` for propose vs owner approve, accept vs commit, remove/disband/handoff role checks, forged authority. **Depends:** T014. **Done:** no member can grant itself rights.
-- [ ] **T016 [US2]** Implement `domain/group/GroupAuthorization.java` actor/role verification using verifiedId+ownerEpoch+revision, GREEN T015. **Depends:** T015. **Done:** fail closed for outsider and stale epoch.
-- [ ] **T017 [P] [US4]** RED `src/test/java/vn/intrachat/domain/group/MembershipReducerTest.java` for monotonic revision, idempotent commit, stale/duplicate/conflicting events and remove cutoff. **Depends:** T014. **Done:** no replay can re-add removed member.
-- [ ] **T018 [US4]** Implement `domain/group/MembershipEvent.java` / `GroupMembershipReducer.java`, GREEN T017. **Depends:** T016/T017. **Done:** deterministic roster revision transition under serialized owner commit.
+- [x] **T011 [P] [US1]** Write RED `src/test/java/vn/intrachat/domain/group/GroupIdentityTest.java`: random nonzero UUID, separate P2P IDs, Unicode names, blank/oversized names and same-name groups. **Depends:** T010. **Done:** expected failures captured before new entity exists.
+- [x] **T012 [US1]** Implement `domain/group/GroupIdentity.java` / `GroupMetadata.java` primitives, GREEN T011. **Depends:** T011. **Done:** equality by groupId, independent displayName, UTC creation and strict validation.
+- [x] **T013 [P] [US1]** Write RED `src/test/java/vn/intrachat/domain/group/GroupRosterTest.java` for owner+4 verified devices cap, dup UUID/SPKI, same display names and removed members. **Depends:** T010. **Done:** 5 devices allowed, 6th rejected before allocation.
+- [x] **T014 [US1]** Implement `domain/group/GroupMember.java` + `GroupRoster.java` immutable snapshots, GREEN T013. **Depends:** T012/T013. **Done:** one OWNER, at most 5, identity not alias/IP.
+- [x] **T015 [P] [US2]** RED `src/test/java/vn/intrachat/domain/group/GroupAuthorizationTest.java` for propose vs owner approve, accept vs commit, remove/disband/handoff role checks, forged authority. **Depends:** T014. **Done:** no member can grant itself rights.
+- [x] **T016 [US2]** Implement `domain/group/GroupAuthorization.java` actor/role verification using verifiedId+ownerEpoch+revision, GREEN T015. **Depends:** T015. **Done:** fail closed for outsider and stale epoch.
+- [x] **T017 [P] [US4]** RED `src/test/java/vn/intrachat/domain/group/MembershipReducerTest.java` for monotonic revision, idempotent commit, stale/duplicate/conflicting events and remove cutoff. **Depends:** T014. **Done:** no replay can re-add removed member.
+- [x] **T018 [US4]** Implement `domain/group/MembershipEvent.java` / `GroupMembershipReducer.java`, GREEN T017. **Depends:** T016/T017. **Done:** deterministic roster revision transition under serialized owner commit.
 - [ ] **T019 [P] [US3]** RED `src/test/java/vn/intrachat/security/group/GroupSignerTrustTest.java` for B origin signature verified by C's **independently pinned** SPKI, duplicate name, key change/revoke and fake owner-provided key. **Depends:** T014/T006. **Done:** owner cannot unilaterally vouch for B to C.
 - [ ] **T020 [US3]** Implement `security/group/GroupMemberTrust.java` / verified signer lookup port backed by M2 pin/identity (no auto pin), GREEN T019. **Depends:** T019. **Done:** unknown signer key blocks trusted Group content until human M2-style verification.
-- [ ] **T021 [P] [US5]** RED `src/test/java/vn/intrachat/domain/group/GroupRecipientStatusTest.java` for owner-accepted≠recipient-delivered, per-recipient READ monotonicity, independent connectivity state and immutable recipients. **Depends:** T014. **Done:** ACK/READ from one recipient cannot promote others.
-- [ ] **T022 [US5]** Implement `domain/group/GroupRecipientStatus.java` / `GroupDeliveryReducer.java`, GREEN T021. **Depends:** T021. **Done:** explicit DRAFT/SENDING/OWNER_ACCEPTED/APP_ACK/VIEWED/UNCERTAIN/OFFLINE semantics without false all-read.
+- [x] **T021 [P] [US5]** RED `src/test/java/vn/intrachat/domain/group/GroupRecipientStatusTest.java` for owner-accepted≠recipient-delivered, per-recipient READ monotonicity, independent connectivity state and immutable recipients. **Depends:** T014. **Done:** ACK/READ from one recipient cannot promote others.
+- [x] **T022 [US5]** Implement `domain/group/GroupRecipientStatus.java` / `GroupDeliveryReducer.java`, GREEN T021. **Depends:** T021. **Done:** explicit DRAFT/SENDING/OWNER_ACCEPTED/APP_ACK/VIEWED/UNCERTAIN/OFFLINE semantics without false all-read.
 
 **Checkpoint:** typed pure-domain Group/membership/state with independent key-trust contract, not yet a networked Group.
 
@@ -260,13 +260,13 @@
 | Counter | Baseline at task creation |
 | --- | --- |
 | Total tasks | **124** (T001–T124 contiguous) |
-| Completed | **0** |
-| Remaining | **124** |
+| Completed | **18** (T001–T004, T007–T018, T021–T022; see evidence and conditional gate) |
+| Remaining | **106** |
 | Design CL | **8/8 CONFIRMED** (planning only) |
-| Group automated tests | **NOT CREATED / NOT RUN** |
+| Group automated tests | **15 pure-domain JUnit PASS** + existing 107 regressions = **122/122**, no Group network test |
 | Group Windows physical LAN | **NOT RUN** |
 | Group independent security review | **NOT RUN** |
 | M1/M2 physical LAN + security acceptance | **NOT VERIFIED** |
-| Feature 004 / milestone M3 | **PLANNED / NOT VERIFIED** |
+| Feature 004 / milestone M3 | **PARTIAL DOMAIN IMPLEMENTATION / NOT VERIFIED** |
 
 **Workflow after this document:** develop incrementally with narrow RED→GREEN commits, record actual results, keep shared M2 changes isolated, then run Group + inherited gates. Task list content alone **does not** complete any task, any Java feature or any runtime acceptance.
