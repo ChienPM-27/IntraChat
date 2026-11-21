@@ -21,6 +21,11 @@ public interface ChatActionHandler extends AutoCloseable {
 
     CompletionStage<Conversation> createGroup(String name, List<String> memberIds);
 
+    /** Live mode is real verified LAN messaging, not MockChatService; default is Demo. */
+    default boolean liveMode() { return false; }
+    /** Called only after foreground selected conversation bubble is actually visible. */
+    default void onMessageVisible(String conversationId, String messageId) { }
+
     @Override
     void close();
 }

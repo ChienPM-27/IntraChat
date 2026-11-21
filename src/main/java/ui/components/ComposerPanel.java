@@ -88,6 +88,14 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         controls.add(button);
     }
 
+    /** M2 Live cannot expose Group/File/Voice/Video features that have no real transport. */
+    public void setTextOnly(boolean onlyText) {
+        controls.setVisible(!onlyText);
+        if (onlyText) cancelRecording();
+        revalidate();
+        repaint();
+    }
+
     public void refresh() {
         boolean active = !closed && currentChat.get() != null && recorder == null;
         for (Component tool : controls.getComponents()) {

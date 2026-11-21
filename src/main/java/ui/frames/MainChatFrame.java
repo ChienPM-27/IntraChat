@@ -54,11 +54,15 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private boolean updatingList;
     private boolean creatingGroup;
     private boolean closed;
+    private javax.swing.Timer liveVisibilityTimer;
+    private final LiveMessageVisibilityObserver visibleMessages;
 
     public MainChatFrame(ChatUser self, ChatActionHandler actions) {
-        super("IntraChat");
+        super(actions.liveMode() ? "IntraChat — Live LAN (mã hóa, đã xác minh)" : "IntraChat — Demo");
         this.self = self;
         this.actions = actions;
+        this.visibleMessages = new LiveMessageVisibilityObserver(System::nanoTime,
+            (conversationId,messageId) -> this.actions.onMessageVisible(conversationId,messageId));
         users.put(self.id(), self);
         setIconImage(LoginFrame.iconImage());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -70,10 +74,18 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         root.add(buildSidebar(), BorderLayout.WEST);
         media = new MessageMedia(work, this, this::showNotice);
         composer = new ComposerPanel(work, () -> activeId, this::send, this::showNotice);
+        if (actions.liveMode()) {
+            composer.setTextOnly(true);
+            newGroup.setVisible(false);
+        }
         root.add(buildChat());
         refreshDirectory();
         renderHistory(false);
         actions.connect(this);
+        if (actions.liveMode()) {
+            liveVisibilityTimer = new javax.swing.Timer(100, event -> checkLiveVisibleRows());
+            liveVisibilityTimer.start();
+        }
     }
 
     private JPanel buildSidebar() {
@@ -129,7 +141,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         JLabel profileName = label(self.displayName(), 13, Font.BOLD, INK);
         profileName.setToolTipText(self.displayName());
         identity.add(profileName);
-        identity.add(label("Phiên demo · Chỉ trên máy này", 11, Font.PLAIN, MUTED));
+        identity.add(label(actions.liveMode()
+                ? "Live LAN · Đã xác minh key · Đã xem = tin đã hiển thị"
+                : "Phiên demo · Chỉ trên máy này", 11, Font.PLAIN, MUTED));
         profile.add(identity);
         sidebar.add(profile, BorderLayout.SOUTH);
         return sidebar;
@@ -198,7 +212,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         updatingList = false;
         noConversations.setText(query.isEmpty() ? "Chưa có đoạn chat" : "Không tìm thấy đoạn chat");
         ((CardLayout) directoryCards.getLayout()).show(directoryCards, listModel.isEmpty() ? "empty" : "list");
-        newGroup.setEnabled(!creatingGroup && users.size() > 1);
+        newGroup.setEnabled(!actions.liveMode() && !creatingGroup && users.size() > 1);
     }
 
     static String searchKey(String value) {
@@ -451,10 +465,26 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         onEdt(() -> showNotice(message));
     }
 
+    /** The only read trigger: actual foreground Live Swing message row within scroll viewport. */
+    private void checkLiveVisibleRows() {
+        if (closed || !actions.liveMode() || activeId == null) return;
+        java.util.List<LiveMessageVisibilityObserver.Row> samples = new ArrayList<>();
+        for (ChatMessage message : timeline(activeId).orderedMessages()) {
+            MessageBubblePanel bubble = rows.get(message.id());
+            if (bubble == null) continue;
+            samples.add(new LiveMessageVisibilityObserver.Row(activeId, message.id(),
+                !message.senderId().equals(self.id()), bubble.isShowing(), bubble.getBounds()));
+        }
+        visibleMessages.observe(true, isShowing() && isActive()
+            && WindowsForegroundGuard.isForeground(this), activeId,
+            scroll.getViewport().getViewRect(), samples);
+    }
+
     @Override
     public void dispose() {
         if (!closed) {
             closed = true;
+            if (liveVisibilityTimer != null) liveVisibilityTimer.stop();
             composer.close();
             media.close();
             work.shutdownNow();
