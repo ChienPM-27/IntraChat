@@ -31,12 +31,12 @@
 - **SC-006:** PASS (local) — manual IPv4 only, no auto-discovery.
 - **SC-007:** PARTIAL — Windows guide written but not validated on real second PC.
 - **SC-008:** PASS in tested local paths — CONNECTED after approval; no false auth/History/read state.
-- **SC-009:** PARTIAL — 39 automated tests pass, real LAN and stress/cleanup still needed.
+- **SC-009:** PARTIAL — 45 automated tests pass, real LAN and stress/cleanup still needed.
 - **SC-010:** PARTIAL — basic close/cleanup tests, no full 2-PC soak/stress evidence.
 
 ## Automated and manual evidence
 
-- [M1 Java21 test results](m1-test-results.md): **39/39 JUnit pass**, Maven shaded JAR runs.
+- [M1 Java21 test results](m1-test-results.md): **45/45 JUnit pass**, Maven shaded JAR runs.
 - [US1](us1-manual-connect.md): manual IPv4/port, listen/connect.
 - [US2](us2-approval-handshake.md): real Swing modal-less inbound approval dialog; first timeout; manual retry then human click Accept.
 - [US3](us3-diagnostics.md): real UI synthetic PING/PONG **two directions**, 6 ms and 7 ms sample results.

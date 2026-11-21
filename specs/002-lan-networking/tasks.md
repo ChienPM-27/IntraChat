@@ -203,4 +203,4 @@
 
 ## Final Status Reminder
 
-**As of 2026-11-21:** **36/60 tasks completed**, local network verification **39 JUnit tests PASS** on actual Temurin21 and two separate Java GUI processes exchanged Ping/Pong with human Accept. **M0 VERIFIED (41/41)**. Two physical Windows LAN PCs, extended resource/heartbeat testing and M1 Gate 1 remain **NOT RUN/BLOCKED**. Only check items with executable evidence; see [M1 acceptance report](evidence/m1-acceptance-report.md).
+**As of 2026-11-21:** **36/60 tasks completed**, local network verification **45 JUnit tests PASS** on actual Temurin21 and two separate Java GUI processes exchanged Ping/Pong with human Accept. **M0 VERIFIED (41/41)**. Two physical Windows LAN PCs, extended resource/heartbeat testing and M1 Gate 1 remain **NOT RUN/BLOCKED**. Only check items with executable evidence; see [M1 acceptance report](evidence/m1-acceptance-report.md).

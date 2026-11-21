@@ -1,6 +1,6 @@
 # Constitution Check — 002 LAN Networking
 
-**Status:** Gate 0 — design assessment, before network implementation. **Gate 1 — NOT RUN.**
+**Status:** Gate 0 design PASS; **Gate 1 PARTIAL** (45 JUnit tests and two GUI loopback processes tested; real dual-PC LAN and stress tests NOT RUN).
 **References:** [Constitution](../../../.specify/memory/constitution.md), [spec](../spec.md), [plan](../plan.md), [wire contract](../contracts/network-v1.md).
 
 | Principle | Gate 0 design check | Gate 1 actual evidence required |
@@ -13,7 +13,7 @@
 | **VI — User-visible truth** | Connected only after accept+READY, no delivered/read/authenticated/synced false labels, manual reconnect | UI state tests, real acceptance prompt, clear errors/Unicode, 5 close cycles |
 | **VII — Spec-driven** | CL-02-01…04 preserved; ADR-01…14 & resource choices, traceability, release gate M0 dependency | Evidence-based task checkboxes, AC-02-A…K report, M0 Gate 1 closure/approved deviation |
 
-**Gate 0 conclusion:** Design is aligned to all seven MUST principles, **conditional on implementation following resource limits and scope**. No Constitution exception is granted by this review. **Gate 1: NOT VERIFIED.**
+**Gate 0 conclusion:** Design aligns with seven MUST principles. **Gate 1 PARTIAL (2026-11-21):** actual Temurin21, 45 JUnit tests, local 5-cycle loopback, real Swing inbound human Accept, PING/PONG both directions, strict frame/type validation and visible warning verified. **NOT VERIFIED:** two physical Windows LAN PCs, full quota/heartbeat/cleanup/stress and production risk review. No Constitution exception approved.
 
 ## Blocking gates
 

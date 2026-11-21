@@ -2,11 +2,11 @@
 
 **Feature:** `002-lan-networking`
 **Date:** 2026-11-21
-**Status:** Planned / Design complete at Gate 0 — **no LAN networking implementation or tests yet**
+**Status:** **In Progress — 36/60 tasks, 45 JUnit tests pass after merging FE demo; two real Windows LAN PCs NOT RUN; M1 NOT VERIFIED**
 **Spec:** [spec.md](spec.md) · **Checklist:** [checklists/requirements.md](checklists/requirements.md)
 **Constitution:** [v1.0.0](../../.specify/memory/constitution.md)
 **Base release:** **M0 Verified (41/41 tasks)** on Temurin JDK21 and 5/5 network-denied GUI cycles; [evidence](../001-project-foundation/evidence/m0-jdk21-offline.md)
-**Git branch:** Current repository remains `main`; `002-lan-networking` is a proposed work branch, not created by this plan.
+**Git branch:** Implementation on `feat/m1-lan-networking` (includes merged FE demo branch); `main` remains the shared integration branch.
 
 ## Summary
 

@@ -2,7 +2,7 @@
 
 Bản Frontend demo phong cách Messenger, viết bằng Java Swing và FlatLaf. Chạy độc lập với ba người dùng mẫu, hai đoạn chat cá nhân và một nhóm; không có Server, Socket, Database hay xác thực thật.
 
-> **Trạng thái dự án (21/11/2026):** **M0 Verified (41/41 tasks)** trên Windows 11 + Temurin JDK 21. **M1 LAN Networking đang triển khai (36/60 tasks, trước tích hợp FE)**: TCP P2P, nhập IPv4/port thủ công, Chấp nhận/Từ chối, handshake và PING/PONG chẩn đoán đã chạy **39 JUnit tests + hai GUI process loopback**, nhưng **chưa thử hai máy Windows LAN thật nên M1 chưa Verified**. Kết nối M1 **chưa xác thực, chưa mã hóa** và không cho phép Chat/History/File/Group.
+> **Trạng thái dự án (21/11/2026):** **M0 Verified (41/41 tasks)** trên Windows 11 + Temurin JDK 21. **M1 LAN Networking đang triển khai (36/60 tasks, đã hợp nhất FE)**: TCP P2P, nhập IPv4/port thủ công, Chấp nhận/Từ chối, handshake và PING/PONG chẩn đoán đã chạy **45 JUnit tests (gồm FE) + hai GUI process loopback**, nhưng **chưa thử hai máy Windows LAN thật nên M1 chưa Verified**. Kết nối M1 **chưa xác thực, chưa mã hóa** và không cho phép Chat/History/File/Group.
 
 Dự án chứa **hai giao diện Swing độc lập**: giao diện **M1 kết nối kỹ thuật P2P** tại `vn.intrachat.IntraChatApplication` và giao diện **FE demo Messenger với dữ liệu giả lập** tại `ui.IntraChat`. FE demo không dùng dữ liệu mạng thực. Cả hai được giữ lại sau khi hợp nhất nhánh FE, **chưa được liên kết thành một sản phẩm chat hoàn chỉnh**.
 
@@ -16,7 +16,7 @@ Dự án chứa **hai giao diện Swing độc lập**: giao diện **M1 kết n
 java -jar target/intrachat-0.1.0-SNAPSHOT.jar
 # FE: Giao diện Messenger demo độc lập, dùng dữ liệu giả lập:
 java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.IntraChat
-# Kiểm thử local 39+ JUnit cases, không phải test hai máy LAN thật:
+# Kiểm thử local 45 JUnit cases, không phải test hai máy LAN thật:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m1.ps1 -Offline
 ```
 
@@ -111,7 +111,7 @@ java -jar target/intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m0.ps1
 ```
 
-Sau khi cache dependencies, `.\mvnw.cmd -o test` chạy offline. **M0: 9/9 JUnit pass trên actual Temurin JDK21**, cùng 5/5 GUI cycles dưới kiểm soát Java-network-denied; [M0 acceptance](specs/001-project-foundation/evidence/m0-acceptance-report.md). **M1: 39 JUnit cases pass**, hai tiến trình GUI độc lập trên cùng máy xác nhận Accept và PING/PONG hai chiều; [M1 test evidence](specs/002-lan-networking/evidence/m1-test-results.md). **Chưa có test hai máy LAN thật**, nên M1 chưa Verified. Xem [M1 quickstart](specs/002-lan-networking/quickstart.md) và [Windows LAN guide](docs/windows-lan-setup.md).
+Sau khi cache dependencies, `.\mvnw.cmd -o test` chạy offline. **M0: 9/9 JUnit pass trên actual Temurin JDK21**, cùng 5/5 GUI cycles dưới kiểm soát Java-network-denied; [M0 acceptance](specs/001-project-foundation/evidence/m0-acceptance-report.md). **M1 + FE: 45 JUnit cases pass**, hai tiến trình GUI độc lập trên cùng máy xác nhận Accept và PING/PONG hai chiều; [M1 test evidence](specs/002-lan-networking/evidence/m1-test-results.md). **Chưa có test hai máy LAN thật**, nên M1 chưa Verified. Xem [M1 quickstart](specs/002-lan-networking/quickstart.md) và [Windows LAN guide](docs/windows-lan-setup.md).
 
 ### Tổ chức dự án
 
@@ -129,7 +129,7 @@ IntraChat/
 └── .specify/memory/constitution.md
 ```
 
-**Ranh giới M0:** chưa có server, socket connection, database History Sync hay tính năng truyền media. Các thư mục transport/persistence sẽ được bổ sung ở giai đoạn sau.
+**Ranh giới hiện tại:** M0 đã Verified. M1 đã có **TCP listener/connector, handshake và PING/PONG chẩn đoán**, không phải chat người dùng. Vẫn **chưa có** authentication/TLS, History Sync, File/Media qua mạng; FE Messenger là mock demo độc lập, chưa nối với transport M1.
 
 ## 5. Quy trình phát triển theo GitHub Spec Kit
 

@@ -1,10 +1,10 @@
 # IntraChat — Lộ trình triển khai chi tiết
 
-> **Dự án:** IntraChat — Phần mềm Chat mạng LAN bằng Java  
-> **Phiên bản lộ trình:** 1.3.0
-> **Ngày lập:** 21/11/2026  
-> **Trạng thái:** Lộ trình và tiến độ theo bằng chứng — **M0 In Progress (38/41 tasks)**; Giai đoạn 02 **Clarified / Planned, chưa triển khai**
-> **Nguồn yêu cầu:** P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender  
+> **Dự án:** IntraChat — Phần mềm Chat mạng LAN bằng Java
+> **Phiên bản lộ trình:** 1.4.0
+> **Ngày lập:** 21/11/2026
+> **Trạng thái:** **M0 Verified (41/41)**; **M1 In Progress (36/60 tasks)**, 45 JUnit tests pass trên Java21 sau hợp nhất FE; **chưa test hai máy LAN thật**, M1 không Verified
+> **Nguồn yêu cầu:** P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender
 > **Tài liệu liên quan:** [README](README.md) · [AGENTS](AGENTS.md) · [Constitution](.specify/memory/constitution.md) · [Spec 001](specs/001-project-foundation/spec.md) · [Spec 002](specs/002-lan-networking/spec.md)
 
 ## 1. Mục tiêu và nguyên tắc triển khai
@@ -42,9 +42,9 @@ Nguyên tắc:
 
 ### 1.2. Các quyết định cần làm rõ, không tự giả định
 
-- **Đã chốt ở Giai đoạn 01:** Windows 11 x64, Java 21 LTS mục tiêu (máy đã kiểm thử dùng JDK 25 với `--release 21`), Swing, Maven 3.9.16 Wrapper, JUnit Jupiter, **P2P trực tiếp** không có server/cloud bắt buộc.
-- **Cần chốt tại `plan.md` Giai đoạn 02:** cổng/địa chỉ cụ thể, listener/connect roles, manual IP fallback, có/không auto-discovery, cơ chế Windows Firewall, TCP/framing/schema/handshake, giới hạn thời gian và tài nguyên.
-- **Định hướng kỹ thuật đã ghi trong plan 001:** TCP + JSON UTF-8 length-prefixed và giới hạn control frame đề xuất 1 MiB; cần rà soát/chốt trước implementation 002, không coi bản draft là parser đã chạy.
+- **Đã chốt và xác minh:** Windows 11 x64, **actual Temurin JDK21**, Swing, Maven 3.9.16 Wrapper/JUnit; M0 41/41 VERIFIED qua test Java21 và 5/5 GUI offline ở mức JVM. Topology direct P2P không cần central server.
+- **Giai đoạn 02 đã chốt CL-02-01…04:** chỉ IPv4/port thủ công, inbound cần human Accept/Reject, diagnostics plaintext/unverified với cảnh báo, reconnect thủ công. Plan chọn TCP framed JSON/port 47321; hiện đã code và thử loopback.
+- **Đã triển khai một phần M1:** TCP framed JSON UTF-8 length-prefix 4 byte, strict type whitelist, 16KiB preapproval/1MiB control, Swing EDT-safe và Ping/Pong; 45 automated tests gồm cả FE demo. Chưa có bằng chứng hai máy LAN thật hay auth/TLS.
 - Group chuyển tiếp qua một peer điều phối trong LAN hay phân phối theo mô hình khác.
 - Định danh `deviceId`, display name, trust boundary và cách tham gia/xác minh peer; **không** coi ID tự khai, IP hoặc tên là authentication. Chính sách nhận file thuộc 006.
 - Định dạng thông điệp, framing, phiên bản giao thức, retry/ACK/dedup.
@@ -52,7 +52,7 @@ Nguyên tắc:
 - Giới hạn dung lượng tin nhắn/file, loại file hỗ trợ, điều kiện phát media.
 - Có hay không trạng thái `sent/delivered/read` ngoài hiện diện `online/offline`.
 
-Các quyết định ảnh hưởng kiến trúc phải được ghi tại `plan.md` tương ứng, kèm lý do chọn và phương án thay thế. **M0 chưa Verified**: 3 task `T025/T040/T041` còn mở, gồm kiểm thử GUI khi Internet bị ngắt hoàn toàn và kiểm chứng runtime JDK 21 (xem [M0 acceptance report](specs/001-project-foundation/evidence/m0-acceptance-report.md)). Việc lập đặc tả/kế hoạch 002 được phép trước khi đóng M0, nhưng không được tự đánh dấu M0/M1 đã được nghiệm thu.
+Các quyết định kỹ thuật phải có lý do tại plan và bằng chứng test. **M0 đã Verified — 41/41** bằng actual Temurin21 + 5/5 JVM-network-denied GUI, không ngắt adapter vật lý. Xem [M0 acceptance](specs/001-project-foundation/evidence/m0-acceptance-report.md).
 
 ## 2. Sơ đồ phụ thuộc và mốc phát hành
 
@@ -77,8 +77,8 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 **Mốc bàn giao:**
 
-- **M0 — Foundation ready:** skeleton Swing/Maven, protocol draft và unit tests đã có; **38/41 tasks** hoàn thành, **9/9 JUnit pass trên JDK 25 (bytecode target 21)**, 5/5 lần mở/đóng GUI; **chưa Verified** do các gate còn mở.
-- **M1 — LAN connected:** theo [spec 002](specs/002-lan-networking/spec.md), hai máy Windows LAN kết nối **P2P trực tiếp**, handshake/version hợp lệ, payload **kỹ thuật** hai chiều, trạng thái/lỗi đúng, cleanup và negative tests; chưa phải chat MVP.
+- **M0 — Foundation ready (VERIFIED):** Java21 Windows 11, Maven/Swing foundation, 9/9 JUnit baseline, 5/5 GUI cycles với Java networking bị chặn trong JVM; M0 41/41 tasks.
+- **M1 — LAN connected (IN PROGRESS):** 36/60 tasks, 45 JUnit tests sau merge FE, TCP P2P manual IP/port và human Accept/Reject + diagnostics Ping/Pong đã thử hai process localhost. **Hai PC LAN thật NOT RUN**; chưa Verified.
 - **M2 — MVP:** chat P2P có Sender, Time, Emoji, State tối thiểu.
 - **M3 — Core collaboration:** có Group và History đã nghiệm thu.
 - **M4 — Media-capable:** File, Image, Video, Sound hoạt động theo đặc tả.
@@ -88,12 +88,12 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 3. Giai đoạn 01 — Khởi tạo dự án và thiết kế kiến trúc
 
-**Ưu tiên:** P0  
-**Spec Kit feature:** `001-project-foundation`  
-**Phụ thuộc:** không có  
+**Ưu tiên:** P0
+**Spec Kit feature:** `001-project-foundation`
+**Phụ thuộc:** không có
 **Mục tiêu:** tạo nền tảng phát triển Java có thể build, run và test, thống nhất các ranh giới kiến trúc.
 
-**Tiến độ thực tế (21/11/2026):** **38/41 tasks** đã hoàn thành theo [tasks 001](specs/001-project-foundation/tasks.md); build/package/diagnostics/9 JUnit và 5/5 GUI lifecycle tests đã chạy trên Windows 11 + JDK 25 (Java target 21). **Chưa hoàn tất T025/T040/T041**: cần kiểm chứng giao diện khi Internet ngắt hoàn toàn, xác nhận runtime JDK 21 và chốt M0. Xem [bằng chứng](specs/001-project-foundation/evidence/m0-acceptance-report.md).
+**Tiến độ thực tế (21/11/2026):** **M0 Verified, 41/41 tasks**; actual Temurin JDK21, 9/9 baseline JUnit, isolated cached build, 5/5 Windows GUI network-denied cycles. **M1 In Progress 36/60**, 45/45 JUnit pass sau merge FE, human-accepted PING/PONG hai GUI local. Xem [M0](specs/001-project-foundation/evidence/m0-acceptance-report.md) và [M1](specs/002-lan-networking/evidence/m1-acceptance-report.md).
 
 ### Công việc chi tiết
 
@@ -125,11 +125,11 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 4. Giai đoạn 02 — Nền tảng kết nối mạng LAN
 
-**Ưu tiên:** P0  
-**Spec Kit feature:** `002-lan-networking`  
+**Ưu tiên:** P0
+**Spec Kit feature:** `002-lan-networking`
 **Đặc tả:** [specs/002-lan-networking/spec.md](specs/002-lan-networking/spec.md)
-**Trạng thái:** **Ready for implementation planning / 0 of 60 tasks complete** — đã có [spec](specs/002-lan-networking/spec.md), [plan](specs/002-lan-networking/plan.md), [tasks](specs/002-lan-networking/tasks.md) và checklist; chưa có network code hoặc network tests; thực thi bị chặn bởi M0 gate còn mở
-**Phụ thuộc:** Giai đoạn 01 (M0 **chưa Verified**; được lập spec/plan song song nhưng phải xử lý gate bàn giao trước khi hoàn tất M1)
+**Trạng thái:** **In Progress — 36/60 tasks**; đã triển khai protocol/TCP listener/connector/approval/diagnostic UI, 45 JUnit tests pass cùng FE mock UI; **2 máy Windows LAN thật chưa thử, M1 NOT VERIFIED**.
+**Phụ thuộc:** Giai đoạn 01 đã **VERIFIED (41/41)**. M1 còn thiếu stress/heartbeat/resource/GUI và kiểm thử 2 máy LAN thật.
 **Mục tiêu M1:** hai máy Windows trong cùng LAN **kết nối trực tiếp P2P**, hoàn tất handshake/version negotiation, trao đổi **payload kỹ thuật** hai chiều, nhận biết trạng thái/mất kết nối, xử lý input không tin cậy và dọn tài nguyên. **Chưa có chat người dùng**; chức năng đó thuộc 03.
 
 ### Phạm vi & quyết định đã được xác nhận
@@ -186,10 +186,10 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 5. Giai đoạn 03 — Chat P2P (MVP)
 
-**Ưu tiên:** P0  
-**Spec Kit feature:** `003-p2p-messaging`  
-**Phụ thuộc:** giai đoạn 02  
-**Phạm vi tính năng:** **P2P, Sender, Time, State, Emoji**  
+**Ưu tiên:** P0
+**Spec Kit feature:** `003-p2p-messaging`
+**Phụ thuộc:** giai đoạn 02
+**Phạm vi tính năng:** **P2P, Sender, Time, State, Emoji**
 **Mục tiêu:** hoàn thành phiên bản chat cá nhân tối thiểu có thể sử dụng.
 
 ### Công việc chi tiết
@@ -224,10 +224,10 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 6. Giai đoạn 04 — Group Chat
 
-**Ưu tiên:** P1  
-**Spec Kit feature:** `004-group-chat`  
-**Phụ thuộc:** giai đoạn 03  
-**Phạm vi tính năng:** **Group**, tái sử dụng Sender/Time/State/Emoji  
+**Ưu tiên:** P1
+**Spec Kit feature:** `004-group-chat`
+**Phụ thuộc:** giai đoạn 03
+**Phạm vi tính năng:** **Group**, tái sử dụng Sender/Time/State/Emoji
 **Mục tiêu:** hỗ trợ trao đổi tin nhắn giữa nhiều thành viên trong LAN.
 
 ### Công việc chi tiết
@@ -257,10 +257,10 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 7. Giai đoạn 05 — Chat History
 
-**Ưu tiên:** P1  
-**Spec Kit feature:** `005-chat-history`  
-**Phụ thuộc:** mô hình message giai đoạn 03; tích hợp group với giai đoạn 04  
-**Phạm vi tính năng:** **History**, liên kết Sender/Time/State  
+**Ưu tiên:** P1
+**Spec Kit feature:** `005-chat-history`
+**Phụ thuộc:** mô hình message giai đoạn 03; tích hợp group với giai đoạn 04
+**Phạm vi tính năng:** **History**, liên kết Sender/Time/State
 **Mục tiêu:** xem lại lịch sử sau khi đóng/mở ứng dụng và đồng bộ lịch sử hội thoại được phép giữa các máy qua P2P khi kết nối lại.
 
 ### Công việc chi tiết
@@ -294,10 +294,10 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 8. Giai đoạn 06 — File Transfer
 
-**Ưu tiên:** P2  
-**Spec Kit feature:** `006-file-transfer`  
-**Phụ thuộc:** kết nối/giao thức giai đoạn 02–03; mục tiêu tích hợp Group ở giai đoạn 04  
-**Phạm vi tính năng:** **File**  
+**Ưu tiên:** P2
+**Spec Kit feature:** `006-file-transfer`
+**Phụ thuộc:** kết nối/giao thức giai đoạn 02–03; mục tiêu tích hợp Group ở giai đoạn 04
+**Phạm vi tính năng:** **File**
 **Mục tiêu:** truyền tệp giữa các peer có tiến độ, hủy truyền và kiểm soát an toàn.
 
 ### Công việc chi tiết
@@ -328,10 +328,10 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 9. Giai đoạn 07 — Multimedia: Image, Video, Sound
 
-**Ưu tiên:** P2  
-**Spec Kit feature:** `007-multimedia`  
-**Phụ thuộc:** giai đoạn 06  
-**Phạm vi tính năng:** **Image, Video, Sound**  
+**Ưu tiên:** P2
+**Spec Kit feature:** `007-multimedia`
+**Phụ thuộc:** giai đoạn 06
+**Phạm vi tính năng:** **Image, Video, Sound**
 **Mục tiêu:** hỗ trợ nội dung media dựa trên nền truyền tệp đã có.
 
 ### Công việc chi tiết
@@ -361,9 +361,9 @@ Giai đoạn 4 và 5 có thể làm song song **sau khi** mô hình thông đi�
 
 ## 10. Giai đoạn 08 — Tích hợp, kiểm thử và đóng gói
 
-**Ưu tiên:** P0 (bắt buộc cho phát hành)  
-**Spec Kit feature:** `008-integration-release`  
-**Phụ thuộc:** các giai đoạn thuộc phạm vi bản phát hành  
+**Ưu tiên:** P0 (bắt buộc cho phát hành)
+**Spec Kit feature:** `008-integration-release`
+**Phụ thuộc:** các giai đoạn thuộc phạm vi bản phát hành
 **Mục tiêu:** xác nhận ứng dụng hoạt động ổn định trên LAN thực tế, hoàn thiện trải nghiệm và phát hành có thể tái lập.
 
 ### Công việc chi tiết
@@ -489,8 +489,8 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 | Giai đoạn | Trạng thái ban đầu | Mốc |
 | --- | --- | --- |
-| 01 — Project foundation | **In Progress — 38/41 tasks**; 9/9 JUnit + 5/5 GUI lifecycle, JDK 21 runtime/offline GUI/M0 gate còn mở | M0 |
-| 02 — LAN networking | **Tasks ready — 0/60**; có spec/plan/tasks, chưa code/test mạng; M0 Gate 1 còn mở | M1 |
+| 01 — Project foundation | **Verified — 41/41**; Temurin JDK21, 9 JUnit baseline + 5 GUI network-denied cycles | M0 |
+| 02 — LAN networking | **In Progress — 36/60**; 45 tests pass cùng FE; 2 GUI localhost Ping/Pong; **2 máy LAN thật NOT RUN** | M1 |
 | 03 — P2P MVP | Not Started | M2 |
 | 04 — Group chat | Not Started | M3 |
 | 05 — Chat history | Not Started | M3 |
@@ -511,14 +511,14 @@ Trạng thái thống nhất cho từng task: **Not Started → In Progress → 
 
 **Bước tiếp theo (21/11/2026):**
 
-1. **Hoàn tất M0:** T025 (offline GUI test), T040 (Constitution Gate 1 + JDK 21 runtime), T041 (bàn giao). Giai đoạn 01 vẫn là **In Progress**, không tự coi đã Verified.
+1. **M0 Verified:** T025/T040/T041 đã đóng nhờ actual Java21 và JVM network-denied GUI; không thay thế kiểm thử LAN thật của M1.
 2. **Giai đoạn 02 đã được specify:** đọc [spec 002](specs/002-lan-networking/spec.md) và [requirements checklist](specs/002-lan-networking/checklists/requirements.md); các quyết định CL-01…04 được giữ nguyên.
-3. **Giai đoạn 02 đã sẵn sàng về tài liệu Spec Kit:** bốn quyết định **CL-02-01…04** trong [spec](specs/002-lan-networking/spec.md), [plan](specs/002-lan-networking/plan.md) với Constitution I–VII và [60 tasks](specs/002-lan-networking/tasks.md) chia theo 8 pha/5 user stories. **0/60 tasks đã triển khai**, không được bỏ qua M0 gate trong T001.
-4. **Implement M1 khi gate M0 được xử lý:** làm manual IP fallback, handshake, protocol framing, diagnostic two-way exchange, non-blocking UI, disconnect/cleanup và kiểm thử ít nhất hai process **và hai máy LAN thật**.
-5. **Chỉ sau M1 Verified** mới chuyển sang chat P2P thực tế ở giai đoạn 03, không nhầm payload chẩn đoán với bản nhắn tin hoàn chỉnh.
+3. **M1 triển khai theo [tasks 002](specs/002-lan-networking/tasks.md):** 36/60 hoàn thành, 45 JUnit tests pass; giữ CL-02-01…04, chỉ diagnostics chưa xác thực/chưa mã hóa và không gửi dữ liệu thật.
+4. **Tiếp tục M1:** stress/session quotas, heartbeat/partial-frame/cancel/cleanup, Windows GUI regression, kiểm thử **hai máy Windows LAN thật** trong mạng vẫn hoạt động nhưng không có Internet; ghi evidence AC-02-A/I.
+5. **Hợp nhất sản phẩm sau M1 Verified:** nhánh FE hiện có Messenger demo với mock data độc lập, chưa nối với ứng dụng LAN. Stage 03 cần bổ sung authentication/authorization phù hợp trước khi cho dữ liệu người dùng đi qua network; History đồng bộ ở 005 phải kiểm soát ACL.
 
 **Điều chỉnh lộ trình:** nếu yêu cầu của môn học/giảng viên ưu tiên Group hoặc File sớm, có thể thay thứ tự giai đoạn 04–07 nhưng **không bỏ qua** protocol foundation, kiểm thử tối thiểu và các yêu cầu an toàn dữ liệu.
 
 ---
 
-*Cập nhật v1.3.0 (21/11/2026): M0 còn 3 task nghiệm thu. M1 đã xác nhận CL-02-01…04, có spec + plan + 60 tasks (8 pha), tất cả chưa thực thi; chưa có network code hoặc network test, không có bằng chứng mạng đã hoạt động.*
+*Cập nhật v1.4.0 (21/11/2026): M0 41/41 Verified. M1 36/60 In Progress, 45 tests pass sau hợp nhất FE demo; chưa có hai máy Windows LAN thật, không có auth/TLS, không có Chat/History/File thật qua network.*

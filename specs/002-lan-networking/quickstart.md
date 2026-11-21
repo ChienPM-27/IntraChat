@@ -21,7 +21,7 @@ java -jar target\intrachat-0.1.0-SNAPSHOT.jar
 
 Maven downloads dependencies on first build. `-Offline` works only after dependencies are cached. The **shaded** `target/intrachat-0.1.0-SNAPSHOT.jar` contains Jackson runtime dependency and is launchable with `java -jar`.
 
-**Local test evidence:** Java21 `scripts/verify-m1.ps1 -Offline` completed **39 JUnit tests, 0 failures/errors** (including M0 regression). See [test results](evidence/m1-test-results.md) and [two-process UI evidence](evidence/us2-approval-handshake.md). None of these tests imply production-grade security or two physical PCs.
+**Local test evidence:** Java21 `scripts/verify-m1.ps1 -Offline` completed **45 JUnit tests (sau khi hợp nhất FE demo), 0 failures/errors** (including M0 regression). See [test results](evidence/m1-test-results.md) and [two-process UI evidence](evidence/us2-approval-handshake.md). None of these tests imply production-grade security or two physical PCs.
 
 ## Two independent GUI processes on one Windows PC (tested)
 
