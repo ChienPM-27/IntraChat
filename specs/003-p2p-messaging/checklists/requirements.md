@@ -2,41 +2,44 @@
 
 **Date:** 2026-11-21
 **Scope:** [spec.md](../spec.md) — Giai đoạn 03 / M2 Chat P2P
-**Review status:** **DRAFT — ready for stakeholder clarification, NOT ready for implementation**
-**Rule:** Checklist reviews **the quality of this spec**, not completed product behavior. Checked items below are text/document checks, **not tested software**.
+**Review status:** **CLARIFIED — 5/5 product decisions CONFIRMED; ready for planning, NOT for implementation**
+**Rule:** Checklist reviews **the specification document**, not implementation evidence. Checked items below mean the text is specified or stakeholder decision confirmed, **not that code or tests have run**.
 
-## Content & consistency
+## Confirmed Clarifications — CL-03-01…05
 
-- [x] Feature scope maps to ROADMAP 03.01–03.09: P2P, Sender, Time, State, Emoji
-- [x] Six prioritized user stories contain independent-test descriptions and Given/When/Then acceptance scenarios
-- [x] Out-of-scope Group (004), History Sync (005), File (006), Media (007), call/cloud is explicit
-- [x] All previously confirmed CL-01-01…04 and CL-02-01…04 are preserved without silently changing M1
-- [x] M1's actual partial status (36/60 tasks, local test vs no real two-PC LAN proof) is disclosed
-- [x] FE `ui.IntraChat` mock demo distinguished from live `vn.intrachat.IntraChatApplication`; demo login/read receipts are NOT real
-- [x] Existing Constitution Principles I–VII are referenced and mapped to explicit gates/requirements
-- [x] No source code, implementation tests or completed M2 tasks claimed in spec
+- [x] **CL-03-01 — First-time fingerprint pairing:** Hai đầu **so khớp mã/fingerprint lần đầu**, chỉ sau xác minh mới cho phép chat trên kênh bảo vệ; **ghi nhớ fingerprint/credential peer qua restart** trong kho bảo vệ. Key changed/revoked → block and reverify. Human inbound Accept/Reject theo M1 **vẫn bắt buộc mỗi lần**; trusted peer không được tự auto-accept.
+- [x] **CL-03-02 — Offline behavior:** Giữ **bản nháp chỉ trong RAM phiên**, không offline outbox, không auto resend; sau khi chủ động reconnect thì **người dùng phải bấm Gửi/Gửi lại**. Đóng ứng dụng thì mất nháp, UI cảnh báo khi cần.
+- [x] **CL-03-03 — Actual view-based `Đã xem` (expanded scope):** Chỉ sau khi tin được **thực sự hiển thị ở viewport của hội thoại Live đang mở/foreground** và peer phát **read receipt riêng, có xác thực và correlation đúng** mới được nâng trạng thái. **Application delivery ACK ≠ read receipt**; preview, notification, background, demo mock, receipt giả/sai/trùng không tạo `Đã xem`. Receipt là bằng chứng *ứng dụng hiển thị*, không chứng minh con người đọc bằng mắt.
+- [x] **CL-03-04 — Ephemeral chat:** Nội dung hội thoại, bản nháp, trạng thái tin, delivery ACK/read receipt chỉ trong **bộ nhớ phiên**; thoát app không giữ History. **Ngoại lệ riêng:** credential/fingerprint đã ghép cặp vẫn ghi nhớ qua restart theo CL-03-01; tuyệt đối không đưa nội dung tin vào trust store.
+- [x] **CL-03-05 — FE Live + separate Demo:** Dùng **Messenger FE** làm UI Chat thật với network service; giữ **Demo riêng**, có nhãn rõ. Không trộn/mock-send dữ liệu, demo password, `Đã nhận/Đã xem` giả vào Live.
+- [x] Năm quyết định đã được đưa vào user stories, edge cases, FR/NFR, entities/state model, AC-03-A…L, SC-03-001…010 và bảng ranh giới/traceability. **Không còn câu hỏi product Clarify nào trong CL-03-01…05.**
 
-## Requirement quality
+## Content and Requirement Completeness
 
-- [x] FR-001…FR-040 have explicit MUST/SHOULD statements and defined behaviors
-- [x] AC-03-A…L map to observable outcomes and traceable FR/stories
-- [x] SC-03-001…010 are measurable **within their stated test scope**
-- [x] Unicode/emoji, timestamp timezone/clock skew, duplicated display names, mismatch/unknown peer, ACK/no-ACK and disconnect are included
-- [x] There is a clear distinction among transport state, peer verification, channel protection and message delivery state
-- [x] No `read` receipt, durable History, offline outbox or automatic retry is promised
-- [x] No true chat is allowed over unauthenticated/plaintext M1 diagnostic channel
-- [x] Rejected/invalid/oversized/malformed messages, cancellation, bounded workers and cleanup are testable requirements
-- [x] Two real Windows PCs without Internet, plus loopback and security negative tests, are release gates
+- [x] Spec maps to ROADMAP 03.01–03.09: P2P, Sender, Time, State (**có Đã xem thật**), Emoji
+- [x] Six prioritized user stories contain independent tests and Given/When/Then acceptance cases; US1 gồm **pinning/restart/key change**, US4 gồm **foreground/view event/read receipt**, US5 gồm **FE Live/Demo**
+- [x] FR-001…FR-040 remain individually labeled with explicit MUST/SHOULD; five confirmed decisions are directly traceable to relevant FR
+- [x] AC-03-A…L specify observable outcomes; **AC-03-E/G** distinguish delivery ACK and read receipt, **AC-03-F** enforces pairing, **AC-03-I** verifies FE Live/Demo and RAM-only messages
+- [x] SC-03-001…010 measurable within the declared suites; read receipt positive and negative cases are explicitly measured
+- [x] Unicode/emoji, timezone/clock skew, duplicate names/IDs, ACK/receipt replay/out-of-order and disconnect handling are addressed
+- [x] Transport state, consent, verified identity, protected channel, delivery ACK and **READ** are separate concepts
+- [x] **No durable History**, background outbox, auto reconnect, auto send or fake read receipt is promised
+- [x] Peer trust/fingerprint persistence is explicitly distinct from chat/message/draft/receipt persistence
+- [x] User chat is **blocked on M1 plaintext/unverified diagnostic transport**, and spoofed/mismatched keys, ACK and read receipts are rejected
+- [x] Inbound manual consent and manual IP/port decisions CL-02-01…04 remain unchanged
+- [x] FE mock demo and live service identities/read states are not conflated; demo login is not authentication
+- [x] Out-of-scope Group (004), History Sync (005), File (006), Media (007), cloud/calls remain clear; **actual view-based read receipts are IN scope**
+- [x] Constitution I–VII and M1 Gate 1 dependency remain explicit. M1 In Progress (36/60), two real Windows LAN PCs not yet verified
+- [x] No M2 network code, executed tests, `plan.md`, `tasks.md` or Verified status is asserted
 
-## Pending clarification / blockers (not checked)
+## Open Technical Planning / Execution Gates (NOT completed by Clarify)
 
-- [ ] **Stakeholder confirmation** of P-03-01: human peer verification and authenticated encrypted chat before exposing real content
-- [ ] **Stakeholder confirmation** of P-03-02/03: manual retry/no offline outbox, ACK semantics, no read receipts in MVP
-- [ ] **Stakeholder confirmation** of P-03-04/05: ephemeral chat messages and how live chat is separated from/integrated with FE mock
-- [ ] **Plan** selects and reviews concrete trust/credential lifecycle, cryptographic channel, protocol version/handshake, ACK correlation, failure policy, size/timing limits and secure key storage
-- [ ] **Constitution Gate 0 plan review** completed, with I–VII trade-offs and security assessment
-- [ ] **M1 Gate 1 Verified** on two physical Windows LAN computers
-- [ ] **M2 tasks/test plan** and RED→GREEN implementation evidence (not part of this spec-writing task)
-- [ ] **M2 acceptance** AC-03-A…L executed and independently verified (not part of this spec-writing task)
+- [ ] **Technical design (plan only):** chọn thuật toán và cơ chế authenticated encryption/integrity; fingerprint/SAS presentation, first-time comparison, device-key lifecycle, protected user-local trust storage, revocation/change-key, downgrade resistance
+- [ ] **Technical design (plan only):** versioned schema/types for `CHAT_TEXT`, delivery ACK và **read receipt độc lập**, authentic peer/session/conversation/message binding, replay/dedup, out-of-order, view-event criteria and timeout/resource caps
+- [ ] **Technical design (plan only):** FE Live service adapter, Demo isolation, chat RAM-only lifecycle, protection of trust metadata and deletion flows; no hidden persistence of text/drafts/read receipts
+- [ ] **Constitution Gate 0 review:** I–VII tradeoffs/security assessment must be reviewed in future `plan.md`
+- [ ] **M1 Gate 1:** real dual-Windows LAN and remaining M1 acceptance evidence must be Verified before M2 release
+- [ ] **M2 tasks/test-first implementation:** write `tasks.md` after plan; RED→GREEN implementation and test evidence are not part of this request
+- [ ] **M2 acceptance:** AC-03-A…L including real two-PC chat/read receipts executed and independently verified (NOT RUN)
 
-**Conclusion:** Feature specification is documented and traceable. **M2 remains not implemented, not Verified**. Its suggested product defaults are explicitly marked as proposals and require approval or revision during Clarify/plan. No premature move of M1 or M2 to Verified.
+**Conclusion:** **CLARIFIED — 5/5 confirmed.** The M2 product behavior can proceed to **Plan**, but M2 remains **not implemented, not Verified** and M1 Gate 1 remains open. **No `plan.md`, `tasks.md` or implementation changes are created as part of this Clarify update.**
