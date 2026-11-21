@@ -2,7 +2,7 @@
 
 **Feature:** 003-p2p-messaging
 **Created:** 2026-11-21
-**Status:** **In Progress — 29/90 tasks checked with local Java21 evidence; M2 PARTIAL / NOT VERIFIED; M1 Gate 1 and two physical Windows LAN PCs remain BLOCKED**
+**Status:** **In Progress — 34/90 tasks checked with local Java21 evidence; M2 PARTIAL / NOT VERIFIED; M1 Gate 1 and two physical Windows LAN PCs remain BLOCKED**
 **Branch:** 003-p2p-messaging
 **Inputs:** [spec](spec.md) · [plan](plan.md) · [research](research.md) · [data model](data-model.md) · [chat v2 contract](contracts/chat-v2.md) · [quickstart](quickstart.md) · [requirements checklist](checklists/requirements.md) · [Constitution](../../.specify/memory/constitution.md)
 
@@ -58,9 +58,9 @@
 - [x] T012 [US1] Tạo DeviceIdentity.java + DeviceCertificateFactory.java bằng Java JCA/approved BC; pin dependencies in pom.xml only after T003; làm T011 GREEN. **Depends:** T011/T003. **Done:** Java21 validates self-signed X509 and private key separated.
 - [x] T013 [P] Viết RED DeviceCertificateValidatorTest.java (src/test/java/vn/intrachat/security/) cho expired/not-yet-valid, weak/wrong algorithm, invalid signature/key usage, changed SPKI, spoofed UUID. **Done:** invalid candidates rejected.
 - [x] T014 [US1] Triển khai src/main/java/vn/intrachat/security/DeviceCertificateValidator.java, exact key verification; GREEN T013. **Depends:** T012/T013/T004. **Done:** candidate self-signed TLS possession is **not** a trusted messaging peer.
-- [ ] T015 [P] Viết RED DeviceIdentityStoreTest.java cho Windows CurrentUser DPAPI wrap/unprotect, per-user ACL, restart, corrupt blob, cross-user access, partial atomic write and no plaintext. **Done:** unavailable Windows second-user test recorded BLOCKED rather than fake PASS.
+- [x] T015 [P] Viết RED DeviceIdentityStoreTest.java cho Windows CurrentUser DPAPI wrap/unprotect, per-user ACL, restart, corrupt blob, cross-user access, partial atomic write and no plaintext. **Done:** unavailable Windows second-user test recorded BLOCKED rather than fake PASS.
 - [ ] T016 [US1] Triển khai DeviceIdentityStore.java dùng DPAPI/JNA, protected local key/cert storage, no plaintext fallback; GREEN T015. **Depends:** T012/T015/T003. **Done:** store corruption fails closed and never silently regenerates trusted identity.
-- [ ] T017 [P] Viết RED PinnedPeerStoreTest.java cho remote deviceId/SPKI pair, restart, revoke/reset, duplicate display name, changed-key, collision and incomplete write. **Done:** peer pin is persistent but message data is not.
+- [x] T017 [P] Viết RED PinnedPeerStoreTest.java cho remote deviceId/SPKI pair, restart, revoke/reset, duplicate display name, changed-key, collision and incomplete write. **Done:** peer pin is persistent but message data is not.
 - [ ] T018 [US1] Triển khai PinnedPeerStore.java với atomic protected trust records and explicit revoke; GREEN T017. **Depends:** T016/T017. **Done:** pinned SPKI checked on reconnect, trust != automatic inbound approval.
 - [x] T019 [P] Viết RED FingerprintVerifierTest.java: canonical SAS includes both deviceId/key/nonces, independent endpoints derive same 64-bit code, changed nonce/key changes value, constant-time pin compare, never trust peer-provided SAS. **Done:** deterministic binary vectors documented.
 - [x] T020 [US1] Triển khai FingerprintVerifier.java và full SHA-256 SPKI view + grouped 64-bit SAS; GREEN T019. **Depends:** T019/T012. **Done:** both humans can compare same code through independent channel.
@@ -99,7 +99,7 @@
 - [x] T041 [US3] Triển khai domain/ChatText.java validation and UTF-8 strict codec bridge, GREEN T040. **Depends:** T039/T040. **Done:** FE UTF-16 count mismatch handled explicitly.
 - [ ] T042 [P] [US2] Viết RED application/LiveChatAuthorizationTest.java: disabled sending on merely connected, unverified key, missing inbound consent, TLS not READY, wrong conversation, offline draft. **Done:** zero plaintext user data emitted.
 - [ ] T043 [US2] Tạo application/LiveChatService.java and RAM chat/attempt ledger; gate async CHAT_TEXT on verified protected v2 state; GREEN T042. **Depends:** T034/T037/T039/T041/T042. **Done:** local write not falsely DELIVERED/READ.
-- [ ] T044 [P] [US2] Viết RED application/IncomingChatRoutingTest.java for verified sender/destination, wrong selected conversation, duplicate same-name peer, duplicate message IDs and session ordering. **Done:** invalid messages never appear in wrong chat.
+- [x] T044 [P] [US2] Viết RED application/IncomingChatRoutingTest.java for verified sender/destination, wrong selected conversation, duplicate same-name peer, duplicate message IDs and session ordering. **Done:** invalid messages never appear in wrong chat.
 - [ ] T045 [US2] Triển khai incoming chat handler, correct conversation routing and bounded in-session dedup; GREEN T044. **Depends:** T043/T044. **Done:** one unique message -> one bubble; no cross-restart exactly-once claim.
 - [ ] T046 [P] [US3] Viết RED domain/MessageMetadataPresentationTest.java for UTC timestamp/timezone/locale, clock skew, display name change, verified sender vs mutable alias. **Done:** timestamp isn't global causal order.
 - [ ] T047 [US3] Tạo application/ChatViewMapper.java (or equivalent typed mapper) for sender/time/emoji presentation, GREEN T046. **Depends:** T045/T046. **Done:** UI direction derived from verified local ID.
@@ -119,7 +119,7 @@
 - [x] T056 [US4] Tạo listener/MessageViewEventPort.java and ui/components/LiveMessageVisibilityObserver.java; GREEN T055. **Depends:** T055/T008. **Done:** exactly one logical view event per in-RAM message/session, no mock events.
 - [x] T057 [P] [US4] Viết RED protocol/ReadReceiptContractTest.java with distinct READ_RECEIPT, original messageId, conversation/session/verified viewer, viewedAtUTC/readEventId, duplicate/invalid wrong type. **Done:** delivery ACK != READ.
 - [x] T058 [US4] Implement protected read receipt DTO/producer in ChatV2Codec/LiveChatService; accept only validated visibility event; GREEN T057. **Depends:** T056/T057/T039. **Done:** no offline receipt queue.
-- [ ] T059 [P] [US4] Viết RED application/ReadReceiptCorrelationTest.java for real READ, forged/wrong peer/session/conversation/messageId, duplicate/out-of-order, READ before ACK, recipient offline. **Done:** no false status or downgrade of READ.
+- [x] T059 [P] [US4] Viết RED application/ReadReceiptCorrelationTest.java for real READ, forged/wrong peer/session/conversation/messageId, duplicate/out-of-order, READ before ACK, recipient offline. **Done:** no false status or downgrade of READ.
 - [ ] T060 [US4] Implement authenticated read receipt correlation, dedup and monotonic state in LiveChatService, GREEN T059. **Depends:** T050/T052/T058/T059. **Done:** displayed on peer app only; not claimed human gaze.
 - [ ] T061 [P] [US4] Viết RED application/SessionRamPrivacyTest.java for 128 receipt pending cap, 1,024 dedup ids, per-chat 500 messages/2MiB, total 8MiB, close/restart RAM loss and persisted trust only. **Done:** no chat/draft/receipt on disk/logs.
 - [ ] T062 [US4] Enforce bounded ledger, cleanup, capacity failures, no offline read replay; GREEN T061; run 2-JVM ACK→viewport event→READ and error tests; write evidence/us4-delivery-read-receipt.md. **Depends:** T054/T060/T061. **Done:** actual tests, no fake read or History.
@@ -147,7 +147,7 @@
 ## Phase 7 — US6: Hardening, actual physical LAN and M1 dependency
 
 - [ ] T076 [P] [US6] Create/run security/TlsAdversarialTest.java: MITM/substituted cert, unknown key, SAS mismatch, revoked pin, fake UUID, TLS resumption and forged read/ACK; write evidence/m2-security-tests.md. **Done:** failed trust means zero private app bytes, independent review.
-- [ ] T077 [P] [US6] Create/run protocol/ChatV2NegativeTest.java for malformed 16KiB preface, 64KiB protected frame, invalid UTF-8, duplicate JSON, unknown version/type, wrong session and raw v1 chat downgrade; M1 tests still pass. **Done:** safely closed, bounded memory.
+- [x] T077 [P] [US6] Create/run protocol/ChatV2NegativeTest.java for malformed 16KiB preface, 64KiB protected frame, invalid UTF-8, duplicate JSON, unknown version/type, wrong session and raw v1 chat downgrade; M1 tests still pass. **Done:** safely closed, bounded memory.
 - [ ] T078 [P] [US6] Stress transport/SecureSessionResourceTest.java for 4 active/4 pending, 16 outbound frames/2MiB bytes, 128 pending receipts, half-open, cancellation and EDT latency; write evidence/m2-resource-tests.md. **Done:** no unbounded sockets/workers, budgets reported honestly.
 - [x] T079 [P] [US6] Update specs/003-p2p-messaging/quickstart.md and docs/windows-lan-setup.md for actual Live UI, Private IPv4/firewall admin guidance, two distinct physical PCs, isolated secure stores, SAS comparison and UI READ cases. **Done:** untested steps remain NOT RUN; no Public firewall rule added.
 - [ ] T080 [US6] Execute on **two separate Windows 11 x64 PCs**, real LAN IPv4 with public Internet unavailable: human inbound Accept, first pair compare SAS at both ends, TLSv1.3 READY; write evidence/us6-real-lan-pairing.md. **Depends:** T035/T075/T079. **Done:** OS/JDK/commit/results on **both machines**; localhost two JVMs not accepted.
