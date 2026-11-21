@@ -2,15 +2,15 @@
 
 **Feature:** `006-file-transfer` · **Branch:** `006-file-transfer`
 **Created:** 2026-11-21 · **Priority:** P2 · **Milestone:** M4 = File 006 + Multimedia 007
-**Status:** **DRAFT SPEC — 10/10 CL-06 PENDING user decision; NO File-transfer implementation/tests/release verification.**
+**Status:** **CLARIFIED + IMPLEMENTATION PLAN — 10/10 USER CONFIRMED (9 A, CL-06-03 B); technical protocol/Windows security Gate 0 CONDITIONAL/BLOCKED; no File code/tests/Verified.**
 **Source:** [ROADMAP Stage 06](../../ROADMAP.md) · [IntraChat Constitution I–VII](../../.specify/memory/constitution.md) · [M1 LAN](../002-lan-networking/spec.md) · [M2 verified private chat](../003-p2p-messaging/spec.md) · [M2 CHAT_V2 contract](../003-p2p-messaging/contracts/chat-v2.md) · [Group 004](../004-group-chat/spec.md) · [Group V1 contract](../004-group-chat/contracts/group-v1.md) · [History 005](../005-chat-history/spec.md) · [History execution blockers](../005-chat-history/evidence/execution-blockers.md).
-**Review:** [10 proposed Clarifications](clarifications.md) · [requirements quality checklist](checklists/requirements.md). **No implementation plan, `tasks.md`, approved wire contract or Java File-transfer code is created by this spec.**
+**Design:** [Confirmed CL decisions](clarifications.md) · [Implementation plan](plan.md) · [Research](research.md) · [Data model](data-model.md) · [FILE_V1 wire draft](contracts/file-v1.md) · [Quickstart](quickstart.md) · [Requirements checklist](checklists/requirements.md) · [Architecture impact](checklists/architecture-impact-review.md). **No `tasks.md`, Java File code, wire security signoff or File tests.**
 
 ## 1. Tổng quan, ranh giới và hợp đồng kế thừa
 
 ### 1.1 Mục tiêu sản phẩm
 
-Người dùng **IntraChat Live** có thể chủ động chọn **một tệp hiện có**, gửi **trực tiếp qua LAN đến đúng thiết bị P2P đã xác minh**, bên nhận **xem nguồn/tên/kích thước và quyết định nhận**, thấy tiến độ tính theo byte, hủy truyền, và chỉ thấy **COMPLETED** khi dữ liệu nhận thực sự được ghi an toàn, bằng số byte và có hash toàn tệp trùng bản gốc. Không Internet/cloud, không tự gửi tệp nền. Group File là nhánh tích hợp có điều kiện: owner-mediated, cho từng member hợp lệ, chờ 004 runtime thực sự hoạt động và phê duyệt CL-06-07.
+Người dùng **IntraChat Live** có thể chủ động chọn **một tệp hiện có**, gửi **trực tiếp qua LAN đến đúng thiết bị P2P đã xác minh**, bên nhận **xem nguồn/tên/kích thước và quyết định nhận**, thấy tiến độ tính theo byte, hủy truyền, và chỉ thấy **COMPLETED** khi dữ liệu nhận thực sự được ghi an toàn, bằng số byte và có hash toàn tệp trùng bản gốc. Không Internet/cloud, không tự gửi tệp nền. Group File theo **CL-06-07 A** bắt buộc owner-mediated cho từng member hợp lệ, **chỉ bật sau 004 runtime thật sự Verified**; không coi Group File đã được nghiệm thu chỉ vì có spec.
 
 **Nguyên tắc:** “Đã gửi chunk vào TLS” ≠ “peer đã ghi đủ” ≠ “tệp an toàn/được người dùng mở”. Tệp được gửi là **nội dung nhị phân tùy ý**, không phải JSON string, không tải toàn bộ vào RAM, không truyền tên/đường dẫn local tùy ý như destination path từ peer. Tính toàn vẹn hash không đảm bảo file không độc hại: nhận ≠ thực thi/mở tự động.
 
@@ -31,12 +31,12 @@ Người dùng **IntraChat Live** có thể chủ động chọn **một tệp h
 ### 1.3 Trong phạm vi
 
 1. **P2P 1→1**: chọn tệp local bằng thao tác chủ động, validate regular file/size/name/availability; tạo offer với transferId riêng, gửi đến đúng conversation giữa hai verified device IDs.
-2. **Receive consent và safe destination**: người nhận thấy verified sender, basename hiển thị an toàn, size/type claim và target location; có Accept/Reject/Cancel, chọn thư mục theo chính sách, không cho peer chọn pathname.
+2. **Receive consent và safe destination (CL-06-02 A + CL-06-03 B)**: người dùng cho phép Downloads root trước (có thể đổi/thu hồi), vẫn Accept/Reject **từng file**, xem verified sender/basename/size; peer không bao giờ chọn pathname, không ghi đè file.
 3. **Binary streaming bounded** qua authenticated file profile: framed control + các chunk bounded, sequence/offset, backpressure, ACK/progress, resource fairness, không nạp whole file vào heap.
 4. **Byte-perfect integrity**: kiểm tổng bytes và SHA-256 toàn tệp trên nội dung nhận từ offset 0 đến end, chỉ complete sau durable write/close + verified digest + an toàn khi commit path; handshake final receiver outcome phân biệt sender progress.
 5. **Fault/cancel/cleanup**: disconnect, EOF nửa chừng, timeout, disk full, duplicate/replay/late chunks, local cancellation/receiver Reject; tệp chưa hoàn chỉnh không được hiện như final.
 6. **Live UI và test**: Send File / Offer / Accept / Reject / Cancel, byte progress, lỗi & trạng thái thật, isolate Demo; Java21 test-first with two peers/malformed/large/zero length/symlink/traversal/corruption/cancel.
-7. **Group File (conditional 004)**: người gửi/owner/member permissions và fanout per-recipient, Partial Success/Failure hiển thị đúng; không relay nếu Group runtime/auth provenance/owner state chưa verified. Chi tiết topology cần CL-06-07.
+7. **Group File (CL-06-07 A, gated 004)**: current owner thực hiện fanout per-recipient, mỗi member Accept/Reject, Partial Success/Failure minh bạch, signed provenance/JOIN/REMOVE/handoff; không bật khi 004 runtime chưa Verified.
 8. **Giao diện tái sử dụng cho 007 Multimedia**: cơ chế an toàn cho binary được dùng lại; việc preview/giải mã/phát/codec Image/Video/Sound thuộc 007, **không nằm trong 006**.
 
 ### 1.4 Ngoài phạm vi
@@ -44,27 +44,27 @@ Người dùng **IntraChat Live** có thể chủ động chọn **một tệp h
 - Cloud drive, Internet upload/public link, NAT traversal, auto peer discovery, server đồng bộ, upload tự động, auto-reconnect, offline store-and-forward cho thiết bị chưa nhận.
 - Streaming voice/video call, screen sharing, browser file download, remote shared folder/SMB, tự động mở/thực thi tệp, chạy script/plugin/installer, giải nén archive sau tải, quét malware được bảo đảm “an toàn tuyệt đối”.
 - Đồng bộ binary attachments bằng History 005, remote wipe, account đa thiết bị, group member mesh ngầm, tự bầu owner, gửi tệp cho Group member đã REMOVE hay chưa JOIN.
-- Chia sẻ thư mục/multiple files hàng loạt, preview video/audio/ảnh trong chat, resume tự động qua restart **trừ khi được duyệt rõ ở CL-06-05**.
-- Áp dụng `Attachment.sizeBytes > 0` của Demo làm ràng buộc file protocol: **file rỗng (0 byte) phải có kết quả được quyết định/kiểm thử tại CL-06-01**, không được âm thầm hiểu Demo model là giao thức.
+- Chia sẻ thư mục/multiple files hàng loạt, preview video/audio/ảnh trong chat; **không hỗ trợ resume** sau cancel/mất mạng/restart theo CL-06-05 A; retry thủ công tạo transferId mới.
+- Áp dụng `Attachment.sizeBytes > 0` của Demo làm giới hạn mạng: **CL-06-01 A xác nhận file 0 byte hợp lệ**, file >256 MiB bị từ chối; không tự sửa logic Demo để giả vờ đã có File runtime.
 
-## 2. Câu hỏi Clarify — **10/10 PENDING, CHƯA ĐƯỢC XÁC NHẬN**
+## 2. Clarifications — **10/10 USER CONFIRMED: 9 A + CL-06-03 B**
 
-Danh sách này là **phương án đề xuất để duyệt sau**, không phải quyết định user đã phê duyệt. Kế hoạch/`tasks.md` phải phản ánh lựa chọn cuối cùng. Giữ nguyên các ràng buộc bảo mật Constitution/M2/004 kể cả khi chọn phương án khác.
+Người dùng đã xác nhận chính thức cả 10 quyết định ngày 2026-11-21. Đây là **ràng buộc sản phẩm**, không phải gợi ý. Chi tiết và tác động nằm trong [decision register](clarifications.md); bản [plan](plan.md) đã đồng bộ. Phê duyệt sản phẩm **không** thay thế review kỹ thuật bảo mật/giao thức/Windows filesystem.
 
-| ID | Câu hỏi cần xác nhận | **A — gợi ý** | **B — phương án khác / tác động** |
-| --- | --- | --- | --- |
-| **CL-06-01** | Giới hạn mỗi tệp, và có nhận tệp 0 byte không? | **≤256 MiB**, cho phép 0 byte với SHA-256 rỗng; kiểm tra quota/disk trước Accept | **≤1 GiB** + 0 byte; cần benchmark và chính sách cấu hình tài nguyên lớn hơn |
-| **CL-06-02** | Cho phép nhận file theo cách nào? | **Prompt Accept/Reject cho từng transfer** kể cả đã pinned; timeout → Reject | Nhớ quyền cho đúng verified peer trong phiên, vẫn có quyền từ chối từng file; tăng rủi ro nhận ngoài ý muốn |
-| **CL-06-03** | Thư mục nhận và đường lưu? | **Người nhận chọn vị trí rõ ràng mỗi lần**, file tạm ở cùng thư mục đích an toàn, không auto-save | User chọn **một thư mục Downloads mặc định** đã ủy quyền; vẫn prompt Accept/Reject |
-| **CL-06-04** | Tên trùng hoặc có nguy cơ overwrite? | **Không ghi đè**; tạo tên an toàn mới hoặc yêu cầu người dùng chọn, atomic no-clobber | Cho phép overwrite **khi người nhận xác nhận riêng**, có bảo vệ tệp cũ/rollback |
-| **CL-06-05** | Sau hủy/disconnect có resume và giữ partial không? | **Không resume qua restart**; hủy/lỗi xóa partial, retry là transferId mới do user chủ động | **Resume thủ công** bằng offset/digest/session authorization, giữ partial mã hóa hoặc bảo vệ phù hợp và dọn theo TTL |
-| **CL-06-06** | Nếu file nguồn thay đổi khi đang gửi? | **Fail/cancel** nếu size/identity thay đổi hoặc checksum không khớp; không âm thầm gửi phiên bản hỗn hợp | Tạo snapshot local được user đồng ý trước khi gửi, thêm disk/quota/privacy/cleanup |
-| **CL-06-07** | File trong Group khi 004 được Verified? | **Owner-mediated fanout tới mỗi member hợp lệ**, per-recipient consent/byte progress, partial success, không pre-JOIN; chỉ bật sau Gate 004 | Tạm dời Group File sang phase sau; 006 chỉ nghiệm thu P2P, ROADMAP 06.08 phải ghi defer minh bạch |
-| **CL-06-08** | Kênh và profile File? | **FILE_V1 profile riêng, protected negotiation trên M2 TLS session hiện có**; chia sẻ session quota và backpressure | Tạo một data TLS connection riêng có explicit human approval/pin + giới hạn port/session và review xung đột topology |
-| **CL-06-09** | Có giữ trạng thái/metadata file transfer sau restart không? | **RAM-only transfer state**, không lưu path/token/offer/chunk; hoàn tất là file do user đã lưu | Lưu **metadata tối thiểu đã bảo vệ** để xem lịch sử chuyển tệp/khôi phục, phải duyệt consent/ACL/retention |
-| **CL-06-10** | Chính sách với tệp có nguy cơ thực thi/định dạng giả? | **Không auto-open/execute**, hiển thị cảnh báo extension/MIME không đáng tin; người dùng tự quyết định mở ngoài ứng dụng | Chặn mặc định nhóm định dạng nguy hiểm, có exception thủ công theo file; cần định nghĩa allow/denylist và kiểm thử cập nhật |
+| ID | Quyết định người dùng | Hệ quả bắt buộc |
+| --- | --- | --- |
+| **CL-06-01** | **A — ≤256 MiB (268435456 bytes); file rỗng 0 byte được phép** | SHA-256 empty, giới hạn inclusive, không dùng `Attachment.sizeBytes > 0` của Demo |
+| **CL-06-02** | **A — Accept/Reject từng file, kể cả peer đã pinned** | Không có chunk trước Accept, timeout Reject; khác inbound connection consent |
+| **CL-06-03** | **B — Dùng thư mục Downloads đã được user cấp quyền trước** | Có thể chọn/đổi/thu hồi Downloads root; không hỏi Save As mỗi file, **vẫn phải Accept/Reject từng offer** |
+| **CL-06-04** | **A — Không overwrite; đặt tên khác hoặc yêu cầu chọn tên** | Atomic no-clobber và chống collision/junction/race; tuyệt đối không ghi đè tự động |
+| **CL-06-05** | **A — Xóa partial khi hủy/lỗi, không resume, retry tạo transferId mới** | Sau crash dọn an toàn chỉ các file staging do app tạo; không xóa user files |
+| **CL-06-06** | **A — Source thay đổi thì fail/cancel** | Kiểm source identity/size/mtime và digest trước/sau streaming; không snapshot |
+| **CL-06-07** | **A — Owner-mediated Group per-recipient sau Group 004 Verified** | Signed origin/owner proof, JOIN/REMOVE, member states riêng, Group route disabled trước Gate 004 |
+| **CL-06-08** | **A — FILE_V1 riêng trên TLS M2 hiện có** | Post-TLS mutual capability + strict codec, cùng session quotas, không mở socket mới |
+| **CL-06-09** | **A — Trạng thái transfer RAM-only, không lưu archive** | Chỉ final file user saved và staging transient; không sync bytes/metadata vào History 005 |
+| **CL-06-10** | **A — File binary có cảnh báo loại không tin cậy; không auto-open/execute** | User mở thủ công qua OS; không hứa malware-free |
 
-**Không mở câu hỏi tùy chọn cho các bảo đảm bắt buộc:** file phải đi trên TLS đã authenticated, receiving là quyết định người nhận, không traversal/symlink/overwrite âm thầm, bounded streaming, integrity SHA-256/byte count, cleanup an toàn, không nhận/chạy tệp tự động, không báo COMPLETED thiếu bằng chứng. Các quyết định này theo Constitution và các gate M1/M2.
+**Technical Gate 0 vẫn OPEN/BLOCKED:** FILE_V1 exact profile/golden vectors, Win11 Downloads root/atomic no-clobber/reparse review, M2 shared quota benchmark, signed Group 004 runtime và independent security/privacy review. Tất cả AC-06-A…P vẫn **NOT RUN**.
 
 ## 3. User Scenarios & Testing (mandatory)
 
@@ -81,14 +81,14 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 
 ### US2 — Người nhận chấp thuận, từ chối và kiểm soát vị trí lưu (P1)
 
-**As** B, **I want** xem A đã được xác minh cùng tên/size file, có thể từ chối và chủ động chọn nơi nhận, **so that** A không tùy ý ghi đè file hoặc đặt mã độc lên máy tôi.
+**As** B, **I want** tự cấp/thu hồi quyền sử dụng Downloads trong cài đặt và vẫn Accept/Reject từng file từ A đã xác minh, **so that** A không thể ép lưu hay ghi đè file trên máy tôi.
 
-**Independent test:** A gửi offer; B Reject → không tạo file/chunk; B Accept path hợp lệ → chỉ tạo staging file an toàn; path traversal, junction, symlink, collision → reject hoặc giải quyết theo policy.
+**Independent test:** B đã ủy quyền Downloads nhưng Reject → 0 chunk; chưa ủy quyền Downloads thì Accept bị chặn; Accept từng file → chỉ tạo staging an toàn trong Downloads; traversal/junction/symlink/collision fail closed.
 
 1. **Given** offer hợp lệ từ verified A, **When** B chưa chọn Accept, **Then** transfer ở OFFERED/PENDING và không tạo final filename.
 2. **Given** B Reject hoặc quá timeout chờ consent, **When** A tiếp tục gửi chunk, **Then** receiver từ chối và không ghi disk.
-3. **Given** B Accept nhưng chọn path không an toàn/outside approved directory hoặc target là symlink/junction, **When** khởi tạo staging file, **Then** fail closed và báo lỗi không làm đổi file cũ.
-4. **Given** có file cùng tên đã tồn tại, **When** B lưu, **Then** không ghi đè âm thầm; phải dùng kết quả CL-06-04 đã duyệt.
+3. **Given** Downloads root chưa được cấp quyền, đã bị thu hồi, hoặc là unsafe symlink/junction/reparse, **When** B thử Accept, **Then** fail closed, không tạo staging hoặc sửa file cũ.
+4. **Given** Downloads có tệp cùng tên, **When** B Accept, **Then** tạo tên collision-safe mới hoặc yêu cầu user chọn tên khác, **atomic no-clobber** (CL-06-04 A).
 
 ### US3 — Truyền tệp theo luồng với tiến độ thật và UI không treo (P1)
 
@@ -138,7 +138,7 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 
 **As** một người trong Group, **I want** biết rõ ai nhận được tệp và ai từ chối/offline, **so that** trạng thái nhóm không nói sai “mọi người đã nhận”.
 
-**Independent test:** sau khi 004 runtime VERIFIED và CL-06-07 chốt, ≥3 JVM owner A, member B/C và member D JOIN muộn, thử per-recipient offer/accept/failure, REMOVE giữa transfer, owner handoff và Group owner offline.
+**Independent test:** sau khi 004 runtime VERIFIED theo CL-06-07 A, ≥3 JVM owner A, member B/C và member D JOIN muộn, thử per-recipient offer/accept/failure, REMOVE giữa transfer, owner handoff và Group owner offline.
 
 1. **Given** B gửi Group file, **When** offer chạy qua owner A, **Then** C xác minh B gốc độc lập; hop TLS A không đủ để tự nhận là B.
 2. **Given** C Accept, D Reject, E offline, **When** fanout, **Then** UI có recipient outcomes độc lập, không có universal Group COMPLETED/READ.
@@ -178,20 +178,20 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 - **FR-06-006:** File protocol **MUST** có typed allowlist riêng với transferId, messageId/frame ID, direction, sender device ID, recipient, scope ID, UTC event timestamp, state/proof và payload bounded; không deserialization Java native.
 - **FR-06-007:** Tất cả mạng peer input **MUST** được xem là untrusted: strict UTF-8 cho metadata, no duplicate/trailing JSON, bounded nesting/string/array, nonzero UUID, int64 range/overflow, frame length trước allocate, version/capability gating, không chấp nhận unknown type.
 - **FR-06-008:** File-control ACK/COMMIT **MUST NOT** trở thành `DELIVERY_ACK`/`READ_RECEIPT` của tin nhắn M2/Group; transfer outcomes **MUST** độc lập với viewing/reading chat.
-- **FR-06-009:** File share **MUST** tái sử dụng giới hạn session/quota/fairness M2 hiện hữu; nếu CL-06-08 chọn một channel riêng thì phải có explicit security/topology/port review trước triển khai, không tự thêm listener vào phiên đang chạy.
+- **FR-06-009:** File share **MUST** chạy trên phiên M2 TLS đã verified theo CL-06-08 A, chia sẻ giới hạn session/quota/fairness; **MUST NOT** mở thêm socket/file listener.
 
 ### B. File offer, user consent và safe destination
 
 - **FR-06-010:** Mỗi transfer **MUST** có transferId ngẫu nhiên không trùng + correlation với đúng verified conversation/group run và local send attempt; message IDs của control/data tách khỏi ID hội thoại/tin nhắn.
 - **FR-06-011:** Sender **MUST** chọn tệp qua thao tác explicit; phải kiểm nguồn là regular file có thể đọc theo chính sách symlink/reparse, size hợp lệ, quota, khả dụng, trước Offer. Không quét folder/upload tùy ý.
 - **FR-06-012:** Metadata gửi **MUST** là basename hiển thị đã validate, fileLength int64 không âm và nằm trong policy, optional MIME chỉ là claim, whole-file digest/proof scheme được định nghĩa ở contract; **MUST NOT** lộ full source path, Windows username, key hoặc secret.
-- **FR-06-013:** System **MUST** áp dụng hard file size cap/disk quota đã được CL-06-01 xác nhận và test 0/1/max/max+1 bytes, int64 overflow. Không dùng `Attachment` Demo giới hạn >0 làm luật mạng cho file rỗng.
+- **FR-06-013:** System **MUST** áp dụng **0 ≤ sizeBytes ≤ 268435456 (256 MiB)** inclusive (CL-06-01 A), kiểm 0/1/max/max+1, disk quota và int64 overflow; 0 byte hợp lệ với SHA-256 empty; không dùng `Attachment` Demo limit >0.
 - **FR-06-014:** Receiving offer **MUST** present independently verified peer identity, sanitized filename/size, warning about executable/untrusted data and exact local destination implications; nhận file không được tự xảy ra vì peer pinned.
 - **FR-06-015:** FILE_ACCEPT/FILE_REJECT/FILE_CANCEL **MUST** gắn với một offer chưa hết hạn và đúng authorized session/scope; trước explicit Accept không được gửi hoặc ghi content chunks.
-- **FR-06-016:** Receiver **MUST** quyết định đường đích (từng file hoặc previously authorized folder tùy CL-06-03); peer-supplied path **MUST NOT** được dùng làm filesystem path, kể cả hidden fields/Unicode normalization.
+- **FR-06-016:** Receiver **MUST** dùng **Downloads root đã được user cấp quyền trước** (CL-06-03 B, có thể đổi/thu hồi), **không** hỏi Save As cho từng file, nhưng **MUST** Accept/Reject từng offer theo CL-06-02 A. Không gửi FILE_ACCEPT nếu root thiếu/không an toàn; peer-supplied path **MUST NOT** chọn filesystem path.
 - **FR-06-017:** Receiver **MUST** check filename for traversal, absolute/UNC/drive/device paths, Windows reserved names, ADS colon, trailing dot/space, NUL/control, hostile Unicode, oversized name; validate after normalization, not merely replace `../`.
-- **FR-06-018:** Overwrite/collision **MUST NOT** xảy ra âm thầm. Final destination phải no-clobber hoặc có user confirmation riêng + rollback/version policy khi CL-06-04 chọn B; không xóa file cũ chỉ vì peer gửi trùng tên.
-- **FR-06-019:** Bất kỳ metadata name, MIME hoặc extension **MUST NOT** làm app auto-execute/open hoặc tự giải nén; executable/suspicious warning policy theo CL-06-10, không tuyên bố file malware-free.
+- **FR-06-018:** Overwrite/collision **MUST NOT** xảy ra (CL-06-04 A); tạo tên collision-safe mới hoặc hỏi user tên khác bên trong Downloads; atomic no-clobber/fail closed dưới race, **MUST NOT** thay file cũ.
+- **FR-06-019:** Metadata name/MIME/extension **MUST NOT** làm app auto-execute/open/unzip; CL-06-10 A cho phép binary tùy ý với cảnh báo type/MIME không đáng tin, user chỉ mở thủ công qua OS; không tuyên bố malware-free.
 
 ### C. Bounded streaming, scheduling và progress
 
@@ -208,7 +208,7 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 
 ### D. Integrity, durable receiving và truthful completion
 
-- **FR-06-030:** File sender/receiver **MUST** dùng checksum toàn nội dung **SHA-256** được chuẩn hóa contract, byte count rõ; digest trên cùng byte sequence của source snapshot và receiver staging. TLS integrity chỉ bảo vệ transport chứ không thay end-to-end file digest.
+- **FR-06-030:** Sender/receiver **MUST** dùng **SHA-256 toàn file** và exact byte count: sender prehash trước Offer, rehash emitted bytes khi stream, kiểm source identity/size/mtime không đổi (CL-06-06 A), receiver hash staging độc lập; **không tạo source snapshot**. TLS integrity không thay end-to-end digest.
 - **FR-06-031:** Receiver **MUST** kiểm offset/chunk order, exact final byte count và full SHA-256 trước COMMIT; mismatch/replay/extra/missing data **MUST** FAILED_INTEGRITY, không rename staging thành final.
 - **FR-06-032:** Receiver **MUST** ghi vào unique staging file dưới đường đích an toàn (hoặc staging layout được review), flush/fsync + close và finalize **atomic no-clobber** khi filesystem hỗ trợ; khi không thể atomically finalize an toàn, **MUST** dừng/báo lỗi, không ghi đè file cũ.
 - **FR-06-033:** `COMPLETED` ở receiver **MUST** chỉ sau validated digest+size và durable, safe final target creation; sender `COMPLETED` **MUST** đợi terminal receiver confirmation gắn đúng id/scope/digest/session.
@@ -221,9 +221,9 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 - **FR-06-037:** Sender và receiver **MUST** cho explicit Cancel khi còn nonterminal; cancellation được propagate qua protected `FILE_CANCEL` nếu link còn sống, trạng thái terminal idempotent; close stream/worker và không tự tiếp tục.
 - **FR-06-038:** Disconnect/half-open/truncation/restart giữa transfer **MUST** không hiển thị completed; cleanup state chính xác, no automatic retransmit or reconnect, v1 plaintext fallback bị cấm.
 - **FR-06-039:** Timeout Offer, idle chunk, stalled disk, final confirmation và overall transfer **MUST** bounded, cancellation-aware; user biết lỗi/hủy và có thể chủ động thử lại.
-- **FR-06-040:** Staging/partial files **MUST** được xác định, không hiển thị final trước khi verify; xử lý delete/keep TTL/resume theo quyết định CL-06-05; phải dọn khi crash/restart đủ an toàn.
-- **FR-06-041:** Retry/resume **MUST** dùng transferId mới nếu chọn no-resume; nếu CL-06-05 cho resumable, mỗi resume **MUST** xác minh authenticated peer, scope, digest, stored offsets và user consent mới, không trust self-claimed offset.
-- **FR-06-042:** Sender **MUST** phát hiện/khống chế source file bị thay đổi hoặc truncate giữa Offer→EOF và không ghi silent mixed-version; policy snapshot/fail theo CL-06-06.
+- **FR-06-040:** Staging/partial chỉ được tạo dưới Downloads đã ủy quyền sau Accept và **MUST** xóa sau cancel/fail (CL-06-05 A); sau crash, startup chỉ dọn orphan **được xác minh do app tạo** mà không xóa user file; **MUST NOT** giữ để resume.
+- **FR-06-041:** **Không hỗ trợ resume** (CL-06-05 A); retry **MUST** do user chủ động, tạo transferId/offer mới và receiver lại Accept; **MUST NOT** lưu resume offset, auto-connect, auto-retry hoặc tin offset peer tự khai.
+- **FR-06-042:** Sender **MUST** phát hiện source sửa/truncate giữa prehash Offer→EOF bằng identity/size/mtime và SHA-256, **fail/cancel** (CL-06-06 A), không tạo source snapshot, không mixed-version success.
 - **FR-06-043:** Transitions nhận duplicate, stale control, cancel after complete và new session replay **MUST** được xử lý idempotent/fail-closed; không biến `CANCELLED/FAILED` thành `COMPLETED` từ một ACK trễ.
 
 ### F. Filesystem/privacy and negative security boundaries
@@ -231,7 +231,7 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 - **FR-06-044:** Safe destination path **MUST** dùng filesystem API, kiểm normalized/canonical approved root, owner permissions, symlink/junction/reparse point trên từng critical open/move, chống TOCTOU bằng secure handle/no-follow/no-clobber theo khả năng Windows; chỉ lexical `startsWith` **không đủ**.
 - **FR-06-045:** Transfer code **MUST NOT** ghi đến path do mạng cung cấp, path bên ngoài user-approved root, thư mục system/startup hoặc file đã tồn tại không được phê duyệt; không cho directory traversal dù dùng slash/Unicode/ADS.
 - **FR-06-046:** Logs/crash dumps/Git evidence **MUST NOT** ghi binary file bytes, private full paths, secret keys/SAS, unsanitized remote metadata; chỉ mã lỗi/counters an toàn; không tạo bản copy plaintext không được phép.
-- **FR-06-047:** File content, hash/filename metadata và transfer state **MUST NOT** tự persist/sync trong History 005, GroupMetadataStore 004 hoặc Demo mock storage. Persist metadata sau restart phải có approval CL-06-09 và independent storage/privacy review.
+- **FR-06-047:** File content/hash/name/offer/receipt/transfer metadata **MUST NOT** persist/sync trong History 005/Group 004/Demo; CL-06-09 A yêu cầu **RAM-only attempt**. Chỉ completed file và (nếu bảo vệ an toàn) local Downloads root preference tồn tại qua restart; staging orphan cleanup.
 - **FR-06-048:** Abuse test **MUST** gồm malformed UTF-8, duplicate/trailing JSON, path traversal/junction/collision, integer overflow, empty/max/oversize file, corrupt checksum, slow read/EOF, forged control/ID/peer, cancellation races, repeat/reorder chunks và OS ACL issues.
 
 ### G. Group integration, Live isolation và hand-off cho 007
@@ -249,7 +249,7 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 
 Đây là **mục tiêu nghiệm thu tương lai, không phải kết quả test**. Mỗi tiêu chí cần command/log, máy/JDK/commit, synthetic bytes, actual PASS/FAIL/BLOCKED; không suy ra PASS từ spec.
 
-- **SC-06-001:** **100%** file được receiver báo `COMPLETED` trong test synthetic có **đúng size và SHA-256 toàn nội dung** như source snapshot tương ứng, kể cả UTF-8 filename.
+- **SC-06-001:** **100%** file được receiver báo `COMPLETED` trong test synthetic có **đúng size và SHA-256 toàn nội dung** như nguồn bất biến đã prehash và kiểm lại trong lúc stream, kể cả UTF-8 filename.
 - **SC-06-002:** **0** tệp failed/truncated/mismatched hash/partial được đặt tên hoặc hiển thị như final COMPLETED; receiver file cũ vẫn nguyên vẹn.
 - **SC-06-003:** **0** chunk nội dung được ghi trước khi receiver Accept đúng offer + verified pair/session; explicit Reject/timeout không sinh final file.
 - **SC-06-004:** **0** path traversal/absolute/UNC/ADS/reparse/junction/symlink swap/filename collision thành công ghi ngoài approved root hoặc overwrite ngoài chính sách.
@@ -259,7 +259,7 @@ Danh sách này là **phương án đề xuất để duyệt sau**, không ph�
 - **SC-06-008:** **100%** test explicit cancel, idle timeout, failed disk write và abrupt crash có terminal/fault state đúng; partial cleanup/retain theo CL-06-05/09 thực tế, không auto-reconnect.
 - **SC-06-009:** Hash tamper, chunk reorder, overlapping offset, negative/overflow sizes, duplicate transferId, stale session và invalid Unicode đều fail closed, không crash/corrupt chat khác.
 - **SC-06-010:** Live file UX gắn đúng sender/time/recipient; **0** mock Demo/network crossover và **0** file bytes xuất hiện ở History store/sync mặc định.
-- **SC-06-011:** Group File tests (nếu CL-06-07 cho phép sau 004 Verified): **0** pre-JOIN content/new post-REMOVE chunk; per-recipient partial result, no forged original member signer; stale owner PAUSED.
+- **SC-06-011:** Group File tests (**CL-06-07 A đã xác nhận, chỉ sau 004 Verified**): **0** pre-JOIN content/new post-REMOVE chunk; per-recipient partial result, no forged original member signer; stale owner PAUSED.
 - **SC-06-012:** M2/Group/History regressions không đổi semantics receipt; **0** fake `DELIVERY_ACK`/`READ_RECEIPT` do file progress hoặc receiver saved file.
 - **SC-06-013:** Acceptance tối thiểu có **2 actual peer/processes** trên LAN/loopback cho logic; **Gate 1** còn yêu cầu **≥2 physical Win11 x64 LAN PCs** không cần Internet, manual inbound Accept/SAS, security review.
 - **SC-06-014:** **M4 chỉ Verified khi File 006 và Multimedia 007** hoàn tất acceptance/independent security gates; 006 P2P PASS riêng không có nghĩa M4 PASS hoặc Group File đã chạy.
@@ -276,9 +276,9 @@ Các AC-06-A…D giữ nguyên ý định ROADMAP; E…P mở rộng để xác 
 | **AC-06-D** | `..\`, UNC, `\\?\`, absolute path/ADS, Windows reserved/trailing dot, mixed Unicode, over-limit file, symlink/junction race | Không có write ngoài approved root, overwrite/traversal; rejected/sanitized errors; file khác nguyên vẹn |
 | **AC-06-E** | A/B verified nhưng B chưa Accept, Reject hoặc hết timeout | 0 content chunk/0 final file, B có quyền từ chối mỗi file như CL |
 | **AC-06-F** | C được A pin hợp lệ nhưng không tham gia conversation A↔B, đoán scope/transferId, yêu cầu metadata/chunk | C nhận **0** file metadata/count/content và denied generically, kể cả TLS session C hợp lệ |
-| **AC-06-G** | Hai file cùng basename/khác sender, receiver target đã có, chèn symlink/junction giữa Accept và commit | Không silent overwrite; atomic no-clobber hoặc explicit approved replacement rollback, race không thoát approved root |
+| **AC-06-G** | Hai file trùng basename trong Downloads, receiver target đã có, symlink/junction swap giữa Accept và commit | **Không overwrite**; tên mới/atomic no-clobber an toàn, race không thoát Downloads root |
 | **AC-06-H** | Tệp bị sửa/truncate trong lúc gửi, chỉnh 1 chunk dù giữ length, duplicate/overlap/missing offsets | Digest/size fail closed, không commit corrupted final, sender không false completed |
-| **AC-06-I** | 0/1/max/max+1 bytes, sparse data, tên Unicode/emoji, absurd int64, quota/disk preflight | Hành vi chính xác theo CL-06-01 đã duyệt, bounded memory, đúng hash kể cả empty nếu cho phép |
+| **AC-06-I** | 0/1/268435456/268435457 bytes, sparse file, Unicode, int64 overflow, disk quota | 0-byte hợp lệ, ≤256 MiB nhận đúng SHA-256, 256 MiB+1 từ chối, bounded RAM |
 | **AC-06-J** | Inbound unexpected FILE_* trên M1 v1, M2 v2, Group v3, History draft v4 hoặc pre-capability, stripped preface, mismatched SPKI | Profile isolation, post-TLS mutual capability proof, không rò payload và không downgrade |
 | **AC-06-K** | 2 peer file bulk + Live P2P text/emoji, shared 4-session cap, slow receiver và cancel | Chat responsive, file queues bounded, không OOM/EDT stall, cleanup worker/stream tốt |
 | **AC-06-L** | App crash before/after fsync/atomic rename, retry duplicate final outcome, no-clobber conflict | Tệp final chỉ có bản hoàn chỉnh đã verify, không bị đổi bởi duplicate/stale ACK; staging xử lý đúng policy |
@@ -339,10 +339,10 @@ Independent terminal branches: `REJECTED`, `CANCELLED`, `FAILED`, `UNCERTAIN`. T
 
 **Release gates / Honest status:**
 
-- **Gate 0 design:** CL-06-01…10 user choices CONFIRMED, File version+codec/capability/signatures+framing/size numeric policy reviewed, filesystem threat model/Windows path atomicity test plan, dependency/license and two-peer resource review.
+- **Gate 0 design:** CL-06-01…10 **USER CONFIRMED (9 A, 06-03 B)**; exact FILE_V1/capability/wire golden vectors và Win11 Downloads no-clobber/ACL/reparse/security review **STILL CONDITIONAL/BLOCKED**. User product approval không đồng nghĩa security signoff.
 - **Gate 1 functional/security:** Java21 actual RED→GREEN tests, verified pinned TLS session, two real peers and **≥2 physical Windows 11 LAN PCs**, no Internet, real human inbound Accept/SAS; path/ACL/crash/fuzz/integrity/error UI evidence and independent security/privacy signoff.
 - **Group gate:** Group 004 signed owner relay/member provenance/JOIN/REMOVE/handoff completed and security-reviewed, at least 3 JVM and actual role tests; until then **Group File disabled**, AC-M and Group part of AC-P blocked, not silently omitted.
 - **M4:** File 006 + Multimedia 007 both reviewed and accepted; completing File P2P in isolation is **not** M4 Verified.
-- **Current:** `SPEC DRAFT / NOT IMPLEMENTED / NOT VERIFIED`. All 10 CL PENDING, all 16 AC **NOT RUN**. Do not create `tasks.md` or claim File code/network functionality merely because UI local Attachment/MediaFiles exists.
+- **Current:** `CLARIFIED / PLAN DRAFT / NOT IMPLEMENTED / NOT VERIFIED`. **10/10 CL user CONFIRMED**, 16/16 AC **NOT RUN**; no Java File implementation, `tasks.md` or independent security approval.
 
-**Next step:** user reviews [CL-06-01…10](clarifications.md), approves A/B/custom choices, then write an independently reviewable `plan.md`, file protocol draft and `tasks.md` with TDD and security/physical gates. None of those approval/implementation/test outcomes are claimed here.
+**Next step:** 10/10 decisions are aligned in [plan](plan.md), [FILE_V1 draft](contracts/file-v1.md), [ADRs](research.md), [model](data-model.md), [quickstart](quickstart.md) và [impact review](checklists/architecture-impact-review.md). Next independent protocol/Win11 Downloads review, then future `tasks.md` RED→GREEN. **No File code/tests/Verified.**
