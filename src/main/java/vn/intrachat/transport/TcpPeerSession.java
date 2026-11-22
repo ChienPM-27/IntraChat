@@ -24,8 +24,8 @@ public final class TcpPeerSession implements AutoCloseable {
     private final ExecutorService workers;
     private final Consumer<UUID> onClosed;
     private final ConcurrentMap<UUID, Probe> outstanding = new ConcurrentHashMap<>();
-    private final Semaphore writes = new Semaphore(NetworkConfig.MAX_OUTBOUND_FRAMES);
-    private final AtomicInteger queuedBytes = new AtomicInteger();
+    private final OutboundBudget outbound = new OutboundBudget(
+        NetworkConfig.MAX_OUTBOUND_FRAMES, NetworkConfig.MAX_QUEUED_BYTES);
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ScheduledExecutorService heartbeat = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread thread = new Thread(r, "intrachat-heartbeat");
@@ -33,7 +33,7 @@ public final class TcpPeerSession implements AutoCloseable {
         return thread;
     });
     private final Object writeLock = new Object();
-    private volatile long lastInboundNanos = System.nanoTime();
+    private final DiagnosticHeartbeat heartbeatPolicy = new DiagnosticHeartbeat(System::nanoTime);
 
     public TcpPeerSession(Socket socket, PeerIdentity local, PeerIdentity remote, UUID sessionId,
                           JsonEnvelopeCodec codec, ExecutorService workers, Consumer<UUID> onClosed) {
@@ -56,10 +56,10 @@ public final class TcpPeerSession implements AutoCloseable {
         workers.submit(this::readerLoop);
         heartbeat.scheduleAtFixedRate(() -> {
             if (closed.get()) return;
-            if (System.nanoTime() - lastInboundNanos > TimeUnit.SECONDS.toNanos(30)) {
-                close();
-            } else {
-                ping().exceptionally(error -> null);
+            switch (heartbeatPolicy.tick()) {
+                case CLOSE -> close();
+                case PING -> ping().exceptionally(error -> null);
+                case NONE -> { /* closed by user; no stray probe */ }
             }
         }, 10, 10, TimeUnit.SECONDS);
     }
@@ -90,21 +90,14 @@ public final class TcpPeerSession implements AutoCloseable {
 
     private void send(NetworkEnvelope envelope) throws IOException {
         byte[] bytes = codec.encode(envelope);
-        if (!writes.tryAcquire()) {
-            throw new ProtocolException("CAPACITY_EXCEEDED", "Session send queue is full");
-        }
-        int waiting = queuedBytes.addAndGet(bytes.length);
-        try {
-            if (waiting > NetworkConfig.MAX_QUEUED_BYTES) {
-                throw new ProtocolException("CAPACITY_EXCEEDED", "Queued bytes exceed allowed bound");
-            }
+        OutboundBudget.Reservation reserved = outbound.tryReserve(bytes.length);
+        if (reserved == null)
+            throw new ProtocolException("CAPACITY_EXCEEDED", "Session frame/byte queue capacity reached");
+        try (reserved) {
             synchronized (writeLock) {
                 if (closed.get()) throw new IOException("Session is closed");
                 FrameCodec.writeFrame(socket.getOutputStream(), bytes, FrameCodec.CONTROL_LIMIT);
             }
-        } finally {
-            queuedBytes.addAndGet(-bytes.length);
-            writes.release();
         }
     }
 
@@ -118,7 +111,7 @@ public final class TcpPeerSession implements AutoCloseable {
                             || !incoming.destination().id().equals(local.deviceId())) {
                         throw new ProtocolException("HANDSHAKE_INVALID", "Unexpected diagnostic endpoint identity");
                     }
-                    lastInboundNanos = System.nanoTime();
+                    heartbeatPolicy.recordInbound();
                     switch (incoming.type()) {
                         case DIAGNOSTIC_PING -> {
                             String probeId = HandshakeValidator.requireUuid(incoming.payload(), "probeId").toString();
@@ -134,7 +127,7 @@ public final class TcpPeerSession implements AutoCloseable {
                         default -> throw new ProtocolException("UNSUPPORTED_TYPE_FOR_PHASE", "Only diagnostics after READY");
                     }
                 } catch (SocketTimeoutException idle) {
-                    if (System.nanoTime() - lastInboundNanos > TimeUnit.SECONDS.toNanos(30)) break;
+                    if (heartbeatPolicy.silenceExpired()) break;
                 }
             }
         } catch (IOException | RuntimeException remoteFailure) {
@@ -146,6 +139,7 @@ public final class TcpPeerSession implements AutoCloseable {
 
     @Override public void close() {
         if (!closed.compareAndSet(false, true)) return;
+        heartbeatPolicy.close();
         heartbeat.shutdownNow();
         try { socket.close(); } catch (IOException ignored) { }
         IOException error = new IOException("Diagnostic session disconnected");

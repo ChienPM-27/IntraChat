@@ -21,10 +21,15 @@ try {
   & java.exe '-jar' $jar '--diagnostics'
   if($LASTEXITCODE -ne 0){throw ('JAR diagnostics exit: '+$LASTEXITCODE)}
   $entries=@(& jar.exe tf $jar)
-  foreach($wanted in @('ui/LiveIntraChat.class','ui/IntraChat.class',
-                       'vn/intrachat/IntraChatApplication.class',
+  foreach($wanted in @('ui/IntraChat.class','ui/dialogs/LanConnectionDialog.class',
+                       'ui/frames/MainChatFrame.class',
                        'vn/intrachat/security/TlsContextFactory.class')){
     if($entries -notcontains $wanted){throw ('Required shaded class missing: '+$wanted)}
+  }
+  foreach($obsolete in @('ui/LiveIntraChat.class','ui/frames/LiveConnectionFrame.class',
+                       'vn/intrachat/IntraChatApplication.class','vn/intrachat/ui/MainWindow.class',
+                       'vn/intrachat/ui/NetworkPanel.class','vn/intrachat/ui/InboundRequestDialog.class')){
+    if($entries -contains $obsolete){throw ('Obsolete UI still packaged: '+$obsolete)}
   }
   $signatures=@($entries|Where-Object{$_ -match '^META-INF/.*\.(RSA|DSA|SF)$'})
   if($signatures.Count -gt 0){throw 'Signed JAR metadata must be removed during shade'}
@@ -37,7 +42,7 @@ try {
   }
   if($total -lt 73 -or $errors -ne 0){throw ('JUnit gate failed tests='+$total+' failures='+$errors)}
   Write-Output ("PASS: Java21 local M0/M1/FE/M2 regression. Tests=$total, failures/errors=$errors")
-  Write-Output 'PASS: runnable shaded JAR M1 diagnostics; FE Demo/Live classes present; signed metadata absent'
+  Write-Output 'PASS: unified Messenger launcher; obsolete UI absent; TLS backend present; no stale signed JAR metadata'
   Write-Output 'NOT TESTED BY THIS SCRIPT: two real Windows LAN PCs; independent security review; GUI SAS/VIEW tests'
   Write-Output 'M2 remains IN PROGRESS; do not mark M1 or M2 Verified from this local verification.'
   exit 0

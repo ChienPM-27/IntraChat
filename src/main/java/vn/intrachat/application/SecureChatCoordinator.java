@@ -12,6 +12,7 @@ import java.net.Socket;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -30,8 +31,10 @@ public final class SecureChatCoordinator implements AutoCloseable {
     private final InboundApprovalPort inboundApproval;
     private final FingerprintApprovalPort fingerprintApproval;
     private final Consumer<TlsChatSession> onIncomingReady;
+    private final Duration consentTimeout;
     private final ExecutorService workers=Executors.newVirtualThreadPerTaskExecutor();
     private final ChatV2BootstrapCodec bootstrap=new ChatV2BootstrapCodec();
+    private static final int MAX_ACTIVE=NetworkConfig.MAX_ACTIVE_SESSIONS;
     private final Map<UUID,TlsChatSession> sessions=new ConcurrentHashMap<>();
     private volatile TcpListener listener;
     private volatile boolean closed;
@@ -39,6 +42,17 @@ public final class SecureChatCoordinator implements AutoCloseable {
     public SecureChatCoordinator(DeviceIdentity local,String displayName,PinnedPeerStore trust,
             InboundApprovalPort approval,FingerprintApprovalPort fingerprintApproval,
             Consumer<TlsChatSession> onIncomingReady) {
+        this(local,displayName,trust,approval,fingerprintApproval,onIncomingReady,
+            Duration.ofSeconds(30));
+    }
+    /** Test-controlled short deadline only; production always uses 30 seconds. */
+    SecureChatCoordinator(DeviceIdentity local,String displayName,PinnedPeerStore trust,
+            InboundApprovalPort approval,FingerprintApprovalPort fingerprintApproval,
+            Consumer<TlsChatSession> onIncomingReady,Duration consentTimeout) {
+        this.consentTimeout=Objects.requireNonNull(consentTimeout);
+        if(consentTimeout.isZero()||consentTimeout.isNegative()
+            ||consentTimeout.compareTo(Duration.ofSeconds(30))>0)
+            throw new IllegalArgumentException("Invalid inbound consent deadline");
         this.local=Objects.requireNonNull(local);
         this.displayName=Objects.requireNonNull(displayName);
         if(displayName.isBlank()||displayName.length()>128)
@@ -57,6 +71,10 @@ public final class SecureChatCoordinator implements AutoCloseable {
         listener=next;
     }
     public boolean isListening(){return listener!=null&&listener.isListening();}
+    /** Count only verified, still-open TLS sessions, not stale socket entries. */
+    public synchronized int activeCount(){
+        return (int)sessions.values().stream().filter(TlsChatSession::canChat).count();
+    }
     /** Explicit user stop; never schedules a new listener automatically. */
     public synchronized void stopListening(){if(listener!=null){listener.close();listener=null;}}
     public CompletableFuture<TlsChatSession> connect(NetworkConfig remote) {
@@ -93,6 +111,16 @@ public final class SecureChatCoordinator implements AutoCloseable {
     }
 
     private void receiveCandidate(Socket candidate) {
+        receiveCandidate(candidate,null);
+    }
+
+    /** Shared listener passes only a strictly validated CHAT_V2 HELLO. No fallback to v1. */
+    public void acceptSharedCandidate(Socket candidate,byte[] validatedFirstFrame) {
+        Objects.requireNonNull(validatedFirstFrame,"validatedFirstFrame");
+        receiveCandidate(candidate,validatedFirstFrame);
+    }
+
+    private void receiveCandidate(Socket candidate,byte[] firstFrame) {
         Socket plain=candidate;
         TlsChatSession upgraded=null;
         boolean handedOff=false;
@@ -100,18 +128,24 @@ public final class SecureChatCoordinator implements AutoCloseable {
         try {
             if(closed)return;
             plain.setSoTimeout(5_000);
-            ChatV2BootstrapCodec.Hello hello=bootstrap.decodeHello(
-                FrameCodec.readFrame(plain.getInputStream(),FrameCodec.HELLO_LIMIT));
+            ChatV2BootstrapCodec.Hello hello=bootstrap.decodeHello(firstFrame==null
+                ? FrameCodec.readFrame(plain.getInputStream(),FrameCodec.HELLO_LIMIT)
+                : firstFrame);
             if(local.deviceId().equals(hello.senderId()))
                 throw new ProtocolException("IDENTITY_MISMATCH","Self connect forbidden");
+            if(activeCount()>=MAX_ACTIVE&&!sessions.containsKey(hello.senderId())){
+                FrameCodec.writeFrame(plain.getOutputStream(),
+                    bootstrap.encodeReject(hello.requestId()),FrameCodec.HELLO_LIMIT);
+                return; // No TLS handshake or user-content allocation for fifth peer.
+            }
             InboundRequest request=new InboundRequest(hello.requestId(),
                 plain.getRemoteSocketAddress().toString(),
                 new PeerIdentity(hello.senderId(),hello.displayName()),
-                Instant.now().plusSeconds(30));
+                Instant.now().plus(consentTimeout));
             InboundApprovalPort.Decision decision;
             try{
                 decision=inboundApproval.requestApproval(request).toCompletableFuture()
-                    .get(30,TimeUnit.SECONDS);
+                    .get(consentTimeout.toMillis(),TimeUnit.MILLISECONDS);
             }catch(InterruptedException interrupt){
                 Thread.currentThread().interrupt();
                 decision=InboundApprovalPort.Decision.REJECT;
@@ -168,15 +202,23 @@ public final class SecureChatCoordinator implements AutoCloseable {
 
     private void establish(TlsChatSession session,UUID remoteId,String remoteName,
                            byte[] localNonce,byte[] remoteNonce,String endpoint) throws Exception {
+        // TLSContextFactory has already validated certificate, key possession,
+        // P-256 SPKI and the remote UUID. PeerTrustService then binds BOTH
+        // human/known-pin decisions and CONFIRM/READY to the same TLS identity,
+        // nonces and exact request/verified conversation.
         X509Certificate remoteCertificate=(X509Certificate)session.socketPeerCertificate();
         byte[] ownFp=local.fingerprint();
         byte[] peerFp=FingerprintVerifier.spkiFingerprint(remoteCertificate.getPublicKey());
-        byte[] transcript=FingerprintVerifier.transcriptHash(
-            local.deviceId(),ownFp,localNonce,remoteId,peerFp,remoteNonce);
-        String transcriptHex=HexFormat.of().formatHex(transcript);
-        if(!trust.known(remoteId)){
+        PairingStateMachine state=session.pairingState();
+        UUID request=state.requestId();
+        PeerTrustService pair=new PeerTrustService(local,remoteId,peerFp,localNonce,
+            remoteNonce,request,trust,state,System::nanoTime,Duration.ofMinutes(3));
+        if(pair.isAlreadyPinned()){
+            // A known SPKI does NOT skip the per-inbound human consent earlier.
+            pair.approveKnownPinnedKey();
+        }else{
             String code=FingerprintVerifier.sharedCode(local.deviceId(),ownFp,localNonce,
-                                                        remoteId,peerFp,remoteNonce);
+                remoteId,peerFp,remoteNonce);
             var comparison=new FingerprintApprovalPort.Comparison(remoteId,remoteName,
                 endpoint,code,FingerprintVerifier.fullFingerprint(ownFp),
                 FingerprintVerifier.fullFingerprint(peerFp));
@@ -187,47 +229,35 @@ public final class SecureChatCoordinator implements AutoCloseable {
             }catch(TimeoutException|CancellationException|ExecutionException failure){
                 approved=false;
             }
-            if(!approved)throw new ProtocolException("PAIRING_REJECTED","Human fingerprint comparison required");
-        } else if(!trust.matches(remoteId,peerFp)) {
-            throw new ProtocolException("PEER_KEY_CHANGED","Pinned device key differs");
+            pair.approveLocalComparison(approved);
         }
-        PairingStateMachine state=session.pairingState();
-        state.acceptLocalFingerprint();
-        UUID request=state.requestId();
-        UUID conversation=P2PConversation.idFor(local.deviceId(),ownFp,remoteId,peerFp);
-        Map<String,Object> proof=Map.of("requestId",request.toString(),
-            "transcriptHash",transcriptHex,"confirmationId",UUID.randomUUID().toString());
+        UUID conversation=pair.conversationId();
+        String digest=pair.transcriptHex();
         session.sendPairControl(new ChatV2Message(UUID.randomUUID(),ChatV2Type.PAIR_CONFIRM,
-            request,local.deviceId(),remoteId,conversation,Instant.now(),proof));
-        ChatV2Message peerProof=session.receivePairControl();
-        if(peerProof.type()!=ChatV2Type.PAIR_CONFIRM
-            ||!request.toString().equals(peerProof.payload().get("requestId"))
-            ||!transcriptHex.equals(peerProof.payload().get("transcriptHash"))
-            ||!conversation.equals(peerProof.conversationId()))
-            throw new ProtocolException("PAIRING_INVALID","Remote fingerprint confirmation mismatch");
-        state.acceptRemoteConfirmation();
-        // A pin persisted after verified confirmations, before READY. A partial crash cannot
-        // authorize any application message until a new secure session completes READY.
-        trust.pinNew(remoteId,peerFp);
-        state.localReady();
+            request,local.deviceId(),remoteId,conversation,Instant.now(),
+            Map.of("requestId",request.toString(),"transcriptHash",digest,
+                "confirmationId",UUID.randomUUID().toString())));
+        pair.acceptPeerConfirmation(session.receivePairControl());
+        pair.markLocalReady();
         session.sendPairControl(new ChatV2Message(UUID.randomUUID(),ChatV2Type.PAIR_READY,
             request,local.deviceId(),remoteId,conversation,Instant.now(),
-            Map.of("requestId",request.toString(),"transcriptHash",transcriptHex)));
-        ChatV2Message peerReady=session.receivePairControl();
-        if(peerReady.type()!=ChatV2Type.PAIR_READY
-            ||!request.toString().equals(peerReady.payload().get("requestId"))
-            ||!transcriptHex.equals(peerReady.payload().get("transcriptHash"))
-            ||!conversation.equals(peerReady.conversationId()))
-            throw new ProtocolException("PAIRING_INVALID","Peer READY missing/mismatched");
-        state.remoteReady();
+            Map.of("requestId",request.toString(),"transcriptHash",digest)));
+        pair.acceptPeerReadyAndCommit(session.receivePairControl());
+        if(!pair.canChat()||!session.canChat())
+            throw new ProtocolException("PAIRING_INVALID","Protected identity not fully verified");
         session.setReadTimeout(15_000);
     }
 
-    private void register(UUID remoteId,TlsChatSession session)throws IOException{
+    private synchronized void register(UUID remoteId,TlsChatSession session)throws IOException{
         if(closed)throw new IOException("Coordinator closed during handshake");
+        // LiveChatService closes peer sockets when their reader exits. A former
+        // CLOSED socket does not permanently consume scarce active peer capacity.
+        sessions.entrySet().removeIf(entry->!entry.getValue().canChat());
+        if(sessions.size()>=MAX_ACTIVE&&!sessions.containsKey(remoteId))
+            throw new IOException("M2_ACTIVE_PEER_CAP");
         TlsChatSession old=sessions.putIfAbsent(remoteId,session);
         if(old!=null&&old.canChat())throw new IOException("Duplicate verified peer session");
-        if(old!=null)sessions.put(remoteId,session);
+        if(old!=null){sessions.put(remoteId,session);old.close();}
     }
     public void disconnect(UUID remoteId) {
         TlsChatSession session=sessions.remove(remoteId);

@@ -49,3 +49,16 @@
 **Constitution Gate 0:** design passed. **Gate 1:** PARTIAL. MUST remain **In Progress** until AC-02-A/I and resource/timing/security acceptance are evidenced. Do not conflate 2 Java processes on one machine with 2 separate physical Windows PCs. No M1 History/File/Chat features or trusted peer authentication exist.
 
 **Next:** secure authorized second PC for LAN testing, complete heartbeat/queue/duplicate stress, JDK21 UI negative tests, rerun regression+evidence and only then mark M1 Verified.
+
+## Execution addendum — 2026-11-22 (newer than historical table above)
+
+The previous historical 2026-11-21 partial row descriptions are retained. The local development and testing evidence has advanced:
+
+- **M1 task tracker now 53/60**, sixteen local tasks T027/T029–T031/T033–T034/T038–T046/T056 completed with [detailed actual source/Java21 evidence](m1-local-completion-2026-11-22.md).
+- Current `verify-m1.ps1 -Offline` and `verify-m2.ps1 -Offline`: **172/172 JUnit PASS**, actual Temurin21, both exit 0, clean JAR diagnostics PASS. Isolated working-tree source copy clean build + deliberately failing test was verified and removed.
+- M1 diagnostics UI **now exists as** `ui.dialogs.LanDiagnosticsDialog` opened explicitly inside the **single Messenger launcher**, separate from TLS Chat Live; warning clearly states unauthenticated plaintext, no chat content. It is not the removed standalone `NetworkPanel`/M1 launcher.
+- Local automated UI **5/5 PASS**: real Windows Swing user-action simulation for explicit Accept/Reject/Cancel/manual retry, Ping only after READY, untrusted warning, synchronous shutdown/listener cleanup. Three test-controlled cases in **two distinct JVM processes on one PC** PASS; real cross-connect/queue/heartbeat/negative tests PASS. This improves local scope of AC-C/E/F/G/J, SC-003/004/005/009/010 relative to dated previous evidence.
+- **Unchanged BLOCKERS:** AC-02-A/I and SC-001 require two **different physical** Windows PCs in authorized LAN with public Internet inaccessible. Private firewall/failure matrix, full real-host soak and independent acceptance reviewer are **NOT RUN**. AC-02-H/K remain PARTIAL, Gate 1 **NOT VERIFIED**.
+- **Remain unchecked:** T050, T051, T052 (actual two-host LAN), T053, T058, T059, T060 (dependent review/docs/Constitution/handoff). No external or Gate 1 evidence has been fabricated.
+
+**Decision unchanged:** Spec 002 M1 is **In Progress, not Verified**. The new local source/test completion is a prerequisite improvement, not dual-device acceptance.

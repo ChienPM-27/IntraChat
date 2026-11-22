@@ -1,8 +1,10 @@
+> **Ghi chú phạm vi đồ án (22/11/2026):** [ROADMAP hiện hành](../../ROADMAP.md) · [11 chức năng và nghiệm thu lớp học](../../docs/course-project-scope.md) · [Tích hợp Messenger](../../docs/messenger-integration-plan.md). **M1 53/60**; TCP v1 chẩn đoán đã có dialog bên trong Messenger; chưa cần đợi review Gate1 kiểu production để code các chức năng 11 tính năng trên M2. **Các yêu cầu Gate/audit bảo mật chuyên sâu ở phần lịch sử bên dưới chuyển thành nâng cao, không phải điều kiện để bắt đầu code**. Giữ an toàn tối thiểu, không tắt TLS M2, không giả mạo trạng thái hoặc ghi đè file ngoài ý muốn. **Task checkbox/biên bản Gate cũ không bị đổi thành PASS**; khi có tính năng Live thật hãy ghi test và trạng thái riêng trong [ma trận 11 chức năng](../../docs/feature-matrix.md).
+
 # Implementation Plan: IntraChat — 002 LAN Networking (M1)
 
 **Feature:** `002-lan-networking`
 **Date:** 2026-11-21
-**Status:** **In Progress — 36/60 tasks, 45 JUnit tests pass after merging FE demo; two real Windows LAN PCs NOT RUN; M1 NOT VERIFIED**
+**Status (mới nhất):** **In Progress 53/60**; TCP M1 diagnostic đã có trong Messenger, hai Windows LAN PC vật lý chưa test. Số 36/60 và 45 JUnit phía dưới là snapshot lịch sử khi lập kế hoạch.
 **Spec:** [spec.md](spec.md) · **Checklist:** [checklists/requirements.md](checklists/requirements.md)
 **Constitution:** [v1.0.0](../../.specify/memory/constitution.md)
 **Base release:** **M0 Verified (41/41 tasks)** on Temurin JDK21 and 5/5 network-denied GUI cycles; [evidence](../001-project-foundation/evidence/m0-jdk21-offline.md)

@@ -1,3 +1,7 @@
+> **Ghi chú phạm vi đồ án (22/11/2026):** [ROADMAP hiện hành](../../ROADMAP.md) · [11 chức năng và nghiệm thu lớp học](../../docs/course-project-scope.md) · [Tích hợp Messenger](../../docs/messenger-integration-plan.md). **M2 65/90**; P2P text/emoji/State/Time/Sender đã có Live cục bộ; ưu tiên cung cấp hạ tầng cho Group/History/File/Media trên Messenger, không làm lại TLS/DPAPI đang chạy. **Các yêu cầu Gate/audit bảo mật chuyên sâu ở phần lịch sử bên dưới chuyển thành nâng cao, không phải điều kiện để bắt đầu code**. Giữ an toàn tối thiểu, không tắt TLS M2, không giả mạo trạng thái hoặc ghi đè file ngoài ý muốn. **Task checkbox/biên bản Gate cũ không bị đổi thành PASS**; khi có tính năng Live thật hãy ghi test và trạng thái riêng trong [ma trận 11 chức năng](../../docs/feature-matrix.md).
+
+> **Ghi chú cập nhật UI 21/11/2026:** Các đoạn mô tả hai hoặc ba entrypoint phía dưới phản ánh trạng thái lịch sử khi lập spec. Hiện `ui.IntraChat` là launcher Messenger duy nhất (Demo/Chat LAN), `LanConnectionDialog` thay màn hình Live riêng; xem `../../docs/ui-migration-2026-11-21.md`. M2 **chưa Verified**.
+
 # Feature Specification: Nhắn tin trực tiếp P2P — Giai đoạn 03 (M2)
 
 **Feature Branch:** `003-p2p-messaging` (nhánh tài liệu, tạo từ `feat/m1-lan-networking`; không phải trạng thái đã triển khai)

@@ -92,6 +92,7 @@ public final class JsonEnvelopeCodec {
             if (root == null || !root.isObject() || parser.nextToken() != null) {
                 throw new ProtocolException("JSON_INVALID", "Expected one JSON object");
             }
+            rejectUnpairedSurrogates(root);
             fieldsOnly(root, ROOT_FIELDS);
             if (!root.path("protocolVersion").isInt() || root.path("protocolVersion").intValue() != 1) {
                 throw new ProtocolException("VERSION_UNSUPPORTED", "Unsupported protocol version");
@@ -136,6 +137,8 @@ public final class JsonEnvelopeCodec {
     }
 
     private void validate(NetworkEnvelope envelope) throws ProtocolException {
+        rejectUnpairedSurrogates(mapper.valueToTree(envelope.sender().displayName()));
+        rejectUnpairedSurrogates(mapper.valueToTree(envelope.payload()));
         if (!ALLOWED_TYPES.contains(envelope.type())) {
             throw new ProtocolException("UNSUPPORTED_TYPE_FOR_PHASE", "Only M1 technical messages are allowed");
         }
@@ -194,6 +197,27 @@ public final class JsonEnvelopeCodec {
                 if (code.length() > 64) throw new ProtocolException("JSON_INVALID", "Invalid error code");
             }
             default -> throw new ProtocolException("UNSUPPORTED_TYPE_FOR_PHASE", "Unsupported message type");
+        }
+    }
+
+    /** Reject invalid UTF-16 introduced by JSON \\u escapes rather than replacing bytes. */
+    private static void rejectUnpairedSurrogates(JsonNode node) throws ProtocolException {
+        if (node.isTextual()) {
+            String value = node.textValue();
+            for (int i = 0; i < value.length(); i++) {
+                char current = value.charAt(i);
+                if (Character.isHighSurrogate(current)) {
+                    if (++i >= value.length() || !Character.isLowSurrogate(value.charAt(i))) {
+                        throw new ProtocolException("UTF8_INVALID", "Unpaired high surrogate in JSON text");
+                    }
+                } else if (Character.isLowSurrogate(current)) {
+                    throw new ProtocolException("UTF8_INVALID", "Unpaired low surrogate in JSON text");
+                }
+            }
+        } else if (node.isContainerNode()) {
+            for (JsonNode child : node) {
+                rejectUnpairedSurrogates(child);
+            }
         }
     }
 

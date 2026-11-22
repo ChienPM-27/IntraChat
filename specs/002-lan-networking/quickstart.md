@@ -1,58 +1,39 @@
-# Quickstart — IntraChat M1 Direct LAN Diagnostics (In Progress)
+# Spec 002 — Chẩn đoán TCP v1 trong Messenger (M1)
 
-**Runtime tested:** Windows 11 x64, Eclipse Temurin Java 21.0.13.1+2, Maven Wrapper 3.9.16.
-**State:** **Manual TCP/IPv4 diagnostics implemented and locally tested**, including a real two-process Swing loopback demonstration; **two physical LAN PCs NOT TESTED** and M1 not Verified.
+**Cập nhật:** 2026-11-22 · **M1: IN PROGRESS, Gate 1 NOT VERIFIED**
+**Phiên bản giao diện:** Một launcher `ui.IntraChat` duy nhất; có **dialog M1 chẩn đoán kỹ thuật riêng** bên trong màn hình kết nối LAN. Không khôi phục launcher `vn.intrachat.IntraChatApplication`, `MainWindow` hay `NetworkPanel` lịch sử.
 
-## Important security warning
+## 1. Cài đặt và kiểm thử trên Windows / Java 21
 
-**M1 HAS NO DEVICE AUTHENTICATION AND NO ENCRYPTION.** A self-declared UUID/name/IP or pressing **Chấp nhận** does **not** establish identity or trust. Only synthetic diagnostic PING/PONG is allowed; do not send user chat, History, File or sensitive data. Do not expose the listener to public networks.
-
-## Build & verification (actually run)
-
-Run from repository root in PowerShell with actual Temurin JDK21 installed and active:
+Mở PowerShell tại thư mục gốc repository. Ví dụ Java 21 trên máy phát triển hiện tại:
 
 ```powershell
-java -version
-.\mvnw.cmd clean package
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-m1.ps1 -Offline
-java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics
+$env:JAVA_HOME='C:\Users\XuanHoai\.jdks\jdk-21.0.12.1+1'
+$env:PATH=$env:JAVA_HOME+'\bin;'+$env:PATH
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m1.ps1 -Offline
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m2.ps1 -Offline
 java -jar target\intrachat-0.1.0-SNAPSHOT.jar
+java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 ```
 
-Maven downloads dependencies on first build. `-Offline` works only after dependencies are cached. The **shaded** `target/intrachat-0.1.0-SNAPSHOT.jar` contains Jackson runtime dependency and is launchable with `java -jar`.
+**Kết quả có bằng chứng ngày 22/11/2026:** cả hai script `exit 0`, **172/172 JUnit PASS**, clean offline package + shaded JAR diagnostics PASS, GUI M1 `LanDiagnosticsDialogTest` **5/5 PASS**; bài hai JVM M1 Accept/Reject/timeout **3/3 PASS** trên **một máy**. [Báo cáo thực thi](evidence/m1-local-completion-2026-11-22.md).
 
-**Local test evidence:** Java21 `scripts/verify-m1.ps1 -Offline` completed **45 JUnit tests (sau khi hợp nhất FE demo), 0 failures/errors** (including M0 regression). See [test results](evidence/m1-test-results.md) and [two-process UI evidence](evidence/us2-approval-handshake.md). None of these tests imply production-grade security or two physical PCs.
+## 2. Mở M1 TCP diagnostic trong Messenger
 
-## Two independent GUI processes on one Windows PC (tested)
+1. Khởi động Messenger bằng `java -jar ...`; mở chức năng **Chat trong LAN** để đến màn hình `LanConnectionDialog` (luồng TLS Chat Live M2).
+2. Chọn nút **“Chẩn đoán TCP v1 (KHÔNG mã hóa)”** để mở `LanDiagnosticsDialog`. Đây là cửa sổ **diagnostics kỹ thuật M1**, không phải Chat Live.
+3. Trên máy A, nhập IPv4 thuộc LAN được cấp phép và port chẩn đoán, mặc định **47322** (khác mặc định Chat Live TLS M2 **47321**), sau đó nhấn **Bắt đầu lắng nghe**.
+4. Trên máy B, chỉ nhập **IPv4 và port thủ công** của A; nhấn **Kết nối kỹ thuật**. Máy A phải thấy popup với tên/UUID **tự khai, chưa tin cậy**, và **chủ động Chấp nhận kỹ thuật** hoặc **Từ chối**. Nếu không tương tác, yêu cầu hết hạn; không có auto-accept trong giao diện production.
+5. Chỉ khi handshake HELLO → ACCEPT → CONFIRM → READY thành công, nút **Ping kiểm tra** mới bật ở cả hai phía; PONG chỉ báo hiệu phản hồi **kỹ thuật**/độ trễ, **không phải xác nhận gửi/đọc tin nhắn**.
+6. Dùng **Hủy kết nối** nếu đang chờ, **Ngắt kết nối** sau READY, hoặc **Kết nối lại thủ công** khi thất bại/từ chối. Không có auto retry.
+7. Đóng dialog để dừng listener M1 và các worker/sockets của cửa sổ đó. Kênh Chat Live M2 TLS/SAS là đường truyền **riêng**, không bị thay thế bởi v1 chẩn đoán.
 
-Use separate profile locations to avoid accidentally sharing the same self-declared `deviceId`:
+**Cảnh báo bảo mật bắt buộc:** M1 v1 là **plaintext/unauthenticated**; IPv4, tên hiển thị và UUID do peer tự khai **không phải danh tính được xác minh**. M1 chỉ gửi PING/PONG synthetic; **không gửi text, Group, History, File, Media hoặc dữ liệu nhạy cảm** qua cửa sổ này. M2 Chat Live chỉ cho phép user text sau TLS 1.3 và xác minh SAS/fingerprint hai phía.
 
-```powershell
-java '-Dintrachat.profile=C:\Temp\intrachat-A.properties' -jar target\intrachat-0.1.0-SNAPSHOT.jar
-java '-Dintrachat.profile=C:\Temp\intrachat-B.properties' -jar target\intrachat-0.1.0-SNAPSHOT.jar
-```
+## 3. Phạm vi kiểm thử thực tế và nghiệm thu còn chặn
 
-Use a **writable existing directory** instead of `C:\Temp` if necessary. A default profile is stored as nonsecret config under `%LOCALAPPDATA%\IntraChat\config\device.properties`. The override only affects the current JVM. To run separate JVMs from one PowerShell instance, start them as separate processes/terminals; each owns its own UI.
+- **Đã chạy local:** Java 21 full 172/172; two-JVM Accept/Reject/timeout; 8 lượt cross-connect đồng thời GREEN sau race fix; 16 frames/2 MiB queue/4 active/4 pending; heartbeat fake clock 10s/30s; malformed HELLO/port conflict/truncated frame; 5 GUI listen/dispose; GUI Accept→PONG và Reject→manual reconnect.
+- **CHƯA CHẠY:** hai **máy Windows vật lý riêng biệt** trên cùng Private LAN trong khi public Internet không khả dụng, IP/firewall/timeout/diagnostics hai hướng trên host thật, security review và Constitution Gate 1. Các task **T050–T053, T058–T060** vẫn mở; M1 **NOT VERIFIED**.
+- Không tự sửa Windows Firewall Public hoặc ngắt Internet hệ thống nếu chưa được chủ máy và quản trị mạng cho phép. Khi có hai máy thật, làm theo [Windows LAN Setup](../../docs/windows-lan-setup.md), ghi kết quả từng máy vào [US5 real LAN](evidence/us5-real-lan.md), không nhầm localhost với hai PC.
 
-1. In A, section 1 enter `127.0.0.1` and TCP port **47321**, click **Bắt đầu lắng nghe**.
-2. In B, section 2 enter **127.0.0.1:47321**, click **Kết nối**. B must not show CONNECTED yet.
-3. A receives a real **Yêu cầu kết nối LAN đến** dialog with unverified device identity and strong plaintext warning. Click **Chấp nhận** (or **Từ chối** to test the denial). An unanswered dialog expires after ~30s.
-4. Only after Accept and protocol v1 HELLO negotiation do both windows show CONNECTED-for-diagnostics. Click **Ping kiểm tra** in B and A to verify synthetic PING/PONG; no chat read receipt.
-5. Disconnect with **Ngắt kết nối**. To reattempt, **manually** click **Kết nối lại**; the receiver must approve every incoming connection again.
-6. Close both UI windows normally. Network tasks and socket resources should terminate.
-
-The actual local Swing test on this machine observed **A listening**, **B pending**, a **human click Accept**, both connected, and PONG in **both directions** (~6ms and ~7ms from UI). One first attempt timed out; B displayed a failure, then a **manual** retry led to new approval. The application did not auto-accept or auto-reconnect.
-
-## Two Windows PCs on the real LAN (NOT RUN)
-
-- On each PC select the actual private LAN IPv4 address from `ipconfig` (never `127.0.0.1` for another PC), set listener port **47321** (or agreed alternative) and type peer's IPv4:port manually.
-- Private-profile firewall inbound TCP rule **only if authorized**; the app does not change Windows firewall. A Wi-Fi guest/client isolation policy may block direct connections.
-- Keep LAN communication operational while testing without public Internet if safe/authorized. Require explicit inbound Accept; exchange synthetic Ping/Pong from both sides, reverse roles, then test Reject, timeout and manual retry.
-- Record actual results in `evidence/us5-real-lan.md`; **AC-02-A/I and M1 Verified remain BLOCKED** until done.
-- See [Windows LAN Setup Guide](../../docs/windows-lan-setup.md).
-
-## Test/diagnostics scope
-
-- `scripts/verify-m1.ps1` tests Java21 build, automated loopback and JAR diagnostics **on one Windows PC**. It does not connect to a second PC.
-- `scripts/verify-m0.ps1` tests M0 foundation. M0 was separately verified with actual JDK21 and a JVM network-denial harness; no real LAN evidence is implied.
-- No online account, relay, discovery, group, file, chat or history code is enabled by M1.
+**Lịch sử:** Các báo cáo [US1](evidence/us1-manual-connect.md), [US2](evidence/us2-approval-handshake.md), [US3](evidence/us3-diagnostics.md) ghi trạng thái trước khi giao diện M1 được tách thành dialog trong Messenger. Từ 22/11/2026 trở đi, dùng hướng dẫn và [bằng chứng local mới](evidence/m1-local-completion-2026-11-22.md).

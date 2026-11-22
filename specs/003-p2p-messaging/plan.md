@@ -1,3 +1,5 @@
+> **Ghi chú phạm vi đồ án (22/11/2026):** [ROADMAP hiện hành](../../ROADMAP.md) · [11 chức năng và nghiệm thu lớp học](../../docs/course-project-scope.md) · [Tích hợp Messenger](../../docs/messenger-integration-plan.md). **M2 65/90**; P2P text/emoji/State/Time/Sender đã có Live cục bộ; ưu tiên cung cấp hạ tầng cho Group/History/File/Media trên Messenger, không làm lại TLS/DPAPI đang chạy. **Các yêu cầu Gate/audit bảo mật chuyên sâu ở phần lịch sử bên dưới chuyển thành nâng cao, không phải điều kiện để bắt đầu code**. Giữ an toàn tối thiểu, không tắt TLS M2, không giả mạo trạng thái hoặc ghi đè file ngoài ý muốn. **Task checkbox/biên bản Gate cũ không bị đổi thành PASS**; khi có tính năng Live thật hãy ghi test và trạng thái riêng trong [ma trận 11 chức năng](../../docs/feature-matrix.md).
+
 # Implementation Plan — Giai đoạn 03: Secure P2P Messaging (M2)
 
 **Feature/branch:** 003-p2p-messaging
@@ -6,7 +8,7 @@
 **Specification:** [spec.md](spec.md) (CL-03-01…05 confirmed) · [requirements checklist](checklists/requirements.md)
 **Constitution:** [v1.0.0](../../.specify/memory/constitution.md)
 **Design artifacts:** [research](research.md) · [data model](data-model.md) · [v2 protocol contract](contracts/chat-v2.md) · [quickstart/testing](quickstart.md)
-**Dependencies:** M0 Verified (41/41); **M1 In Progress (36/60)**, loopback proven, **two physical Windows LAN peers NOT TESTED**. M1 Gate 1 and M2 Gate 1 remain open.
+**Dependencies (mới nhất 22/11/2026):** M0 Verified (41/41); M1 **53/60**, M2 **65/90**. P2P Live text/emoji đã có test local; hai physical Windows LAN peers chưa test. Gate1 là trạng thái nghiệm thu kỹ thuật lịch sử, không chặn code 11 chức năng đồ án.
 **Current repo reality (updated after implementation):** Java 21/Maven/FlatLaf/Jackson/JUnit remain; M1 raw TCP/JSON v1 diagnostic-only. **New** M2 branch contains JSSE TLS1.3, DPAPI device/pins, first human SAS dialogs, secure CHAT_V2 text/ACK/view-read and FE Live; Demo remains separate. Only local Windows loopback and JDK21 regression demonstrated; two physical PCs/security acceptance NOT VERIFIED.
 
 ## 1. Summary and binding Clarifications

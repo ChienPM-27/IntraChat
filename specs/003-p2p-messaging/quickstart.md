@@ -1,8 +1,10 @@
+> **Lưu ý thay đổi UI (21/11/2026):** M1 diagnostic UI và cửa sổ Live độc lập đã được gỡ. Chạy `java -jar target/intrachat-0.1.0-SNAPSHOT.jar` để mở Messenger; chọn **Chat trong LAN (TLS 1.3)** tại trang đăng nhập để kết nối, xác minh fingerprint. Các đoạn hướng dẫn cũ bên dưới (nếu có) cần hiểu theo entrypoint thống nhất.
+
 # M2 Quickstart & Acceptance Procedure — Local Secure P2P Prototype
 
-**STATUS: IN PROGRESS — local Windows prototype implemented and tested; NOT security certified or M2 Verified.** Java21 Live FE, CHAT_V2/TLS1.3/SAS first-pair, protected text/ACK/view READ work on **one Win11 desktop with two separate JVMs**. Security review, fault/queue stress, manual uncertain-send recovery and **two physical Windows LAN PCs** are still outstanding.
+**STATUS (22/11/2026): IN PROGRESS — 65/90 checked, full Java21 223/223 JUnit PASS; NOT security certified or M2 Verified.** Unified Messenger uses a strict shared-port **v1 diagnostics-only / v2 mutual TLS** dispatcher, which rejects invalid/downgraded frames. First-pair SAS/pin, protected text/ACK/foreground-view READ and **explicit UNCERTAIN manual retry** now have local source/tests; two separate Java processes on **one physical Windows PC** have passed protected two-way emoji tests. Independent security review, full secure queue/EDT stress and **two physical Windows LAN PCs** remain outstanding. [Latest pairing/TLS/Live UI RED→GREEN evidence](evidence/m2-continued-code-2026-11-22.md) · [Earlier local evidence](evidence/m2-local-code-2026-11-22.md).
 **References:** [spec](spec.md), [plan](plan.md), [wire contract](contracts/chat-v2.md), [data model](data-model.md).
-**Actual baseline:** M1 Java21 local TCP diagnostics and FE standalone Demo exist; M1 real two-PC Gate 1 remains NOT VERIFIED.
+**Actual baseline:** M0 Verified (41/41); M1 local **53/60**, including M1 dialog in Messenger, but real two-PC M1 Gate 1 remains NOT VERIFIED. M2 **65/90**, M2 Gate 1 NOT VERIFIED.
 
 ## 1. Java 21 / baseline verification (existing commands)
 
@@ -14,18 +16,18 @@ From the repository root on Windows 11 x64 with actual Java 21 and Maven cache:
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-m2.ps1 -Offline
     java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 
-**Actual three entrypoints:** `java -jar target/intrachat-0.1.0-SNAPSHOT.jar` launches **M1 diagnostics only**; `java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat` launches **M2 real TLS chat prototype**; `java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.IntraChat` launches **FE mock Demo only**. The M2 script runs Java21 regression but **cannot** verify two physical PCs, human pairing or independent security review.
+**Unified entrypoint (updated 2026-11-22):** `java -jar target/intrachat-0.1.0-SNAPSHOT.jar` launches **one Messenger frontend**; select **Chat trong LAN** for M2 TLS user chat or **Demo** for mock-only data. Its manually started listener on the selected TCP port routes **M1 v1 synthetic Ping/Pong** (requires separate plaintext-warning consent) versus **M2 v2 TLS** (requires human consent and first-time SAS). M3 Group packets remain rejected; no v1 chat downgrade. The M2 script runs Java21 regression but **cannot** verify two physical PCs, human pairing or independent security review.
 
 ## 2. Actual two-process Windows loopback (selected steps tested; remaining are acceptance targets)
 
 1. Build the current M2 prototype using `.\mvnw.cmd -o clean package` and `scripts/verify-m2.ps1 -Offline` (requires cached dependencies and actual JDK21). The original M2 baseline recorded **74 JUnit tests**; newer security test additions must be counted from **current Surefire XML**, not that historical number. See [baseline](evidence/m2-baseline.md) and [security hardening evidence](evidence/certificate-validation-jdk21.md).
-2. Launch **two separate terminals/JVMs** with unique `-Dintrachat.secureRoot` paths and Live entrypoint (replace directory paths with writable directories that will be cleaned after test):
+2. Launch **two separate terminals/JVMs** with unique `-Dintrachat.secureRoot` paths and the unified Messenger entrypoint (replace directory paths with writable directories that will be cleaned after test):
 
-       java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-A' -cp target\intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
-       java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-B' -cp target\intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
+       java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-A' -jar target\intrachat-0.1.0-SNAPSHOT.jar
+       java '-Dintrachat.secureRoot=C:\Temp\intrachat-live-B' -jar target\intrachat-0.1.0-SNAPSHOT.jar
 
    The standard live launch without an override uses `%LOCALAPPDATA%\IntraChat\security\`. **Do not use the same secureRoot on two JVMs**, since that would share a private identity; avoid leaving synthetic test credentials in shared folders. `C:\Temp` is an example, use a writable location.
-3. In A, manually start listener on 127.0.0.1:47321; in B manually Connect to A. A must see real inbound approval popup; Reject → no TLS app session.
+3. In both Messenger login windows, click **Chat trong LAN (TLS 1.3)**. In A, manually start listener on 127.0.0.1:47321; in B manually Connect to A. A must see real inbound approval popup; Reject → no TLS app session.
 4. Accept; initial A/B screens show **the same 64-bit SAS**, verify through independent comparison, Confirm on both. Until both local confirmations and both protected PAIR_READY messages, **Send disabled**; no plaintext user content.
 5. In B Live FE send "Xin chào Việt Nam 👋" (UTF-8) to A; A sees correct sender/time/conversation. B shows LOCAL_SENT then **Đã nhận** only after A sends application ACK.
 6. Without opening the conversation on A, verify B **does NOT show Đã xem**. Preview/notification/background/hidden viewport does not emit read receipt. Bring A's Live chat to foreground and visibly scroll message bubble into viewport for ≥250ms; after protected read receipt B may show **Đã xem** for that exact message. It only means app displayed the content.
@@ -34,7 +36,7 @@ From the repository root on Windows 11 x64 with actual Java 21 and Maven cache:
 9. Close and reopen both applications: **trust fingerprint still matches** but neither conversation text nor draft/read receipt should be restored. Human inbound approval remains mandatory on new connection.
 10. Replace peer key/test changed fingerprint: must block user chat, require manual re-pair; never downgrade to raw M1 to send text.
 
-**Actually observed on this Windows PC:** Steps 2–6 for initial pairing and read/view in each direction, plus remembered fingerprint and new inbound Accept on relaunch. See [US1](evidence/us1-fingerprint-pairing.md), [US4](evidence/us4-delivery-read-receipt.md), [US5](evidence/us5-fe-live-demo.md). Step 8 uncertain-send retry, full multi-peer/changed-key UI tests and cross-device physical LAN steps remain **NOT FULLY RUN**. Do not upload real secrets/messages.
+**Actually observed on this Windows PC:** Historical steps 2–6 for initial human GUI pairing and view-based READ are documented in [US1](evidence/us1-fingerprint-pairing.md), [US4](evidence/us4-delivery-read-receipt.md), [US5](evidence/us5-fe-live-demo.md). Newer **automated** 22/11 evidence includes [two genuine JVM processes with first-pair SAS callback, pinned restart, changed-key denial and encrypted two-way text/emoji](evidence/us2-text-emoji.md), [sender UTC/timezone mapping](evidence/us3-sender-time.md), [manual UNCERTAIN retry with fake clock](evidence/m2-local-code-2026-11-22.md) and [partial secure RAM/peer resource tests](evidence/m2-resource-tests.md). **Production manual-retry GUI under real two-host LAN, complete secure queue/EDT stress, and physical dual-PC acceptance are NOT FULLY RUN**; don't confuse test callback approval with human GUI approval. Do not upload real secrets/messages.
 
 ## 3. Mandatory two-physical-Windows-PC acceptance (NOT RUN)
 
@@ -70,8 +72,11 @@ From the repository root on Windows 11 x64 with actual Java 21 and Maven cache:
 | --- | --- |
 | [evidence/m2-baseline.md](evidence/m2-baseline.md) | **74/74 JUnit tests PASS on actual JDK21 in final `verify-m2.ps1 -Offline` run** |
 | [evidence/us1-fingerprint-pairing.md](evidence/us1-fingerprint-pairing.md) | **Local two-GUI first pair + restart + inbound approval PASS** |
-| Real text/emoji A↔B | **Local GUI & protected service JUnit tested, see US4/US5** |
-| Sender/Time | **Local GUI visually checked, full timezone/clock drift NOT RUN** |
+| [evidence/us2-text-emoji.md](evidence/us2-text-emoji.md) | **New 22/11: two real Java 21 JVM processes on one PC, verified TLS text/emoji both directions, app ACK, pinned restart and key change rejection PASS** |
+| [evidence/us3-sender-time.md](evidence/us3-sender-time.md) | **New 22/11: 3/3 JUnit UTC/timezone/alias/verified UUID tests PASS; human cross-PC GUI acceptance NOT RUN** |
+| [evidence/m2-local-code-2026-11-22.md](evidence/m2-local-code-2026-11-22.md) | **Earlier 22/11 local slice:** shared v1/v2 listener, manual uncertain retry, typed receipts, Live EDT/GUI tests |
+| [evidence/m2-continued-code-2026-11-22.md](evidence/m2-continued-code-2026-11-22.md) | **Latest 22/11: 65/90; 223/223 PASS; actual TLS peer certificate binding, trust-state revocation/READY, Live multiline draft vs original Demo composer, UUID-only offline peers** |
+| [evidence/m2-resource-tests.md](evidence/m2-resource-tests.md) | **New 22/11: real TLS 4 active, 128 pending; 500/2MiB/1024 dedup caps, T078 still PARTIAL/OPEN** |
 | [evidence/us4-delivery-read-receipt.md](evidence/us4-delivery-read-receipt.md) | **Local real GUI ACK vs READ foreground/background PASS** |
 | [evidence/us5-fe-live-demo.md](evidence/us5-fe-live-demo.md) | **Live real LAN loopback and Demo separate GUI launch PASS** |
 | Two distinct physical Win11 LAN PCs | **NOT RUN — release BLOCKED** |
@@ -85,7 +90,7 @@ From the repository root on Windows 11 x64 with actual Java 21 and Maven cache:
 - [x] Protocol-specific Java21 negative tests and documented canonical [SAS/UUID vectors](contracts/chat-v2.md); synthetic only, no genuine keys.
 - [x] [Threat model](evidence/threat-model.md) documents MITM/impersonation/pinning/downgrade/DPAPI/ACK/read/replay/DoS stop rules.
 - [ ] Formal dependency CVE/SBOM/signature/legal approval ([dependency evidence](evidence/dependency-review.md)).
-- [ ] Complete 4-active/4-pending and total 8MiB RAM/queued-frame stress; finish actual manual uncertain-send retry and UI accessibility.
+- [ ] Complete M2 TLS **4-pending / 16-frame+2MiB actual TLS queued writer / half-open / EDT** resource stress and real two-host human UI accessibility. **Local 4-active/128-pending/500-message/2MiB+1024-dedup and manual uncertain retry have passing tests**, but T078/GUI release acceptance are still OPEN.
 - [ ] Both separate physical Win11 LAN computers and independent security reviewer/sign-off.
 
 See [Windows M1/M2 LAN/firewall guide](../../docs/windows-lan-setup.md) for a practical **Private** firewall-only, manual IPv4:port and two-machine evidence procedure.

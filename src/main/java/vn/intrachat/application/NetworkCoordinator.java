@@ -30,7 +30,10 @@ public final class NetworkCoordinator implements AutoCloseable {
     private final SessionRegistry registry = new SessionRegistry();
     private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
     private final Map<UUID,TcpPeerSession> sessions = new ConcurrentHashMap<>();
+    // Admissions and close callbacks must be atomic together, not separately per registry/map.
+    private final Object sessionAdmissionLock = new Object();
     private final AtomicBoolean connecting = new AtomicBoolean();
+    private final AtomicBoolean connectCancelled = new AtomicBoolean();
     private volatile TcpListener listener;
     private volatile Socket connectingSocket;
     private volatile NetworkConfig previousRemote;
@@ -84,6 +87,7 @@ public final class NetworkCoordinator implements AutoCloseable {
         if (!connecting.compareAndSet(false, true)) {
             return CompletableFuture.failedFuture(new IllegalStateException("A connection is already pending"));
         }
+        connectCancelled.set(false);
         previousRemote = remote;
         publish(NetworkEvents.Kind.CONNECTING,
             "Đang kết nối " + remote.ipv4() + ":" + remote.port() + " — chưa xác thực", null);
@@ -93,6 +97,7 @@ public final class NetworkCoordinator implements AutoCloseable {
             try {
                 socket = TcpConnector.connect(remote);
                 connectingSocket = socket;
+                requireConnectNotCancelled();
                 UUID requestId = UUID.randomUUID();
                 Map<String,Object> helloBody = Map.of(
                     "requestId", requestId.toString(),
@@ -100,7 +105,7 @@ public final class NetworkCoordinator implements AutoCloseable {
                     "clientVersion", "0.1.0-SNAPSHOT");
                 send(socket, NetworkEnvelope.create(MessageType.HELLO, localPeer,
                     NetworkEnvelope.UNKNOWN_PEER, helloBody), FrameCodec.HELLO_LIMIT);
-                publish(NetworkEvents.Kind.CONNECTING,
+                publish(NetworkEvents.Kind.WAITING_REMOTE_APPROVAL,
                     "Đang chờ người nhận Chấp nhận/Từ chối (tối đa 30 giây)", null);
                 socket.setSoTimeout(35_000);
                 NetworkEnvelope response = receive(socket, FrameCodec.HELLO_LIMIT);
@@ -115,6 +120,7 @@ public final class NetworkCoordinator implements AutoCloseable {
                         || !response.destination().id().equals(localPeer.deviceId())) {
                     throw new ProtocolException("HANDSHAKE_INVALID", "Unexpected HELLO_ACCEPT identity/correlation");
                 }
+                requireConnectNotCancelled();
                 UUID sessionId = HandshakeValidator.requireUuid(response.payload(), "sessionId");
                 PeerIdentity peer = response.sender(); // claimed, NOT verified!
                 send(socket, NetworkEnvelope.create(MessageType.HELLO_CONFIRM, localPeer,
@@ -129,14 +135,32 @@ public final class NetworkCoordinator implements AutoCloseable {
                         || !sessionId.equals(HandshakeValidator.requireUuid(ready.payload(), "sessionId"))) {
                     throw new ProtocolException("HANDSHAKE_INVALID", "Expected matching HELLO_READY");
                 }
-                if (!registry.reservePeer(peer.deviceId())) {
-                    throw new ProtocolException("CAPACITY_EXCEEDED", "Peer already connected or session limit reached");
-                }
+                requireConnectNotCancelled();
                 TcpPeerSession session = new TcpPeerSession(socket, localPeer, peer, sessionId, codec,
-                    workers, this::removeSession);
-                sessions.put(peer.deviceId(), session);
-                handedOff = true;
-                session.start();
+                    workers, id -> removeSession(id, sessionId));
+                TcpPeerSession previous;
+                synchronized (sessionAdmissionLock) {
+                    SessionRegistry.Reservation reservedSession = registry.reservePeer(
+                        peer.deviceId(), sessionId, SessionRegistry.Direction.OUTBOUND, localPeer.deviceId());
+                    if (reservedSession == SessionRegistry.Reservation.REJECTED) {
+                        throw new ProtocolException("CAPACITY_EXCEEDED",
+                            "Peer already connected on preferred connection or limit reached");
+                    }
+                    previous = sessions.put(peer.deviceId(), session);
+                }
+                try {
+                    session.start();
+                    handedOff = true;
+                } catch (IOException | RuntimeException startupFailure) {
+                    session.close();
+                    throw startupFailure;
+                }
+                if (previous != null) previous.close();
+                if (connectCancelled.get() || closed) {
+                    session.close();
+                    throw new IOException("Connection attempt was cancelled");
+                }
+                if (!session.isOpen()) throw new IOException("Connection closed before diagnostic READY");
                 publish(NetworkEvents.Kind.CONNECTED, "Đã kết nối chẩn đoán với "
                     + peer.displayName() + " (chưa xác thực, chưa mã hóa)", peer.deviceId());
                 return peer;
@@ -162,6 +186,7 @@ public final class NetworkCoordinator implements AutoCloseable {
     }
 
     public void cancelPendingConnect() {
+        if (connecting.get()) connectCancelled.set(true);
         Socket socket = connectingSocket;
         if (socket != null) {
             try { socket.close(); } catch (IOException ignored) { }
@@ -191,16 +216,32 @@ public final class NetworkCoordinator implements AutoCloseable {
     }
 
     private void handleIncoming(Socket candidate) {
+        handleIncoming(candidate,null);
+    }
+
+    /**
+     * Called only after SharedProtocolListener strictly validates the first M1 HELLO.
+     * M1 device UUID is still an untrusted plaintext claim.
+     */
+    public void acceptSharedCandidate(Socket candidate,byte[] validatedFirstFrame) {
+        Objects.requireNonNull(validatedFirstFrame,"validatedFirstFrame");
+        handleIncoming(candidate,validatedFirstFrame);
+    }
+
+    private void handleIncoming(Socket candidate,byte[] firstFrame) {
         if (closed || !registry.tryReservePending()) {
             try { candidate.close(); } catch (IOException ignored) { }
             return;
         }
         boolean handedOff = false;
         UUID claimedId = null;
+        UUID reservedSessionId = null;
         boolean reserved = false;
         try {
             candidate.setSoTimeout(NetworkConfig.HELLO_TIMEOUT_MS);
-            NetworkEnvelope hello = receive(candidate, FrameCodec.HELLO_LIMIT);
+            NetworkEnvelope hello = firstFrame==null
+                ? receive(candidate, FrameCodec.HELLO_LIMIT)
+                : codec.decode(firstFrame);
             UUID requestId = HandshakeValidator.validateHello(hello);
             PeerIdentity peer = hello.sender(); // UNVERIFIED network claim.
             claimedId = peer.deviceId();
@@ -223,11 +264,6 @@ public final class NetworkCoordinator implements AutoCloseable {
                 sendReject(candidate, requestId, claimedId, "USER_REJECTED");
                 return;
             }
-            if (!registry.reservePeer(claimedId)) {
-                sendReject(candidate, requestId, claimedId, "CAPACITY_EXCEEDED");
-                return;
-            }
-            reserved = true;
             UUID sessionId = UUID.randomUUID();
             send(candidate, NetworkEnvelope.create(MessageType.HELLO_ACCEPT, localPeer, peer.deviceId(),
                 Map.of("requestId", requestId.toString(), "sessionId", sessionId.toString(),
@@ -238,16 +274,38 @@ public final class NetworkCoordinator implements AutoCloseable {
                     || !confirm.sender().deviceId().equals(peer.deviceId())
                     || !confirm.destination().id().equals(localPeer.deviceId())
                     || !requestId.equals(HandshakeValidator.requireUuid(confirm.payload(), "requestId"))
-                    || !sessionId.equals(HandshakeValidator.requireUuid(confirm.payload(), "sessionId"))) {
-                throw new ProtocolException("HANDSHAKE_INVALID", "HELLO_CONFIRM mismatch");
+                    || !sessionId.equals(HandshakeValidator.requireUuid(confirm.payload(), "sessionId"))
+                    || !(confirm.payload().get("chosenVersion") instanceof Number version)
+                    || version.intValue() != 1) {
+                throw new ProtocolException("HANDSHAKE_INVALID", "HELLO_CONFIRM mismatch/version");
             }
+            TcpPeerSession session = new TcpPeerSession(candidate, localPeer, peer, sessionId,
+                codec, workers, id -> removeSession(id, sessionId));
+            TcpPeerSession previous;
+            SessionRegistry.Reservation reservedSession;
+            synchronized (sessionAdmissionLock) {
+                reservedSession = registry.reservePeer(
+                    claimedId, sessionId, SessionRegistry.Direction.INBOUND, localPeer.deviceId());
+                previous = reservedSession == SessionRegistry.Reservation.REJECTED
+                    ? null : sessions.put(peer.deviceId(), session);
+            }
+            if (reservedSession == SessionRegistry.Reservation.REJECTED) {
+                sendReject(candidate, requestId, claimedId, "CAPACITY_EXCEEDED");
+                return;
+            }
+            reserved = true;
+            reservedSessionId = sessionId;
             send(candidate, NetworkEnvelope.create(MessageType.HELLO_READY, localPeer, peer.deviceId(),
                 Map.of("sessionId", sessionId.toString())), FrameCodec.HELLO_LIMIT);
-            TcpPeerSession session = new TcpPeerSession(candidate, localPeer, peer, sessionId,
-                codec, workers, this::removeSession);
-            sessions.put(peer.deviceId(), session);
-            handedOff = true;
-            session.start();
+            try {
+                session.start();
+                handedOff = true;
+            } catch (IOException | RuntimeException startupFailure) {
+                session.close();
+                throw startupFailure;
+            }
+            if (previous != null) previous.close();
+            if (!session.isOpen()) throw new IOException("Connection closed before diagnostic READY");
             publish(NetworkEvents.Kind.CONNECTED, "Chấp nhận kết nối chẩn đoán: "
                 + peer.displayName() + " — chưa xác thực/chưa mã hóa", peer.deviceId());
         } catch (IOException | RuntimeException failure) {
@@ -256,7 +314,7 @@ public final class NetworkCoordinator implements AutoCloseable {
         } finally {
             registry.releasePending();
             if (!handedOff) {
-                if (reserved && claimedId != null) registry.releasePeer(claimedId);
+                if (reserved && claimedId != null) registry.releasePeer(claimedId, reservedSessionId);
                 try { candidate.close(); } catch (IOException ignored) { }
             }
         }
@@ -280,15 +338,28 @@ public final class NetworkCoordinator implements AutoCloseable {
         return codec.decode(FrameCodec.readFrame(socket.getInputStream(), cap));
     }
 
-    private void removeSession(UUID remoteId) {
-        sessions.remove(remoteId);
-        registry.releasePeer(remoteId);
-        publish(NetworkEvents.Kind.DISCONNECTED, "Đã ngắt kết nối; chỉ thử lại khi bạn bấm Kết nối lại", remoteId);
+    private void removeSession(UUID remoteId, UUID sessionId) {
+        boolean removed = false;
+        synchronized (sessionAdmissionLock) {
+            TcpPeerSession active = sessions.get(remoteId);
+            if (active != null && sessionId.equals(active.sessionId()))
+                removed = sessions.remove(remoteId, active);
+            // Old-session callbacks may release only their own lease, never a replacement.
+            registry.releasePeer(remoteId, sessionId);
+        }
+        if (removed)
+            publish(NetworkEvents.Kind.DISCONNECTED,
+                "Đã ngắt kết nối; chỉ thử lại khi bạn bấm Kết nối lại", remoteId);
     }
 
     private void publish(NetworkEvents.Kind kind, String text, UUID peerId) {
         try { events.accept(new NetworkEvents.Event(kind, text, peerId)); }
         catch (RuntimeException ignored) { /* UI callbacks may have been disposed. */ }
+    }
+
+    private void requireConnectNotCancelled() throws IOException {
+        if (connectCancelled.get() || closed)
+            throw new IOException("Connection attempt was cancelled");
     }
 
     private void requireOpen() {

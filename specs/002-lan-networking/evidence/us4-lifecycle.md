@@ -17,4 +17,6 @@
 - UI dialog is visually inspected; no automated focus/keyboard accessibility audit completed.
 - Listener/network identity remains unauthenticated and plaintext; no security certification.
 
-**Decision:** Keep unverified resource/heartbeat/large fault tasks open. M1 not Verified from this evidence.
+**Decision (historic 2026-11-21):** Keep unverified resource/heartbeat/large fault tasks open. M1 not Verified from this evidence.
+
+**2026-11-22 update:** These local tests and implementations have since been executed: [M1 local completion](m1-local-completion-2026-11-22.md), **172/172 full Java21 JUnit PASS**, real Swing diagnostic dialog Cancel/Disconnect/manual Reconnect and five GUI cycles, cross-connect race fix, heartbeat fake-clock RED→GREEN, bounded 16-frame/2MiB queue and slow HELLO fault injection. **T038–T046 now checked (local DoD)**, M1 Gate 1 remains **NOT VERIFIED** without two actual physical LAN PCs.

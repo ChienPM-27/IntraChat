@@ -8,6 +8,7 @@ import vn.intrachat.transport.TlsChatSession;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -29,12 +30,16 @@ public final class LiveChatService implements AutoCloseable {
     private static final int MAX_ACTIVE=4;
     private static final int MAX_PENDING=128;
     private final DeviceIdentity local;
+    private final Duration ackTimeout;
     private final ExecutorService workers=Executors.newVirtualThreadPerTaskExecutor();
     private final ScheduledExecutorService deadlines=Executors.newSingleThreadScheduledExecutor(r->{
         Thread t=new Thread(r,"intrachat-m2-ack-deadlines");t.setDaemon(true);return t;
     });
     private final Map<UUID,PeerSession> sessions=new ConcurrentHashMap<>();
     private final Map<UUID,MessageAttempt> attempts=new ConcurrentHashMap<>();
+    // Reserve atomically before any concurrent TLS send; release once on ACK/READ/close.
+    private final Semaphore pendingCapacity=new Semaphore(MAX_PENDING);
+    private final Set<UUID> pendingReceiptIds=ConcurrentHashMap.newKeySet();
     private final Map<UUID,Message> outbound=new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Consumer<Event>> listeners=new CopyOnWriteArrayList<>();
     private volatile boolean closed;
@@ -45,26 +50,29 @@ public final class LiveChatService implements AutoCloseable {
         final String displayName;
         final List<Message> messages=Collections.synchronizedList(new ArrayList<>());
         final Map<UUID,Message> inbound=new ConcurrentHashMap<>();
-        final LinkedHashSet<UUID> seen=new LinkedHashSet<>();
+        final RecentMessageIds seen=new RecentMessageIds(1024);
         final Set<UUID> viewed=ConcurrentHashMap.newKeySet();
-        private int bytes;
+        final ConversationRamBudget budget=new ConversationRamBudget(MAX_MESSAGES,MAX_MESSAGE_BYTES);
         PeerSession(TlsChatSession socket,UUID conversationId,String displayName) {
             this.socket=socket;this.conversationId=conversationId;this.displayName=displayName;
         }
-        synchronized boolean register(UUID id) {
-            if(!seen.add(id))return false;
-            if(seen.size()>1024)seen.remove(seen.iterator().next());
-            return true;
-        }
+        synchronized boolean register(UUID id) {return seen.firstTime(id);}
         synchronized void add(Message message)throws IOException {
             int size=message.text().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
-            if(messages.size()>=MAX_MESSAGES||bytes+size>MAX_MESSAGE_BYTES)
-                throw new IOException("CHAT_CAPACITY_EXCEEDED");
-            messages.add(message);bytes+=size;
+            budget.reserve(size);
+            messages.add(message);
         }
     }
 
-    public LiveChatService(DeviceIdentity local){this.local=Objects.requireNonNull(local);}
+    public LiveChatService(DeviceIdentity local){this(local,Duration.ofSeconds(30));}
+    /** Package-private fast timeout for real-TLS negative tests; production is 30s. */
+    LiveChatService(DeviceIdentity local,Duration ackTimeout){
+        this.local=Objects.requireNonNull(local);
+        this.ackTimeout=Objects.requireNonNull(ackTimeout);
+        if(ackTimeout.isZero()||ackTimeout.isNegative()
+            ||ackTimeout.compareTo(Duration.ofMinutes(5))>0)
+            throw new IllegalArgumentException("Invalid ACK uncertainty timeout");
+    }
     public UUID localId(){return local.deviceId();}
     public void addListener(Consumer<Event> observer){listeners.add(Objects.requireNonNull(observer));}
     private void publish(EventKind kind,UUID peer,Message message,MessageAttempt.Status status,String reason){
@@ -73,7 +81,8 @@ public final class LiveChatService implements AutoCloseable {
             try{observer.accept(e);}catch(RuntimeException ignored){/* callback may not kill network worker */}
         }
     }
-    public void attach(TlsChatSession transport,String displayName)throws Exception {
+    /** Atomic admission: four peers * two MiB each bounds all active RAM chat to eight MiB. */
+    public synchronized void attach(TlsChatSession transport,String displayName)throws Exception {
         Objects.requireNonNull(transport);
         if(closed||!transport.canChat()||!local.deviceId().equals(transport.localId()))
             throw new IllegalStateException("Cannot attach unverified TLS session");
@@ -109,50 +118,91 @@ public final class LiveChatService implements AutoCloseable {
         MessageAttempt attempt=attempts.get(messageId);
         return attempt==null?null:attempt.status();
     }
+    /** Number of messages still awaiting authenticated delivery evidence in RAM. */
+    public int pendingReceiptCount(){return pendingReceiptIds.size();}
+    private void releasePendingReceipt(UUID id){
+        if(pendingReceiptIds.remove(id))pendingCapacity.release();
+    }
     public CompletableFuture<Message> sendText(UUID remoteId,String text){
         return CompletableFuture.supplyAsync(()->{
             try{return sendBlocking(remoteId,new ChatText(text));}
             catch(Exception failure){throw new CompletionException(failure);}
         },workers);
     }
+    /**
+     * Explicit retry only while one verified TLS session retains an UNCERTAIN
+     * message in RAM. Replays the SAME messageId/timestamp so the remote can
+     * deduplicate. Caller MUST display a duplicate-risk warning to the user.
+     * Never queues an offline send or initiates a network reconnection.
+     */
+    public CompletableFuture<Message> retryUncertain(UUID remoteId,UUID messageId){
+        Objects.requireNonNull(remoteId,"remoteId");
+        Objects.requireNonNull(messageId,"messageId");
+        if(closed)return CompletableFuture.failedFuture(new IOException("Live chat is closed"));
+        return CompletableFuture.supplyAsync(()->{
+            try{
+                PeerSession peer=sessions.get(remoteId);
+                Message original=outbound.get(messageId);
+                MessageAttempt attempt=attempts.get(messageId);
+                if(peer==null||!peer.socket.canChat()||original==null||attempt==null
+                    ||attempt.status()!=MessageAttempt.Status.UNCERTAIN
+                    ||!peer.conversationId.equals(original.conversationId())
+                    ||!peer.socket.sessionId().equals(original.sessionId())
+                    ||!remoteId.equals(original.destinationId())
+                    ||!local.deviceId().equals(original.senderId()))
+                    throw new IOException("Manual retry requires an uncertain message in same verified session");
+                peer.socket.send(new ChatV2Message(original.messageId(),ChatV2Type.CHAT_TEXT,
+                    original.sessionId(),local.deviceId(),remoteId,original.conversationId(),
+                    original.sentAt(),Map.of("text",original.text())));
+                publish(EventKind.STATUS_CHANGED,remoteId,original,attempt.status(),
+                    "MANUAL_RETRY_SENT_DUPLICATE_POSSIBLE");
+                return original;
+            }catch(Exception error){throw new CompletionException(error);}
+        },workers);
+    }
+
     private Message sendBlocking(UUID remoteId,ChatText body)throws Exception{
         PeerSession peer=sessions.get(remoteId);
         if(peer==null||!peer.socket.canChat())
             throw new IOException("Not connected and verified; draft must remain local");
-        long waiting=attempts.values().stream().filter(attempt-> {
-            var state=attempt.status();
-            return state==MessageAttempt.Status.SENDING
-                ||state==MessageAttempt.Status.LOCAL_SENT
-                ||state==MessageAttempt.Status.UNCERTAIN;
-        }).count();
-        if(waiting>=MAX_PENDING)throw new IOException("Too many pending message receipts");
+        if(!pendingCapacity.tryAcquire())
+            throw new IOException("Too many pending message receipts");
         UUID id=UUID.randomUUID();
+        pendingReceiptIds.add(id);
         MessageAttempt attempt=new MessageAttempt(id);
         attempts.put(id,attempt);
         Message localMessage=new Message(id,peer.conversationId,peer.socket.sessionId(),
             local.deviceId(),remoteId,Instant.now(),body.text(),true);
         outbound.put(id,localMessage);
         attempt.startSending();
+        boolean issuedToTransport=false;
         try{
             peer.add(localMessage);
+            issuedToTransport=true;
             peer.socket.send(new ChatV2Message(id,ChatV2Type.CHAT_TEXT,peer.socket.sessionId(),
                 local.deviceId(),remoteId,peer.conversationId,localMessage.sentAt(),
                 Map.of("text",body.text())));
             attempt.localWriteCompleted();
             publish(EventKind.SENT,remoteId,localMessage,attempt.status(),null);
+            AckDeadline deadline=new AckDeadline(System::nanoTime,ackTimeout);
             deadlines.schedule(()->{
-                var s=attempt.status();
-                if(s==MessageAttempt.Status.LOCAL_SENT||s==MessageAttempt.Status.SENDING){
-                    try{attempt.markUncertain();}
-                    catch(IllegalStateException ignored){}
+                if(deadline.markUncertainIfExpired(attempt))
                     publish(EventKind.STATUS_CHANGED,remoteId,localMessage,attempt.status(),"ACK_TIMEOUT");
-                }
-            },30,TimeUnit.SECONDS);
+            },ackTimeout.toNanos(),TimeUnit.NANOSECONDS);
             return localMessage;
         }catch(Exception error){
-            if(attempt.status()==MessageAttempt.Status.SENDING)
-                attempt.markUncertain(); // a partial TLS write may have reached peer
-            publish(EventKind.FAILED,remoteId,localMessage,attempt.status(),"SEND_UNCERTAIN");
+            if(!issuedToTransport){
+                attempt.failBeforeSend();
+                attempts.remove(id,attempt);
+                outbound.remove(id,localMessage);
+                releasePendingReceipt(id);
+                publish(EventKind.FAILED,remoteId,localMessage,MessageAttempt.Status.FAILED,
+                    "LOCAL_CAPACITY_OR_PREWRITE_FAILURE");
+            }else{
+                if(attempt.status()==MessageAttempt.Status.SENDING)
+                    attempt.markUncertain(); // partial TLS write might have reached peer
+                publish(EventKind.FAILED,remoteId,localMessage,attempt.status(),"SEND_UNCERTAIN");
+            }
             throw error;
         }
     }
@@ -166,11 +216,18 @@ public final class LiveChatService implements AutoCloseable {
             // Do not log user text or untrusted protected-frame bytes.
         }finally {
             sessions.remove(remoteId,peer);
-            peer.socket.close();
-            // Message bodies/attempts belong to this authenticated session only.
-            // Never retain them across reconnects or after a failed/closed TLS link.
+            // First revoke application access and erase RAM evidence; SSL close_notify
+            // may block for remote cooperation and must not delay UI DISCONNECTED.
             discardSessionLedger(remoteId,peer);
+            synchronized(peer){
+                peer.messages.clear();
+                peer.budget.clear();
+                peer.inbound.clear();
+                peer.viewed.clear();
+                peer.seen.clear();
+            }
             publish(EventKind.DISCONNECTED,remoteId,null,null,"REMOTE_CLOSED_OR_INVALID");
+            peer.socket.close();
         }
     }
     private void discardSessionLedger(UUID remoteId,PeerSession peer) {
@@ -178,8 +235,10 @@ public final class LiveChatService implements AutoCloseable {
             Message message=entry.getValue();
             if(message.destinationId().equals(remoteId)
                 &&message.sessionId().equals(peer.socket.sessionId())
-                &&outbound.remove(entry.getKey(),message))
+                &&outbound.remove(entry.getKey(),message)){
                 attempts.remove(entry.getKey());
+                releasePendingReceipt(entry.getKey());
+            }
         }
     }
     private void dispatch(UUID remoteId,PeerSession peer,ChatV2Message frame)throws Exception {
@@ -217,7 +276,8 @@ public final class LiveChatService implements AutoCloseable {
                 "acceptedAtUTC",Instant.now().toString(),"result","ACCEPTED")));
     }
     private void changeStatus(UUID remoteId,PeerSession peer,ChatV2Message event,boolean read){
-        UUID original=UUID.fromString((String)event.payload().get("originalMessageId"));
+        UUID original=read ? ReadReceipt.from(event).originalMessageId()
+            : DeliveryReceipt.from(event).originalMessageId();
         Message message=outbound.get(original);
         MessageAttempt attempt=attempts.get(original);
         if(message==null||attempt==null
@@ -230,6 +290,8 @@ public final class LiveChatService implements AutoCloseable {
             if(read)attempt.onViewReceipt();
             else attempt.onDeliveryAck();
             MessageAttempt.Status after=attempt.status();
+            if(after==MessageAttempt.Status.APP_ACKNOWLEDGED||after==MessageAttempt.Status.READ)
+                releasePendingReceipt(original);
             if(before!=after)
                 publish(EventKind.STATUS_CHANGED,remoteId,message,after,null);
         }catch(IllegalStateException ignored){
@@ -267,6 +329,7 @@ public final class LiveChatService implements AutoCloseable {
         for(PeerSession peer:sessions.values())peer.socket.close();
         sessions.clear();
         attempts.clear();outbound.clear();
+        for(UUID id:Set.copyOf(pendingReceiptIds))releasePendingReceipt(id);
         deadlines.shutdownNow();
         workers.shutdownNow();
         listeners.clear();

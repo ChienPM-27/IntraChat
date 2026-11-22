@@ -82,6 +82,7 @@ class ReadReceiptCorrelationTest {
             assertEquals(0,ackEvents.get());
             malicious.send(receipt(malicious,conversation,outbound.messageId()));
             until(()->service.status(outbound.messageId())==MessageAttempt.Status.READ);
+            until(()->readEvents.get()==1); // status mutates just before event dispatch
             assertEquals(1,readEvents.get());
             assertEquals(0,ackEvents.get());
             malicious.send(receipt(malicious,conversation,outbound.messageId()));

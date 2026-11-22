@@ -37,6 +37,13 @@ class JsonEnvelopeCodecTest {
         assertThrows(ProtocolException.class,()->codec.decode(valid.replace("\"sender\":","\"sender2\":{},\"sender\":").getBytes(StandardCharsets.UTF_8)));
         assertThrows(ProtocolException.class,()->codec.decode(valid.replace("\"messageId\":","\"wrong\":null,").getBytes(StandardCharsets.UTF_8)));
     }
+    @Test void unpairedSurrogateEscapeInDisplayNameIsRejected() throws Exception {
+        String valid = new String(codec.encode(ping()), StandardCharsets.UTF_8);
+        String invalid = valid.replace("uD83D" + '\\' + "uDE0A", "uD800");
+        assertNotEquals(valid, invalid);
+        assertThrows(ProtocolException.class, () -> codec.decode(invalid.getBytes(StandardCharsets.UTF_8)));
+    }
+
     @Test void helloSentinelIsOnlyForHello() throws Exception {
         NetworkEnvelope good=NetworkEnvelope.create(MessageType.HELLO,new PeerIdentity(UUID.randomUUID(),"A"),NetworkEnvelope.UNKNOWN_PEER,
             Map.of("requestId",UUID.randomUUID().toString(),"supportedVersions",List.of(1),"clientVersion","0.1.0"));
