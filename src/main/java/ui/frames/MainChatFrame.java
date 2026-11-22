@@ -160,6 +160,14 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         heading.add(headerTitle);
         heading.add(headerState);
         header.add(heading);
+        if (actions.connectionSettingsAvailable()) {
+            JButton lan = secondary("Kết nối LAN");
+            lan.setName("messenger-lan-settings");
+            lan.setForeground(BLUE);
+            lan.setToolTipText("Quản lý kết nối và xác minh thiết bị");
+            lan.addActionListener(event -> actions.openConnectionSettings());
+            header.add(lan, BorderLayout.EAST);
+        }
         chat.add(header, BorderLayout.NORTH);
 
         scroll.setBorder(null);
@@ -349,7 +357,8 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             for (int index = 0; index < messages.size(); index++) {
                 ChatMessage message = messages.get(index);
                 MessageBubblePanel bubble = bubble(chat, message);
-                bubble.showReceipt(message == lastMine ? message.state() : null);
+                bubble.showReceipt(shouldShowOutgoingReceipt(actions.liveMode(),message,lastMine,self.id())
+                    ? message.state() : null);
                 if (!rebuild && history.getComponent(index) != bubble) {
                     rebuild = true;
                 }
@@ -384,6 +393,17 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         });
     }
 
+    /**
+     * Earlier uncertain Live sends also need a visible manual-retry control.
+     * Demo retains the original most-recent-outgoing-only receipt policy.
+     */
+    static boolean shouldShowOutgoingReceipt(boolean live,ChatMessage message,
+                                             ChatMessage lastOutgoing,String localId){
+        if(message==null||localId==null||!localId.equals(message.senderId()))return false;
+        return message==lastOutgoing
+            ||(live&&message.state()==DeliveryState.UNCERTAIN);
+    }
+
     private ChatMessage lastOutgoing(List<ChatMessage> messages) {
         for (int index = messages.size() - 1; index >= 0; index--) {
             if (messages.get(index).senderId().equals(self.id())) {
@@ -397,8 +417,22 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         ChatUser author = users.get(message.senderId());
         boolean mine = message.senderId().equals(self.id());
         String sender = mine ? "Bạn" : author == null ? "Người dùng không xác định" : author.displayName();
-        return rows.computeIfAbsent(message.id(),
-                id -> new MessageBubblePanel(message, mine, chat.group(), sender, media));
+        return rows.computeIfAbsent(message.id(),id->
+            new MessageBubblePanel(message,mine,chat.group(),sender,media,
+                actions.liveMode()&&mine ? this::manuallyRetry : null));
+    }
+
+    /** Only invoked by an explicit visible UNCERTAIN message bubble button. */
+    private void manuallyRetry(String messageId){
+        if(!actions.liveMode()||activeId==null||messageId==null)return;
+        String conversation=activeId;
+        showNotice("Đang gửi lại thủ công; tin có thể đã đến trước đó và bị trùng.");
+        actions.retryMessage(conversation,messageId).whenComplete((result,failure)->onEdt(()->{
+            if(failure!=null)
+                showNotice("Không thể gửi lại: "+error(failure,"Phiên không còn xác minh hoặc tin không ở trạng thái Chưa rõ."));
+            else
+                showNotice("Đã yêu cầu gửi lại. Chỉ ACK phía nhận mới xác nhận Đã nhận.");
+        }));
     }
 
     private void showEmptyHistory() {
@@ -437,6 +471,31 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             snapshot.users().forEach(user -> users.put(user.id(), user));
             conversations.clear();
             snapshot.conversations().forEach(chat -> conversations.put(chat.id(), chat));
+            if(actions.liveMode()){
+                // Losing mutual TLS erases all private per-session message/history UI.
+                // Keep only the verified peer identifier to allow an unsent RAM draft
+                // while the directory marks that peer explicitly OFFLINE.
+                Set<String> online=snapshot.users().stream().filter(ChatUser::online)
+                    .map(ChatUser::id).collect(java.util.stream.Collectors.toSet());
+                boolean clearedActive=false;
+                for(Conversation known:snapshot.conversations()){
+                    if(known.group())continue;
+                    boolean peerOnline=known.memberIds().stream()
+                        .filter(id->!self.id().equals(id)).anyMatch(online::contains);
+                    if(!peerOnline){
+                        timelines.remove(known.id());
+                        previews.remove(known.id());
+                        loaded.remove(known.id());
+                        loading.remove(known.id());
+                        historyErrors.remove(known.id());
+                        clearedActive|=known.id().equals(activeId);
+                    }
+                }
+                if(clearedActive){
+                    rows.clear();
+                    renderHistory(false);
+                }
+            }
             snapshot.previews().forEach(this::updatePreview);
             if (activeId == null || !conversations.containsKey(activeId)) {
                 switchChat(conversations.keySet().stream().findFirst().orElse(null));

@@ -34,6 +34,6 @@ public final class OfflineLaunchHarness {
         } catch (Exception unexpected) {
             throw new AssertionError("Unexpected exception proving network denial", unexpected);
         }
-        vn.intrachat.IntraChatApplication.main(args);
+        ui.IntraChat.main(args);
     }
 }

@@ -1,19 +1,24 @@
 package model;
 
+/**
+ * UI status is evidence-driven. SENT is only a local TLS write; DELIVERED
+ * requires authenticated application ACK and SEEN requires a receipt emitted
+ * after real foreground display. UNCERTAIN is not a definitive failure.
+ */
 public enum DeliveryState {
-    SENT("Đã gửi"), DELIVERED("Đã nhận"), SEEN("Đã xem");
+    SENT("Đã gửi",1),
+    DELIVERED("Đã nhận",3),
+    SEEN("Đã xem",4),
+    SENDING("Đang gửi",0),
+    UNCERTAIN("Chưa rõ",2),
+    FAILED("Thất bại",2);
 
     private final String label;
-
-    DeliveryState(String label) {
-        this.label = label;
-    }
-
-    public String label() {
-        return label;
-    }
-
-    public DeliveryState advanceTo(DeliveryState state) {
-        return compareTo(state) >= 0 ? this : state;
+    private final int evidence;
+    DeliveryState(String label,int evidence){this.label=label;this.evidence=evidence;}
+    public String label(){return label;}
+    public DeliveryState advanceTo(DeliveryState update){
+        if(update==null)throw new NullPointerException("delivery state");
+        return update.evidence>evidence?update:this;
     }
 }

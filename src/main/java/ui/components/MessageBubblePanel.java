@@ -13,13 +13,21 @@ import javax.swing.text.LabelView;
 import javax.swing.text.View;
 import javax.swing.text.ViewFactory;
 import java.awt.*;
+import java.util.function.Consumer;
 
 import static ui.components.ChatStyle.*;
 
 public final class MessageBubblePanel extends JPanel {
     private final JLabel receipt = label("", 11, Font.PLAIN, MUTED);
+    private JButton manualRetry;
 
     public MessageBubblePanel(ChatMessage message, boolean mine, boolean group, String sender, MessageMedia media) {
+        this(message,mine,group,sender,media,null);
+    }
+
+    /** Retrying an UNCERTAIN message is a separate explicit user command, never a timer. */
+    public MessageBubblePanel(ChatMessage message,boolean mine,boolean group,String sender,
+                              MessageMedia media,Consumer<String> onManualRetry) {
         super(new FlowLayout(mine ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
         setOpaque(false);
         setBorder(new EmptyBorder(4, 18, 4, 18));
@@ -64,6 +72,20 @@ public final class MessageBubblePanel extends JPanel {
         receipt.setAlignmentX(alignment);
         receipt.setVisible(false);
         stack.add(receipt);
+        if(mine && onManualRetry!=null){
+            manualRetry=new JButton("Gửi lại thủ công (có nguy cơ trùng tin)");
+            manualRetry.setName("live-manual-retry");
+            manualRetry.getAccessibleContext().setAccessibleName(
+                "Gửi lại thủ công, có nguy cơ trùng tin");
+            manualRetry.setFont(manualRetry.getFont().deriveFont(11f));
+            manualRetry.setAlignmentX(alignment);
+            manualRetry.setVisible(false);
+            manualRetry.addActionListener(e->{
+                manualRetry.setEnabled(false);
+                onManualRetry.accept(message.id());
+            });
+            stack.add(manualRetry);
+        }
         add(stack);
     }
 
@@ -71,10 +93,13 @@ public final class MessageBubblePanel extends JPanel {
         receipt.setVisible(state != null);
         if (state != null) {
             receipt.setText(state.label());
-            receipt.setIcon(state == DeliveryState.SEEN ? null : new ChatIcon(
-                    state == DeliveryState.SENT ? ChatIcon.Kind.CHECK : ChatIcon.Kind.DOUBLE_CHECK, MUTED, 13));
+            receipt.setIcon(state == DeliveryState.SENT
+                ? new ChatIcon(ChatIcon.Kind.CHECK,MUTED,13)
+                : state == DeliveryState.DELIVERED
+                    ? new ChatIcon(ChatIcon.Kind.DOUBLE_CHECK,MUTED,13) : null);
             receipt.setHorizontalTextPosition(SwingConstants.LEADING);
         }
+        if(manualRetry!=null)manualRetry.setVisible(state==DeliveryState.UNCERTAIN);
     }
 
     @Override

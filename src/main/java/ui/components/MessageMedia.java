@@ -64,8 +64,23 @@ public final class MessageMedia implements AutoCloseable {
                     Math.min(image.getHeight() + 24, size.height * 3 / 4)));
             JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(owner), attachment.fileName(),
                     Dialog.ModalityType.MODELESS);
+            dialog.setName("messenger-image-viewer");
             dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-            dialog.add(scroll);
+            JPanel viewer = panel(new BorderLayout(0, 12));
+            viewer.setBorder(new EmptyBorder(14, 16, 16, 16));
+            JPanel header = panel(new BorderLayout(10, 0));
+            JLabel title = label(shortName(attachment.fileName(), 55), 16, Font.BOLD, INK);
+            title.setToolTipText(attachment.fileName());
+            header.add(title, BorderLayout.CENTER);
+            JButton close = secondary("Đóng");
+            close.setName("image-viewer-close");
+            close.addActionListener(e -> dialog.dispose());
+            header.add(close, BorderLayout.EAST);
+            viewer.add(header, BorderLayout.NORTH);
+            scroll.setBorder(BorderFactory.createLineBorder(LINE, 1, true));
+            scroll.getViewport().setBackground(FIELD);
+            viewer.add(scroll, BorderLayout.CENTER);
+            dialog.setContentPane(viewer);
             dialog.pack();
             dialog.setLocationRelativeTo(owner);
             dialog.setVisible(true);
