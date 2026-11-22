@@ -1,10 +1,14 @@
-# IntraChat Desktop
+# IntraChat Desktop — Một Frontend Messenger thống nhất
 
-IntraChat gồm **M1 LAN diagnostics**, **M2 Chat Live bảo vệ bằng TLS 1.3 (đang triển khai và kiểm thử local)** và **Messenger Demo** bằng Swing/FlatLaf với dữ liệu giả lập. Demo không kết nối TCP hoặc sử dụng xác thực thật.
+> **Định hướng đồ án môn học, cập nhật 22/11/2026:** ưu tiên **11 chức năng hoạt động thật trong giao diện Messenger** (P2P, Group, File, Emoji, History, Image, Video, Sound, State, Time, Sender). Phần kiểm toán mật mã/Gate chuyên nghiệp trong tài liệu cũ **không còn là điều kiện ưu tiên để bắt đầu code**, nhưng các lớp TLS/DPAPI đã hoạt động và an toàn file cơ bản được giữ lại. [ROADMAP đồ án](ROADMAP.md) · [Phạm vi và tiêu chí demo](docs/course-project-scope.md) · [Kế hoạch chuyển mọi chức năng sang Messenger](docs/messenger-integration-plan.md) · [Bản roadmap kỹ thuật lịch sử](ROADMAP-LEGACY-SECURITY-2026-11-22.md).
 
-> **Trạng thái dự án (21/11/2026):** **M0 Verified (41/41 tasks)** trên Windows 11 + Temurin JDK 21. **M1 LAN Networking đang triển khai (36/60 tasks, đã hợp nhất FE)**: TCP P2P, nhập IPv4/port thủ công, Chấp nhận/Từ chối, PING/PONG chẩn đoán đã kiểm thử local; **M1 chưa Verified** vì thiếu hai PC thật. **M2 đang triển khai (15/90 tasks checked)**: Live Messenger có TLS1.3, ghép cặp fingerprint và text/ACK/READ trong hai GUI process local; **chưa qua độc lập security audit hoặc two-PC LAN**, không phải bản chat được chứng nhận bảo mật. M1 **không có auth/TLS** và luôn chặn Chat/History/File/Group.
+IntraChat chỉ có **một giao diện ứng dụng chính**: Messenger Java Swing/FlatLaf tại `ui.IntraChat`. Giao diện TCP chẩn đoán M1 và các launcher/cửa sổ Live độc lập đã được thay thế. Các dịch vụ mạng, giao thức và bảo mật vẫn được giữ dưới tầng Backend.
 
-Dự án hiện có **ba entrypoint**: **M1 diagnostics** tại `vn.intrachat.IntraChatApplication`, **M2 Chat Live** tại `ui.LiveIntraChat` (kết nối TCP thủ công, TLS1.3, fingerprint và FE Messenger thật), và **Demo độc lập** tại `ui.IntraChat` (mock data, không gửi mạng). **M2 chưa Verified**: mới chạy loopback trên một Windows PC với hai tiến trình; còn thiếu kiểm thử hai Windows PC vật lý, review bảo mật và các case failure/stress. Không gửi dữ liệu riêng tư khi chưa hoàn tất nghiệm thu bảo mật.
+- **Demo:** Đăng nhập/đăng ký mô phỏng, chat, nhóm và media với dữ liệu trong RAM; không khởi động kết nối mạng.
+- **Chat LAN:** Từ màn hình đăng nhập chọn **Chat trong LAN (TLS 1.3)**; nhập IP/port, chấp nhận kết nối và xác minh fingerprint ngay trong hộp thoại thuộc Frontend Messenger; sau xác minh, tin văn bản/emoji được gửi bằng `MainChatFrame`. Không dùng mật khẩu demo để xác thực thiết bị.
+- **Trạng thái:** M0 **41/41 Verified**; M1 **53/60**, M2 **65/90**, Group core **28/92** theo tracker kỹ thuật. Java21 full regression gần nhất **246/246 PASS**. P2P/Emoji/State/Time/Sender đã có Live cục bộ; **Group/File/History bền vững/Image/Video/Sound chưa chạy Live**. Tiêu chí bàn giao môn học là **11/11 chức năng trong Messenger**, không phụ thuộc chứng nhận bảo mật doanh nghiệp.
+
+`java -jar` chạy Frontend Messenger; `--diagnostics` chỉ in trạng thái nền tảng không mở giao diện. Không còn lệnh khởi chạy M1 diagnostic UI hoặc M2 Live UI riêng.
 
 ## Chạy thử
 
@@ -12,17 +16,18 @@ Dự án hiện có **ba entrypoint**: **M1 diagnostics** tại `vn.intrachat.In
 
 ```powershell
 .\mvnw.cmd clean package
-# M1: Giao diện kết nối LAN P2P, chỉ dữ liệu chẩn đoán:
+# Khởi chạy Frontend Messenger duy nhất (Demo hoặc chọn Chat LAN):
 java -jar target/intrachat-0.1.0-SNAPSHOT.jar
-# M2: Live Chat LAN (bản đang phát triển, chưa nghiệm thu bảo mật):
-java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.LiveIntraChat
-# FE Demo: dữ liệu giả lập, không kết nối mạng:
-java -cp target/intrachat-0.1.0-SNAPSHOT.jar ui.IntraChat
+# Chẩn đoán CLI không mở giao diện:
+java -jar target/intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 # Local Java 21 regression (M0/M1/M2/FE), không phải two-PC acceptance:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m2.ps1 -Offline
 ```
 
-Với **FE demo**, nhập username bất kỳ (tối đa 32 ký tự) và mật khẩu demo không trống; chọn **Đăng ký** thì dùng tối thiểu 4 ký tự. **Không dùng mật khẩu thật.** FE chỉ là dữ liệu mô phỏng, không phải xác thực thực tế. Giao diện M1 riêng chỉ có bước Chấp nhận/Từ chối **không xác thực thiết bị**.
+Với **FE demo**, nhập username bất kỳ (tối đa 32 ký tự) và mật khẩu demo không trống; chọn **Đăng ký** thì dùng tối thiểu 4 ký tự. **Không dùng mật khẩu thật.** FE chỉ là dữ liệu mô phỏng, không phải xác thực thực tế. Luồng Chat LAN yêu cầu Accept và so khớp fingerprint trên cả hai phía trước khi gửi tin thực.
+
+## 1. Mục tiêu
+
 - Hỗ trợ trao đổi thông tin giữa các máy trong cùng mạng LAN mà không bắt buộc có dịch vụ Internet.
 - Cung cấp giao diện dễ sử dụng để trao đổi văn bản, emoji và tệp đa phương tiện.
 - Hiển thị rõ người gửi, thời gian và trạng thái liên quan đến người dùng/tin nhắn.
@@ -47,7 +52,7 @@ Với **FE demo**, nhập username bất kỳ (tối đa 32 ký tự) và mật 
 | Thông tin | **Time** | Gắn và hiển thị mốc thời gian của tin nhắn/sự kiện theo quy ước rõ ràng. |
 | Thông tin | **Sender** | Hiển thị đúng định danh/tên người gửi cho mỗi tin nhắn. |
 
-Những tình huống chi tiết (ví dụ: nhóm có quản trị viên hay không, giới hạn dung lượng, chính sách giữ/xóa lịch sử, cơ chế xác thực peer, trạng thái `đã xem`, cách khám phá thiết bị và codec hỗ trợ) **chưa được chốt**; các quyết định nền tảng đã có trong [spec](specs/001-project-foundation/spec.md) và [plan](specs/001-project-foundation/plan.md). Ghi các quyết định này trong feature spec trước khi lập trình.
+**Quyết định hiện hành:** giữ P2P IPv4/port, consent/TLS 1.3/SAS và ACK/READ **đã triển khai**, nhưng **không xây thêm vòng kiểm toán bảo mật không cần thiết trước khi hoàn thành các tính năng còn thiếu**. Ưu tiên: Group Live qua Messenger, FileTransfer dùng chung, History local sau restart, Image/Video/Sound qua FileTransfer; giữ giới hạn size/path, checksum và không khóa UI. [Ma trận](docs/feature-matrix.md) · [Kế hoạch đồ án](ROADMAP.md) · [Spec Group](specs/004-group-chat/spec.md) · [005](specs/005-chat-history/spec.md) · [006](specs/006-file-transfer/spec.md) · [007](specs/007-multimedia/spec.md).
 
 ## 3. Công nghệ và kiến trúc
 
@@ -56,30 +61,30 @@ Những tình huống chi tiết (ví dụ: nhóm có quản trị viên hay kh�
 | Ngôn ngữ | **Java** |
 | Môi trường | **Windows** (bản đầu tiên), các máy trong cùng LAN |
 | Kiểu truyền thông | **TCP P2P IPv4 thủ công**; M1 diagnostics v1 plaintext riêng; M2 secure CHAT_V2 qua TLS1.3 với fingerprint pairing, chưa đầy đủ nghiệm thu |
-| Giao diện | **Swing + FlatLaf** — M1 diagnostics, **M2 Messenger FE Live** (đang kiểm thử local), FE Mock Demo tách riêng |
+| Giao diện | **Swing + FlatLaf** — một Frontend Messenger duy nhất, có chế độ Demo và Live LAN |
 | Build / dependency | **Maven Wrapper 3.9.16, Java21, JUnit5.14.4, Jackson2.22.4, FlatLaf3.6.2**, thêm Bouncy Castle1.87 (cert) và JNA5.19.1 (DPAPI/Windows) trong M2 |
 | Lưu lịch sử | Dự kiến **SQLite tại mỗi peer + History sync P2P** ở giai đoạn 05; chưa triển khai |
 | Định dạng thông điệp | **M1 v1 strict JSON chẩn đoán**, còn **M2 v2 strict framed JSON bên trong TLS1.3**; chỉ text/ACK/read, không Group/File/History; chưa audit security |
 
-### Phân lớp kiến trúc đề xuất
+### Kiến trúc đang triển khai
 
 ```text
-Giao diện người dùng (UI)
-        |
-Dịch vụ ứng dụng (Chat / Group / Transfer / Presence / History)
-        |
-Mô hình dữ liệu + giao thức thông điệp
-        |
-Kết nối LAN (discovery / connection / transport)
-        |
-Lưu trữ cục bộ (nếu được chọn)
+ui.IntraChat (launcher duy nhất)
+  ├─ Demo: LoginFrame → MockChatService → MainChatFrame
+  └─ Live: LoginFrame → LanConnectionDialog (Accept + SAS)
+                             ↓
+          MainChatFrame ↔ LiveChatAdapter ↔ LiveChatService (RAM)
+                             ↓
+              SecureChatCoordinator → TlsChatSession (TLS 1.3)
+                             ↓
+                 CHAT_V2 text / ACK / READ
 ```
 
-Đây là **sơ đồ định hướng**, chưa phải cấu trúc thư mục hay kiến trúc được triển khai.
+M1 còn `TcpListener/TcpConnector/TcpPeerSession` và `JsonEnvelopeCodec` v1 dùng cho **diagnostics plaintext**, **không** cho chat; UI kỹ thuật M1 đã được loại khỏi bản build. Hai chế độ dùng cùng giao diện Messenger nhưng **không** dùng chung nguồn dữ liệu. Chi tiết tại [kiến trúc hiện tại](docs/architecture.md) và [báo cáo migration](docs/ui-migration-2026-11-21.md).
 
-### Hợp đồng thông điệp cần thiết kế
+### Hợp đồng thông điệp hiện có và cần mở rộng
 
-Mỗi thông điệp cần có định danh duy nhất và loại thông điệp (ví dụ: văn bản, emoji, yêu cầu chuyển tệp, trạng thái); thông tin người gửi; người nhận hoặc nhóm đích; thời điểm; và dữ liệu nội dung hoặc tham chiếu tệp. Đặc tả phải xác định:
+M1 v1 là framed JSON chỉ dành cho handshake/diagnostics. M2 `CHAT_V2` dùng framed JSON trong TLS 1.3 sau consent/ghép cặp; có identity/conversation/message ID, metadata thời gian UTC, text Unicode, ACK và read receipt. Các loại Group/File/History/Media **chưa** được bật cho Live. Khi mở rộng, các đặc tả tương ứng phải xác định:
 
 - Phân biệt `senderId` ổn định với `displayName` có thể đổi.
 - Quy ước timestamp và múi giờ (ưu tiên lưu UTC, hiển thị giờ địa phương).
@@ -97,7 +102,7 @@ Không sử dụng Java native serialization từ dữ liệu mạng không đá
 - Windows 11 x64, giao diện desktop; Git và PowerShell.
 - **JDK 21 LTS (Eclipse Temurin)**. `pom.xml` biên dịch với `--release 21`. M0 và M1 automated tests đã thực thi trên **actual Temurin JDK 21.0.13.1** tại Windows 11; Oracle JDK 25 cũng có trên máy nhưng không được dùng làm bằng chứng Java21 runtime.
 - Maven Wrapper 3.9.16 được cung cấp bởi `mvnw.cmd` và sẽ tải Maven khi cần. Lần chạy đầu để tải Maven/plugins/dependencies cần Internet (hoặc cache/mirror đã chuẩn bị); **ứng dụng chạy không cần Internet**.
-- Hai máy cùng LAN chỉ cần cho giai đoạn 02 trở đi; M0 chưa mở socket.
+- M0 chỉ là nền tảng lịch sử; M1/M2 đã có TCP/TLS và loopback trên một PC. **Nghiệm thu LAN thật vẫn cần hai PC Windows riêng biệt, không có Internet công cộng.**
 
 ### Build, chạy và kiểm thử trên Windows 11 + Temurin JDK21
 
@@ -113,25 +118,29 @@ java -jar target/intrachat-0.1.0-SNAPSHOT.jar --diagnostics
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-m0.ps1
 ```
 
-Sau khi cache dependencies, `.\mvnw.cmd -o test` chạy offline. **M0: 9/9 JUnit pass trên actual Temurin JDK21**, cùng 5/5 GUI cycles dưới kiểm soát Java-network-denied; [M0 acceptance](specs/001-project-foundation/evidence/m0-acceptance-report.md). **M1 + FE: 45 JUnit cases pass**, hai tiến trình GUI độc lập trên cùng máy xác nhận Accept và PING/PONG hai chiều; [M1 test evidence](specs/002-lan-networking/evidence/m1-test-results.md). **Chưa có test hai máy LAN thật**, nên M1 chưa Verified. Xem [M1 quickstart](specs/002-lan-networking/quickstart.md) và [Windows LAN guide](docs/windows-lan-setup.md).
+Sau khi cache dependencies, `.\\mvnw.cmd -o test` có thể chạy offline. **Bằng chứng lịch sử:** M0 Verified 41/41 tasks; M1 từng có baseline 45/45; 21/11/2026 có kết quả 113/113 JUnit và GUI migration. **Kết quả thực thi mới nhất 22/11/2026:** `scripts/verify-m2.ps1 -Offline` trên Java21 **246/246 JUnit PASS, 0 failures/errors/skips**, JAR/launcher PASS; gồm cả Group core, **không** chứng minh 11 tính năng Live. Xem [M0 evidence](specs/001-project-foundation/evidence/m0-acceptance-report.md), [M1 evidence](specs/002-lan-networking/evidence/m1-acceptance-report.md), [M2 evidence](specs/003-p2p-messaging/evidence/m2-acceptance-report.md) và [UI migration](docs/ui-migration-2026-11-21.md).
 
 ### Tổ chức dự án
 
-Cấu trúc nền tảng đã được triển khai:
+Cấu trúc đang dùng (rút gọn):
 
 ```text
 IntraChat/
 ├── pom.xml, mvnw.cmd, .mvn/wrapper/
-├── src/main/java/vn/intrachat/  # entrypoint, UI, domain, protocol metadata
-├── src/test/java/vn/intrachat/  # JUnit tests
-├── docs/                          # architecture + feature matrix
-├── scripts/                       # environment + M0 verification
-├── specs/001-project-foundation/  # spec, plan, tasks, contracts, evidence
-├── README.md, ROADMAP.md, AGENTS.md
-└── .specify/memory/constitution.md
+├── src/main/java/ui/               # launcher, Messenger, dialog LAN
+├── src/main/java/listener/         # FE ports + LiveChatAdapter
+├── src/main/java/model/            # FE models + MockChatService
+├── src/main/java/vn/intrachat/     # application/domain/protocol/security/transport
+├── src/test/java/                  # unit/integration/UI tests
+├── docs/                           # kiến trúc, ma trận tính năng, LAN, migration
+├── scripts/                        # verify-m0, verify-m1, verify-m2
+├── specs/001-project-foundation/, 001-desktop-frontend/, 002-lan-networking/
+├── specs/003-p2p-messaging/, 004-group-chat/, 005-chat-history/
+├── specs/006-file-transfer/, 007-multimedia/
+└── README.md, ROADMAP.md, AGENTS.md, .specify/memory/constitution.md
 ```
 
-**Ranh giới hiện tại:** M0 đã Verified. M1 đã có **TCP listener/connector, handshake và PING/PONG chẩn đoán**, không phải chat người dùng. Vẫn **chưa có** authentication/TLS, History Sync, File/Media qua mạng; FE Messenger là mock demo độc lập, chưa nối với transport M1.
+**Ranh giới hiện tại (22/11/2026):** **M0 41/41 Verified; M1 53/60, M2 65/90, Group core 28/92 In Progress**. Chỉ có launcher `ui.IntraChat`. Live P2P text/emoji/ACK/READ/Sender/Time/State đã chạy cục bộ, còn Group/File/Media qua LAN và History bền vững **chưa có Live**. M1 diagnostics có nút phụ trong `LanConnectionDialog`, không có cửa sổ chat kỹ thuật độc lập. **Hai máy LAN vật lý chưa kiểm thử**; tiêu chí đồ án dùng [feature matrix](docs/feature-matrix.md), không biến dữ liệu Demo thành tiến độ Live.
 
 ## 5. Quy trình phát triển theo GitHub Spec Kit
 
@@ -160,23 +169,26 @@ Tham khảo: [GitHub Spec Kit](https://github.com/github/spec-kit) · [Hướng 
 
 - **Mốc 1 — Nền tảng (M0):** chốt JDK, UI/build, thiết kế protocol và identity; build, khởi chạy và test skeleton. Kiểm thử hai peer thuộc giai đoạn kết nối LAN tiếp theo.
 - **Mốc 2 — Chat:** [Giai đoạn 03 M2](specs/003-p2p-messaging/spec.md) **IN PROGRESS** — đã có nền danh tính/ghép cặp fingerprint, TLS1.3, CHAT_V2, ACK và đọc từ foreground Live FE qua LAN loopback. [Task tracker](specs/003-p2p-messaging/tasks.md) và [M2 partial acceptance](specs/003-p2p-messaging/evidence/m2-acceptance-report.md). **Không phải bản đã bảo mật/Verified**; M1 chưa Gate 1 và two-PC LAN chưa thử.
-- **Mốc 3 — Nhóm và lịch sử:** quản lý thành viên Group; History lưu cục bộ và đồng bộ giữa các máy được phép qua P2P khi kết nối lại.
-- **Mốc 4 — Chia sẻ:** File, Image, Video, Sound; kiểm thử dung lượng, đường dẫn và hủy truyền.
-- **Mốc 5 — Hoàn thiện:** hoàn thành kiểm thử lỗi mạng, an toàn danh tính và read receipts, tài liệu đóng gói, kiểm thử hai Windows PC thật; chỉ ghi Verified khi toàn bộ acceptance đạt.
+- **Mốc 3 — Group Live trong Messenger:** nối `CreateGroupDialog` và timeline với Group fanout trên P2P session hiện có, test 3 JVM.
+- **Mốc 4 — FileTransfer + History:** truyền file chunk/checksum/progress và lưu History local sau restart (có thể code song song).
+- **Mốc 5 — Image/Video/Sound:** tái sử dụng FileTransfer để hiển thị media bubble, xem/phát tệp, gửi WAV.
+- **Mốc 6 — Demo đủ 11 chức năng:** thử trực tiếp 2–3 peer qua Messenger, xử lý hủy/ngắt, kiểm tra Sender/Time/State và tài liệu hướng dẫn giảng viên. Audit bảo mật độc lập là tùy chọn, không chặn code.
 
 Thứ tự có thể thay đổi sau khi viết spec; đây không phải tiến độ đã hoàn thành.
+
+## 7. Chế độ Demo — chỉ mô phỏng
 
 - **Mai Anh:** người dùng online, lịch sử có ảnh và biên nhận Đã xem.
 - **Minh Khang:** người dùng offline; tin gửi trong demo dừng ở Đã gửi.
 - **Nhóm dự án:** hiển thị người gửi, số thành viên, tệp, video, WAV và biên nhận Đã nhận. Nhấn **+** để tạo nhóm khác.
 - **Thanh soạn:** Enter để gửi tin mock, bảng 30 emoji, chọn ảnh/video/tệp hoặc ghi âm tối đa 120 giây. Bấm ảnh để xem đầy đủ, video để mở bằng trình phát mặc định, biểu tượng tải để lưu tệp không ghi đè.
 
-## Phạm vi
+### Phạm vi Demo
 
 Lịch sử, hội thoại, tài khoản và biên nhận chỉ là dữ liệu mô phỏng trong phiên; đóng ứng dụng sẽ mất thay đổi. Media mẫu và bản ghi sử dụng thư mục tạm; tệp lưu theo lựa chọn của bạn vẫn còn. Ghi và phát tin thoại phụ thuộc thiết bị/quyền âm thanh của hệ điều hành. Ứng dụng không có cuộc gọi, Story hoặc cài đặt nâng cao.
 
 `listener.ChatActionHandler` nhận thao tác từ UI và `listener.ChatClientListener` nhận cập nhật. Bản demo chỉ dùng `model.mock.MockChatService`. Xem [đặc tả](specs/001-desktop-frontend/spec.md) và [kế hoạch](specs/001-desktop-frontend/plan.md) để biết giới hạn và hành vi mock.
 
-## Kiểm tra
+## 8. Kiểm tra
 
 `mvn test` chạy test lịch sử, kiểm tra/lưu media và luồng giao diện mock. Test Swing cần môi trường desktop; ảnh chụp layout nằm trong `target/`. Microphone, âm thanh phát ra loa và trình phát video mặc định cần kiểm tra thủ công trên máy sử dụng.
