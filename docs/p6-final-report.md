@@ -1,85 +1,30 @@
-# P6 — Final cleanup & acceptance report (23/11/2026)
+# P6 — Báo cáo hiện hành sau C0–C3 (23/11/2026)
 
-## A. Tổng quan
+**P6 PARTIAL / MVP PARTIAL ACCEPTANCE.** C0–C3 hoàn thành, C4 Live-only backend/cleanup đã kiểm chứng nhưng GUI acceptance pending; C5 đã thực hiện một phần (cleanup an toàn và backend regression PASS), C6 chưa thực hiện. Không tuyên bố `P6 COMPLETE` hoặc `MVP FULLY ACCEPTED`.
 
-**P6 PARTIAL / MVP PARTIAL ACCEPTANCE**, chưa đạt P6 CLEANUP COMPLETE hoặc MVP FULLY ACCEPTED.
+## Trạng thái Git và archive
 
-- Branch: `feat/messenger-live-integration`
-- HEAD: `ef539c125aa08b96b65774317d032acf636441af`
-- Git: working tree đã có hàng loạt file modified/deleted/untracked P0–P5 từ trước P6; **không commit, reset, stash, clean**.
-- Backup: `D:\Documents\Lap_trinh_ung_dung_mang\Tuan08\IntraChat-P6-backup-20261123`, chứa 217 files, bản sao source/tests/docs/scripts/specs và Git metadata/diff/untracked listing. SHA-256 5/5 file (README, pom, plan, LiveChatService, FileTransferService) giống source; thử restore README vào thư mục tạm PASS.
-- Kiến trúc hiện hữu: `ui.IntraChat` → Messenger/`LiveChatAdapter` → `LiveChatService` + `GroupService` + `FileTransferService` + `HistoryRepository` → `LanCoordinator/LanSession` + `WireMessage/WireCodec` → plaintext TCP. JSONL local.
+- Branch thực tế: `main`; HEAD `f9b415af9dad8e312cac4a9d7c099411f7d50390`. Khác branch/HEAD baseline P6 trước đây; trước C0–C3 chỉ có một untracked `docs/p6-cleanup-plan.md`.
+- Backup riêng C0–C3: `D:\Documents\Lap_trinh_ung_dung_mang\Tuan08\IntraChat-C0C3-backup-20261123`; **220 files**, SHA-256 0 mismatch, restore 5/5 PASS.
+- Archive/xóa **114 Markdown**: 3 root, 13 docs, 97 specs (47 evidence subset), 1 constitution; số Markdown trước **121**, sau **8** (bao gồm báo cáo C0–C3 mới). Source Java/tests/scripts không xóa/sửa trong C0–C3.
+- Spec 003 gồm `plan.md`, `quickstart.md`, `spec.md`, `tasks.md`, `evidence/m2-mvp-acceptance.md` được backup/archive/hash đúng; trên `main` trước cleanup là tracked/clean. Manifest đầy đủ ngoài repo: `archive-manifest.csv`.
+- C0 backup COMPLETE; C1 canonical docs COMPLETE; C2 root/docs archive COMPLETE; C3 specs/evidence/.specify archive COMPLETE. **0 broken internal Markdown links** sau khi tạo báo cáo.
 
-## B. Cleanup và thống kê thay đổi P6
+## 11 chức năng MVP và regression
 
-- File **mới**: `scripts/verify-all.ps1`, `docs/p6-final-report.md`.
-- File **sửa**: `README.md`, `ROADMAP.md`, `AGENTS.md`, `docs/feature-matrix.md`, `docs/cleanup-inventory.md` (bổ sung trạng thái P6).
-- Source Java xóa **0**; test xóa/thay **0**; script xóa **0**; docs/evidence xóa **0**; dependency xóa **0** trong riêng P6.
-- Những file security legacy được Git báo đã xóa là **thay đổi có từ P0–P5**, không được gộp vào thống kê P6.
-- Có tài liệu `specs/` và `evidence/` lịch sử mô tả security/TLS/signed Group không còn hiện hành. Đã có backup ngoài repo nhưng **chưa đối chiếu toàn bộ phụ thuộc/link nội bộ và hợp nhất từng file**, nên giữ lại để không làm mất tài liệu modified/untracked. Do đó mục tiêu xóa toàn bộ historical evidence **chưa hoàn thành**.
-- Không phát hiện tham chiếu TLS/DeviceCertificate/Fingerprint/BouncyCastle/DPAPI trong Java production bằng tìm kiếm từ khóa mục tiêu; script P1 kiểm tra JAR không có các class/dependency security cũ. Chưa thực hiện kiểm toán sâu toàn bộ code chết, dead listeners và EDT.
+- F01 P2P, F02 Group, F03 File, F04 Emoji, F05 History, F06 Image, F07 Video, F08 Sound, F09 State, F10 Time, F11 Sender: implementation/backend P1–P5 có bằng chứng PASS, theo [feature matrix](feature-matrix.md).
+- Baseline C0–C3: JUnit **95 PASS / 30 suites**. Sau C4, `mvnw.cmd clean test package`: **BUILD SUCCESS** (JDK 21), executable JAR có `Main-Class: ui.IntraChat`; JUnit **96 PASS / 30 suites, 0 failures/errors**.
+- `scripts/verify-all.ps1` **exit 0**, P1/P2/P3/P4/P5 PASS, `git diff --check` PASS; log lưu ngoài `target/` tại `%TEMP%`.
+- **NOT RUN**: GUI nhiều cửa sổ, LAN 2–3 máy vật lý, MP4/codec playback, WAV/thiết bị âm thanh, extended VIDEO and disk-failure tests. Không suy luận playback từ chuyển bytes hoặc physical LAN từ localhost.
 
-## C. Chất lượng code / kiến trúc
+## C4 hoàn tất cleanup, C5 PARTIAL, C6 còn mở
 
-- `src/main/java`: **49** Java files; `src/test/java`: **30** Java files ở thời điểm kiểm kê.
-- `pom.xml`: ba dependency trực tiếp (FlatLaf, Jackson Databind, JUnit Jupiter test). Không phát hiện dependency security trực tiếp. Maven Shade build executable JAR.
-- Hệ thống có một đường TCP LAN cho Live và một FileTransferService dùng chung file/media theo mô tả/kiểm thử; **chưa chứng minh** mọi nhánh code không có listener, interface hoặc worker dư thừa.
-- Entrypoint `ui.IntraChat` vẫn khởi tạo `MockChatService` cho **Demo** ngoài Live; không thấy bằng chứng mock đi vào Live TCP từ các process smoke, nhưng Demo chưa được loại khỏi launcher theo mục tiêu tinh gọn.
-- Trước cleanup Git đã đánh dấu nhiều file legacy Java/tests `D`; không được coi là P6 deletion và đã được bảo vệ trong backup.
+- C4: **IMPLEMENTED / BACKEND VERIFIED / CLEANUP COMPLETE — GUI ACCEPTANCE PENDING.** Đã xóa LoginFrame, MockChatService, DemoMedia, 2 assets. Maven/JUnit 96 PASS, P1–P5 PASS, JAR diagnostics exit 0, GUI startup dialog không Demo login, hai JVM localhost hiện Accept/Reject dialog (chưa xác minh Messenger kết nối), và đóng dialog JVM thoát. Xem [báo cáo C4](c4-cleanup-report.md).
+- C5: **PARTIAL**; backup 103 file, SHA-256 0 mismatch, restore 3/3 PASS. Inventory đủ 46 production Java files; xóa 4 unused imports, không xóa class thiếu bằng chứng. 96/96 JUnit PASS, P1–P5 PASS, P2 stability 3/3 PASS, JAR diagnostics PASS. Chưa hoàn tất deep per-method/field/lifecycle audit và GUI Accept timeout; xem [báo cáo C5](c5-cleanup-report.md) và [inventory](c5-code-cleanup-inventory.md).
+- C6: extended regression, physical GUI/LAN/playback acceptance và kết luận P6.
 
-## D. Kiểm thử P6
+Xem [báo cáo C0–C3](c0-c3-cleanup-report.md), [README](../README.md), [architecture](architecture.md), [feature matrix](feature-matrix.md), [ROADMAP](../ROADMAP.md).
 
-| Kiểm thử | Kết quả | Ghi chú |
-|---|---|---|
-| Maven clean test package | **PASS** | JDK 21, executable Shade JAR |
-| JUnit | **95 PASS, 0 FAIL/ERROR/SKIP** | 30 suite reports |
-| P1 TCP socket 2 JVM | **PASS** | text, emoji, UUID, ACK/READ |
-| P2 Group socket 3 JVM | **PASS** | Owner Relay, acceptance/reject/remove |
-| P3 File socket 2 JVM | **PASS** | CRC/SHA-256, reject/cancel/disconnect/text |
-| P4 History/restart | **PASS** | 2–3 JVM, JSONL and group |
-| P5 Media TCP/restart | **PASS** | byte/type/metadata/restart |
-| P6 extended VIDEO cancel/disconnect/concurrent text/duplicate offer | **NOT RUN** | Chưa tạo test chuyên biệt |
-| Video MP4 playback | **NOT RUN** | Chưa điều khiển GUI/player với fixture MP4 hợp lệ |
-| WAV device playback | **NOT RUN** | Chưa thử trên thiết bị âm thanh vật lý |
-| Messenger GUI | **NOT RUN** | Chưa thực hiện kịch bản hai/ba cửa sổ và kiểm tra tương tác |
-| Physical LAN | **NOT RUN** | Không kiểm tra hai/ba máy vật lý |
-| Disk full/permission/crash | **NOT RUN** | Chưa thử fault injection |
-| Git diff --check | **PASS** | Có cảnh báo chuyển LF/CRLF nhưng exit 0 |
-| Markdown links tài liệu chính | **PASS** | Kiểm tra đường dẫn README/ROADMAP/AGENTS/docs; không đại diện toàn `specs/` |
-| Executable JAR | **PASS** | JAR tồn tại, P1 xác nhận manifest/classes; chưa mở GUI JAR |
+## C6 verification update — 24/11/2026
 
-**Lưu ý về test harness:** log ban đầu của P1/P4 đặt trong `target/` khiến Maven Clean không xóa được file log đang mở (FAIL thao tác log, không phải regression Java). Đã chạy lại P1/P4 PASS với log ngoài `target/`. `verify-all.ps1` tạo log dưới `%TEMP%\intrachat-p6-verify-<UUID>`, tránh lỗi này. Lần chạy tổng hợp với `-SkipBuild` đạt P2/P3/P4/P5 + Git diff; lượt chạy trước đã có P1 build/JUnit + P2–P5 PASS nhưng phải sửa xử lý stderr warning của `git diff`.
-
-## E. Ma trận 11 chức năng
-
-| ID | Code thật | Backend verified | GUI verified | LAN verified | Persistence / giới hạn |
-|---|---|---|---|---|---|
-| F01 P2P | YES | PASS | NOT RUN | NOT RUN | JSONL P4, text |
-| F02 Group | YES | PASS | NOT RUN | NOT RUN | Roster/text, owner relay |
-| F03 File | YES | PASS | NOT RUN | NOT RUN | Metadata, không resume |
-| F04 Emoji | YES | PASS | NOT RUN | NOT RUN | Text Unicode JSONL |
-| F05 History | YES | PASS | NOT RUN | NOT RUN | JSONL restart, local-only |
-| F06 Image | YES | PASS (transfer/component) | NOT RUN | NOT RUN | PNG/JPEG ≤16 MiB; render GUI NOT RUN |
-| F07 Video | YES | PASS (transfer/type) | NOT RUN | NOT RUN | Desktop.open MP4 NOT RUN |
-| F08 Sound | YES | PASS (transfer/component) | NOT RUN | NOT RUN | WAV hardware NOT RUN |
-| F09 State | YES | PASS | NOT RUN | NOT RUN | Event/ACK persisted |
-| F10 Time | YES | PASS | NOT RUN | NOT RUN | UTC timestamp persisted |
-| F11 Sender | YES | PASS | NOT RUN | NOT RUN | UUID persisted |
-
-## F. Những vấn đề còn lại
-
-1. Nghiệm thu GUI Messenger P2P/Group/File/Media/history/state/time/sender trên hai/ba cửa sổ.
-2. Nghiệm thu LAN vật lý 2–3 PC, firewall/port và disconnect/reconnect.
-3. Chạy MP4 Desktop.open với video hợp lệ, WAV Play/Stop trên audio hardware, MP3/M4A fallback.
-4. Thêm regression media VIDEO cancel/disconnect/text concurrency/duplicate FILE_OFFER; fault injection permission/disk-full/crash.
-5. Kiểm toán chi tiết còn lại: Swing EDT, worker lifecycle, event/listener duplication và Demo UI; phân loại từng spec/evidence legacy và chỉ xóa sau kiểm tra dependency/link.
-6. Kiểm tra shade warnings/resource duplicates bằng Maven output không rút gọn; tránh kết luận không warning từ build `-q`.
-7. Rà soát liên kết trong toàn bộ specs/legacy documentation trước khi di chuyển/xóa.
-
-## G. Kết luận
-
-**P6 PARTIAL — MVP PARTIAL ACCEPTANCE.**
-
-Đã bảo vệ dữ liệu, đồng bộ tài liệu hiện hành, có `verify-all.ps1`, build/JUnit và toàn bộ P1–P5 backend regression đã có bằng chứng PASS. **Chưa đạt P6 CLEANUP COMPLETE** vì cleanup historical evidence và một số kiểm tra kiến trúc/media extended chưa hoàn tất. **Không đạt MVP FULLY ACCEPTED** vì GUI, LAN vật lý và playback còn NOT RUN.
-
-Không tự ý commit/reset/stash/clean, không xóa dữ liệu LocalAppData hay Git history.
+**C6 PARTIAL — MVP PARTIAL ACCEPTANCE; C5 PARTIAL; P6 PARTIAL.** C6 backup 106/106 SHA-256 matched and 3/3 restore verified. Added one HistoryRepository close-boundary fix and one concurrency JUnit test; post-change JDK 21 clean test package **97/97 JUnit PASS**. P1–P5 process regression **PASS**, P2 3 additional rounds **PASS**, `git diff --check` **PASS**. Real two-JVM GUI localhost Connect/Accept and Unicode P2P messages in both directions **PASS**; delivery→Seen visible and both app JVMs exit on GUI close. GUI Group three JVM, GUI media/history restart, timed Accept/Expire races, VoiceRecorder blocked read, FileTransfer race tests, extended P6 M01–M14, real media playback and physical LAN remain **NOT RUN**. Do not mark C6 backend/gui/lan fully verified or P6 cleanup complete. See [C6 final verification report](c6-final-verification-report.md).

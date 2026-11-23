@@ -1,16 +1,23 @@
 # IntraChat — Messenger LAN Java 21
 
-Ứng dụng desktop Swing + FlatLaf, Jackson JSON, **một transport TCP plaintext** cho nhắn tin LAN. Một Messenger Live, Owner Relay cho nhóm và FileTransferService dùng chung cho file/ảnh/video/âm thanh. Dữ liệu history lưu JSONL riêng từng profile.
+Ứng dụng desktop **Java Swing + FlatLaf** dùng **Jackson JSON** cho chat trong mạng LAN bằng một giao thức **TCP plaintext**. Một Messenger Live dùng `LiveChatAdapter`, `GroupService`, `FileTransferService` và `HistoryRepository` JSONL. **Không có mã hóa hay xác thực danh tính mật mã**; chỉ dùng LAN tin cậy và dữ liệu thử, không mở cổng ra Internet.
 
-## 11 chức năng MVP
+## Đúng 11 chức năng MVP
 
-F01 P2P Chat · F02 Group Chat · F03 File Transfer · F04 Emoji · F05 Chat History · F06 Image · F07 Video · F08 Sound · F09 State · F10 Time · F11 Sender.
+| ID | Chức năng | ID | Chức năng |
+|---|---|---|---|
+| F01 | P2P Chat | F07 | Video |
+| F02 | Group Chat | F08 | Sound |
+| F03 | File Transfer | F09 | State |
+| F04 | Emoji | F10 | Time |
+| F05 | Chat History | F11 | Sender |
+| F06 | Image | | |
 
-Backend đã chạy regression P1–P5 (95 JUnit PASS, process smoke P1–P5 PASS). **GUI, LAN vật lý và playback thực vẫn NOT RUN**; xem [ma trận](docs/feature-matrix.md).
+Kết quả backend P1–P5 trước cleanup: 95 JUnit PASS và process smoke P1–P5 PASS. **GUI, LAN vật lý, MP4/WAV playback thực NOT RUN**; xem [feature matrix](docs/feature-matrix.md).
 
-## Cài đặt và build
+## Yêu cầu và build
 
-Yêu cầu Windows với **JDK 21** và Maven Wrapper. Dependency có thể cần Internet ở lần đầu; chỉ thêm `-o` khi Maven cache đã đủ.
+Windows, JDK 21, Maven Wrapper (dependency lần đầu có thể cần Internet). Mở PowerShell ở root repository:
 
 ```powershell
 $env:JAVA_HOME = 'C:\Path\To\jdk-21'
@@ -19,46 +26,46 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 java -jar target\intrachat-0.1.0-SNAPSHOT.jar
 ```
 
-JAR có entrypoint `ui.IntraChat`. Có thể xem diagnostics không mở GUI bằng `java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics`.
+JAR có Main-Class `ui.IntraChat`. **Luồng C4 Live-only**: `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog → MainChatFrame/LiveChatAdapter`. Không có Demo login, đăng ký hoặc mật khẩu. Dialog kết nối mở trước Messenger, Messenger xuất hiện khi kết nối được chấp nhận. Trong Messenger có nút **Kết nối LAN** để mở lại dialog. Đóng cửa sổ để dừng phiên và bảo toàn History. Có thể chạy `java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics` mà không cần GUI.
 
-## Trình diễn hai JVM cùng máy
+## Chạy hai JVM độc lập (cùng PC)
 
-Mở hai terminal PowerShell sau khi build:
+Mở hai PowerShell trong repository với dataDir **khác nhau**, mỗi JVM có UUID/profile/history riêng:
 
 ```powershell
 # Terminal A
 java '-Dintrachat.dataDir=C:\Temp\IntraChat-A' -jar target\intrachat-0.1.0-SNAPSHOT.jar
-
 # Terminal B
 java '-Dintrachat.dataDir=C:\Temp\IntraChat-B' -jar target\intrachat-0.1.0-SNAPSHOT.jar
 ```
 
-Chọn **Chat trong LAN (TCP)** trên cả hai cửa sổ. Ở A chọn **Listen** tại `127.0.0.1`, port `47321`. Ở B chọn **Connect** đến `127.0.0.1:47321`; A chọn **Accept**. Chọn cuộc hội thoại và gửi text/emoji, quan sát sender/time và trạng thái SENT/DELIVERED/SEEN. Có thể thử Reject, Disconnect và Connect lại. Seen chỉ có nghĩa khi phía nhận hiển thị cuộc hội thoại theo điều kiện foreground.
+Trong cửa sổ kết nối Live, A **Listen** cổng `47321`; B **Connect** đến `127.0.0.1:47321`; A **Accept** hoặc thử **Reject**. Sau khi kết nối, gửi P2P text và emoji hai chiều, kiểm tra Sender/Time/State. SENT, DELIVERED (ACK), SEEN (READ khi hội thoại foreground) là các trạng thái khác nhau; SEEN không chứng minh đọc bằng mắt. Disconnect/Connect lại thủ công, không tự động resend.
 
-## Trình diễn Group ba JVM
+## Group ba JVM
 
-Mở terminal C với dataDir `C:\Temp\IntraChat-C`, dùng lệnh như trên. A **Listen**; B và C **Connect** vào A, A **Accept** cả hai. Trên A nhấn **+ Tạo nhóm**, chọn B/C và tạo nhóm; trên B/C chấp nhận lời mời. Gửi tin từ A/B/C, kiểm tra Owner Relay và per-recipient ACK. Chủ nhóm có thể loại thành viên; thành viên có thể rời nhóm. Không tự chọn chủ nhóm mới nếu A offline.
+Mở thêm C với `-Dintrachat.dataDir=C:\Temp\IntraChat-C`. A Listen, B và C Connect, A Accept cả hai. Trong Messenger A chọn **+ Tạo nhóm**, mời B/C; ở B/C chấp nhận invite, gửi tin và kiểm tra roster, owner relay cùng per-recipient ACK. Owner offline thì relay không hoạt động; không có tự chuyển owner.
 
-## File, ảnh, video, âm thanh
+## Hai máy Windows cùng LAN
 
-Trong cuộc hội thoại P2P Live, sử dụng composer để chọn tệp hoặc loại media, gửi yêu cầu và chọn **Accept/Reject** ở người nhận; kiểm tra progress, cancel, hoàn tất và mở tệp đã nhận. File dùng CRC32 và kiểm tra byte/size, chunk 32 KiB; không ghi đè file có sẵn, không resume. Image: PNG/JPEG tối đa **16 MiB, 32 MP**, xem thumbnail/phóng ảnh. Video: MP4/AVI/MKV tối đa **128 MiB**, mở bằng player mặc định của Windows qua `Desktop.open`. Sound: WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop; MP3/M4A mở ứng dụng mặc định. Playback trên thiết bị thực chưa nghiệm thu.
+Trên máy A lấy IPv4 bằng `ipconfig`, ghi nhận IP card LAN/Wi-Fi và cho A Listen cổng TCP đã chọn (ví dụ `47321`). Trên B kết nối đến **IPv4 thực của A**, không dùng `127.0.0.1` giữa hai máy. Đảm bảo cùng mạng/subnet hoặc có route phù hợp, Windows Firewall cho phép inbound TCP tới cổng/application trên mạng Private; không mở Internet/public port. A Accept. Sử dụng `intrachat.dataDir` độc lập trên từng JVM/máy, chỉ thử với dữ liệu mẫu. GUI/LAN vật lý chưa được nghiệm thu tự động.
 
-## History và dataDir
+## File, Image, Video, Sound
 
-Thoát cả hai JVM rồi mở lại **với đúng dataDir cũ** để xem các cuộc hội thoại/tin nhắn và metadata đã lưu. `profile.json` lưu UUID/tên; dữ liệu JSONL đặt tại `history\messages.jsonl` trong dataDir. Mặc định dùng `%LOCALAPPDATA%\IntraChat\data`. History local-only: không đồng bộ sang máy khác, không ghi bytes tệp vào JSONL, không phục hồi transfer dang dở; dữ liệu lưu **không mã hóa**.
+Ở hội thoại P2P Live, chọn tệp/media qua composer, gửi **OFFER**; người nhận **Accept/Reject**, chọn nơi lưu; xem progress hoặc Cancel. Truyền theo CHUNK **32 KiB**, có CRC32/kiểm tra kích thước; không overwrite file có sẵn, không resume; file lỗi/cancel cần cleanup. File thường và video tối đa **128 MiB**. Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview. Video MP4/AVI/MKV tối đa **128 MiB**, mở bằng ứng dụng OS qua `Desktop.open`. Sound WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop, MP3/M4A mở player mặc định. Gửi/nhận bytes **không** chứng minh playback thực: MP4/codec và thiết bị âm thanh NOT RUN.
 
-## Hai/ba máy LAN vật lý
+## History và dữ liệu
 
-Cấu hình mỗi máy với profile riêng; máy A **Listen** trên IPv4 LAN (không phải 127.0.0.1), B/C nhập IPv4 và cổng A rồi **Connect**. Kiểm tra firewall/cùng mạng và quyền truy cập cổng. LAN vật lý chưa được kiểm chứng P6; cần thực hiện nghiệm thu thủ công.
+`LocalProfile` lưu UUID/displayName, `HistoryRepository` lưu transcript, sender/time/state, group và metadata file/media trong JSONL riêng từng profile. Mặc định trong `%LOCALAPPDATA%\IntraChat\data`; override bằng JVM property `-Dintrachat.dataDir=<thư mục>`. Gửi vài tin, đóng ứng dụng và chạy lại **cùng dataDir**, mở hội thoại để xem History được khôi phục, kể cả khi peer offline. Không có cloud sync; JSONL không mã hóa, không nên dùng nội dung nhạy cảm; file/media đã nhận phải còn tồn tại để mở lại.
 
-## Kiểm thử và bàn giao
+## Kiểm chứng
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-all.ps1 -JavaHome $env:JAVA_HOME
+.\mvnw.cmd clean test package
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-all.ps1 -JavaHome 'C:\Path\To\jdk-21'
 ```
 
-Script tổng hợp Maven/JUnit + P1–P5 process smoke + `git diff --check`; log riêng được tạo trong `%TEMP%` **ngoài** `target` để Maven Clean không xung đột. Chạy các scripts `verify-mvp.ps1`, `verify-p2.ps1`, `verify-p3.ps1`, `verify-p4.ps1`, `verify-p5.ps1` nếu cần kiểm tra từng giai đoạn.
+Script chạy P1–P5 smoke và Git diff check, log dưới `%TEMP%` (không trong `target/`). Kết quả mới và giới hạn được ghi trong [báo cáo C0–C3](docs/c0-c3-cleanup-report.md), [báo cáo P6](docs/p6-final-report.md), [architecture](docs/architecture.md) và [ma trận 11 tính năng](docs/feature-matrix.md).
 
-**Giới hạn bảo mật:** TCP và dữ liệu JSONL đều plaintext; UUID không xác thực mật mã. Chỉ dùng trên LAN thử nghiệm tin cậy, không truyền dữ liệu nhạy cảm hoặc mở cổng ra Internet. Không hỗ trợ cloud, group media, gọi âm thanh/video, history sync, tìm kiếm nâng cao. Các test GUI 2–3 cửa sổ, LAN vật lý, MP4 thật và loa WAV vẫn **NOT RUN**.
+### C6 verification note (24/11/2026)
 
-Tham khảo [kiến trúc](docs/architecture.md), [ma trận](docs/feature-matrix.md), [roadmap](ROADMAP.md), [báo cáo P6](docs/p6-final-report.md).
+JDK 21 clean test package: **97/97 JUnit PASS**; `scripts/verify-all.ps1` P1–P5 PASS. Two separate GUI JVMs using temporary `-Dintrachat.dataDir=...` directories passed localhost Listen/Connect/Accept, Unicode P2P two-way messages and normal GUI close. This is **not** physical LAN acceptance. GUI Group/media/history restart, extended media race cases, hardware playback and physical LAN still require tests. The history writer's synchronized close boundary now rejects new writes before flush. See [C6 final verification report](docs/c6-final-verification-report.md).

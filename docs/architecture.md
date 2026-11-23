@@ -1,110 +1,59 @@
-# Kiến trúc thực tế IntraChat — P1 TCP + P2 Group + P3 File (23/11/2026)
+# Kiến trúc IntraChat MVP hiện hành (23/11/2026)
 
-Xem [README](../README.md), [ma trận tính năng](feature-matrix.md) và [báo cáo P1](p1-report.md).
-
-```text
-ui.IntraChat → LoginFrame (Demo tách biệt / nút Live TCP)
-                     └→ LanConnectionDialog (Listen / Connect / Accept / Reject / Disconnect)
-                           └→ LanCoordinator (một TCP listener, giới hạn peer)
-                                  └→ LanSession (Socket + worker đọc / ghi có khóa)
-                                       ↕ WireCodec (bounded UTF-8 JSON)
-                                       ↕ FrameCodec (int32 length prefix, tối đa 1 MiB)
-                             LiveChatService (text/emoji, message UUID, ACK/READ)
-                                       ↓ events
-                         LiveChatAdapter → MainChatFrame / ChatViewMapper
-                                  (EDT, sender/time/state/foreground read)
-        LocalProfile → %LOCALAPPDATA%\IntraChat\data\profile.json
-```
-
-## LocalProfile và định danh
-
-`LocalProfile.loadOrCreate()` tạo UUID ngẫu nhiên lần đầu và giữ qua restart cùng `displayName`; override qua JVM property `intrachat.dataDir`. Trùng displayName không trùng thiết bị. P2P conversation UUID tạo xác định bằng `UUID.nameUUIDFromBytes("intrachat:dm:" + hai UUID sắp xếp)`, không dùng fingerprint hoặc alias. Cả A/B luôn tính cùng ID; không cần lưu mapping. UUID do bên kia **tự khai**, không xác thực.
-
-## Wire protocol / TCP
-
-Một TCP listener; `HELLO {senderId, payload.displayName}`, peer nhận xem tên/UUID/endpoint và Accept hoặc Reject, trả `WELCOME` hoặc `REJECT`. Sau đó một `LanSession` chỉ nhận/gửi frame đúng senderId/recipientId và conversationId. Một message envelope JSON có `type, messageId, conversationId, senderId, recipientId, sentAtUtc, payload`. Loại đang chạy: `TEXT`, `ACK`, `READ`; `ERROR` và tên loại GROUP/FILE mới được dự trù trong enum, **không xử lý trong Live P1**. Payload UTF-8 Unicode, giới hạn frame 1 MiB; không dùng Java Object Serialization. P3 dùng FILE_CHUNK Base64 theo JSON có giới hạn, không tạo framing hay socket thứ hai.
-
-`LanSession`: một reader virtual thread/phiên, synchronized write, timeout đọc 15 giây (idle tiếp tục), timeouts handshake và connect, đóng socket idempotent. `LanCoordinator` giới hạn 4 peer hoạt động / 4 ứng viên chờ, bỏ phiên UUID trùng và dọn phiên đã đóng trước reconnect. Không tự reconnect, không tự resend.
-
-## Tin nhắn và trạng thái
-
-`LiveChatService` tạo messageId UUID và UTC sentAt; kiểm tra conversation, sender/recipient theo session. Inbound TEXT được xử lý và dedup trước khi ACK; duplicate same ID chỉ ACK lại, không tạo bubble mới. ACK hợp lệ chuyển Delivered; READ chỉ từ `LiveChatAdapter.onMessageVisible` do `MainChatFrame` quan sát bubble đang hiện khi cửa sổ foreground. Khi ACK không xác định, trạng thái UNCERTAIN; retry thủ công chỉ cùng session còn mở. Event UI được đưa qua Swing EDT; không thao tác socket trên EDT.
-
-Transcript Live giữ trong RAM có giới hạn; khi mất kết nối vẫn xem được trong tiến trình, nhưng **chưa có HistoryRepository trên ổ đĩa**, restart mất tin nhắn. Demo/mock và Live tách backend.
-
-## Mã đã gỡ / ranh giới P2–P6
-
-P1 đã gỡ TLS session, certificate/key/fingerprint, DPAPI/pin/trust stores, signed Group prototype, M1 diagnostics cùng các codec/protocol cũ, BouncyCastle và JNA. Java AWT focus thay phụ thuộc JNA để tránh READ khi ứng dụng không active. File security cũ trong LocalAppData không bị xóa. P2 đã bổ sung GroupService/Owner Relay mới (xem phần phía dưới). Việc gỡ Group prototype P1 không được nhầm với nghiệm thu GUI/LAN P2 hoàn chỉnh. HistoryRepository/Media Live chưa triển khai; xem ROADMAP.
-
-**Mô hình tin cậy:** TCP plaintext LAN thử nghiệm; UUID không chứng minh người gửi thật. Không gửi dữ liệu nhạy cảm hoặc mở cổng ra Internet.
-
-## Group Owner Relay — P2 (23/11/2026)
+Tài liệu này mô tả code hiện có, không phải kiến trúc TLS/M1/M2 lịch sử. Xem [README](../README.md), [feature matrix](feature-matrix.md), [P6 report](p6-final-report.md).
 
 ```text
-MainChatFrame (CreateGroupDialog, sidebar, bubbles, menu Nhóm)
-      |  ChatActionHandler / ChatClientListener (Swing EDT)
-LiveChatAdapter  ──── GroupService ── ChatGroup + RAM timelines + ACK ledger
-      |                    |
-      +── LiveChatService ←+── group-type dispatcher
-                 |
-       LanCoordinator → LanSession (1 TCP session/peer, 1 reader)
-                 |
-                 +──── A owner ↔ B
-                 +──── A owner ↔ C
+ui.IntraChat
+  └─ LocalProfile (UUID/displayName/dataDir)
+      └─ LiveChatService (worker, ngoài EDT)
+          └─ LanConnectionDialog (Listen / Connect / Accept / Reject)
+              └─ MainChatFrame (Swing EDT) ↔ LiveChatAdapter
+                ├─ LiveChatService (TEXT, Emoji, ACK/READ)
+                ├─ GroupService (owner relay, invite, membership)
+                ├─ FileTransferService (file/image/video/sound)
+                └─ HistoryRepository (JSONL, restore)
+                      ↕
+                 LanCoordinator (listener / peer lifecycle)
+                      ↕ LanSession (socket, workers)
+                 WireMessage / WireCodec / FrameCodec
+                      ↕
+                 TCP LAN plaintext
 ```
 
-Không có Group TCP listener riêng. A mời B/C bằng GROUP_INVITE. B/C hiển thị popup async trên Swing EDT, trả GROUP_ACCEPT hoặc GROUP_REJECT; owner bổ sung **chỉ các peer đã chấp nhận** và phát GROUP_UPDATE gồm roster + revision tăng dần. Owner serialize xử lý các frame nhận đồng thời để không mất cập nhật roster. GROUP_UPDATE kèm alias hiển thị từng UUID để B và C xem đúng tên người gửi dù không trực tiếp nối nhau; alias không dùng làm khóa định tuyến.
+Sơ đồ là luồng chức năng, không khẳng định mọi cạnh là dependency trực tiếp. Các service Live sử dụng những session do coordinator quản lý; adapter đồng bộ model/UI. C4 đã loại bỏ MockChatService và LoginFrame. Dialog kết nối là cửa sổ đầu tiên; sau kết nối thành công mở MainChatFrame. Nút Kết nối LAN mở lại dialog đang có, không tạo Messenger thứ hai.
 
-Một frame GROUP_TEXT giữ envelope sender/recipient theo TCP session để LanSession xác thực tính nhất quán. Payload chứa `origin` (UUID tác giả gốc), `originalMessageId`, `sentAt` UTC, `text`. B → A → C giữ nguyên metadata gốc trong payload; C chỉ nhận Group text từ session A; A chỉ nhận Group text từ session B/C khi người đó còn trong roster. `groupId` là `conversationId`, distinct UUID cho mỗi nhóm. B/C không cần kết nối trực tiếp.
+## Profile và dữ liệu cục bộ
 
-Với ACK: người nhận gửi GROUP_ACK gồm groupId, originalMessageId, `recipient` và `origin`. Owner gửi ACK nhận tin của chính mình về B/C, và forward ACK C về B (hoặc B về C); adapter chỉ hiển thị DELIVERED sau khi mọi recipient trong snapshot lúc gửi đã xác nhận, không giả ALL READ. Tin trùng messageId cùng nội dung được loại bằng RAM dedup; thay đổi cùng ID bị từ chối. GROUP_LEAVE và GROUP_REMOVE cập nhật roster (rev), sau đó owner fanout chỉ tới roster mới. Offline không xóa nhóm; owner offline chặn gửi mới từ member. Giới hạn group 2–5 người, text 32 KiB UTF-8, frame tối đa 1 MiB.
+`LocalProfile` tạo UUID và display name được lưu giữa các lần chạy trong data directory (mặc định dưới `%LOCALAPPDATA%\IntraChat\data`); JVM có thể chỉ định thư mục tách biệt bằng `-Dintrachat.dataDir=...`. UUID/display name do peer tự khai, **không xác thực danh tính**. `HistoryRepository` lưu các bản ghi JSONL local, khôi phục transcript và group metadata/timeline khi khởi động lại; không đồng bộ lịch sử giữa máy. Metadata file/media được ghi lại, nhưng nội dung file nhận vẫn phụ thuộc đường dẫn và vòng đời file thực tế. Offline có thể xem history đã lưu; không có offline network delivery.
 
-Nhóm, timeline và receipt ledger hiện lưu trong RAM; chưa sync history/persist (P4). TCP plaintext và peer UUID self-declared không có xác thực mật mã. Không khôi phục giao thức signed grant/GroupV1/V3 hoặc TLS. GUI/physical LAN acceptance không suy từ process smoke; xem [báo cáo P2](p2-report.md).
-## P3 — File Transfer P2P (23/11/2026)
+## Kết nối TCP và giao thức
 
-```text
-MainChatFrame / ComposerPanel / File bubble
-    → LiveChatAdapter (ChatActionHandler + ChatClientListener trên Swing EDT)
-    → LiveChatService.files() → FileTransferService
-    → LanSession.send(WireMessage) → WireCodec JSON → FrameCodec 1 MiB → TCP
-```
+`LanCoordinator` nhận kết nối Listen/Connect, yêu cầu Accept/Reject và quản lý session. `LanSession` sử dụng TCP socket, vòng đọc và ghi được phối hợp, timeout và cleanup khi ngắt. `FrameCodec` dùng độ dài int32, giới hạn frame **1 MiB**; `WireCodec` mã hóa envelope JSON/UTF-8 của `WireMessage` với messageId, conversationId, senderId, recipientId, timestamp và payload. Không dùng Java object deserialization, TLS, certificate, fingerprint, SAS, DPAPI hoặc signed group protocol. Dữ liệu **TCP và JSONL plaintext, không mã hóa**, chỉ dùng mạng LAN tin cậy và dữ liệu thử; không đưa cổng ra Internet.
 
-Tái sử dụng **duy nhất** kết nối P1, không TCP listener mới. Một file/peer tại một thời điểm, giới hạn 128 MiB. `FILE_OFFER` kèm UUID transfer/conversation, sender/recipient trong envelope, fileName và fileSize (không có sourcePath), tiếp theo `FILE_ACCEPT` hoặc `FILE_REJECT`. A đọc file bằng InputStream 32 KiB/chunk, mã hóa **chỉ từng chunk** thành Base64 cho `FILE_CHUNK {transferId, offset, data}` (khoảng 44 KiB JSON/frame), B đối chiếu offset tuần tự và giới hạn 32 KiB rồi ghi OutputStream vào tệp tạm `.intrachat-*.part` trong thư mục đích đã chọn. A gửi `FILE_DONE {size, crc32}` sau EOF; B so byte count/CRC32, đóng stream, `Files.move` **không REPLACE_EXISTING**, sau đó mới gửi `FILE_RESULT`. A chỉ chuyển `COMPLETED` khi nhận `FILE_RESULT` hợp lệ, không phải sau write cuối. CRC32 chỉ phát hiện sai dữ liệu, không có xác thực mật mã.
+## F01/F04/F09/F10/F11 — P2P và metadata
 
-State tối thiểu: OFFERED → WAITING_ACCEPT → TRANSFERRING → COMPLETED, hoặc REJECTED / CANCELLED / FAILED (terminal). `FILE_CANCEL` cho cả A/B, `FILE_ERROR` cho lỗi I/O/protocol. Close/disconnect/timeout 60s dọn worker/stream/file tạm; không xóa file nguồn hay file đích tồn tại trước. Peer/session/conversation được xác minh bởi `LanSession` + file service. Worker virtual thread truyền file, mỗi chunk khóa ghi TCP độc lập để text/control nhóm không bị chặn suốt file; phát tiến độ theo byte thật và gộp UI mỗi ~256 KiB. Event cập nhật bubble qua Swing EDT, file lưu/đọc ngoài EDT. Sender chỉ lưu sourcePath nội bộ; recipient chỉ lưu targetPath nội bộ. File group chưa hỗ trợ. RAM là buffer 32 KiB + Base64 chunk; không giữ toàn bộ file. Không hỗ trợ truyền lại sau restart hay file >128 MiB.
+`LiveChatService` chuyển TEXT Unicode/emoji qua socket; identity theo UUID, timestamp UTC và state SENT/DELIVERED/SEEN dựa sự kiện thật. ACK xác nhận xử lý phía nhận, READ xuất phát từ điều kiện cuộc hội thoại hiển thị/foreground do adapter quan sát; READ không chứng minh người dùng đã đọc bằng mắt. Dedup messageId hạn chế bubble trùng; disconnect/timeout không được suy diễn thành delivered. Tin được ghi history cục bộ sau P4; ACK không đồng nghĩa fsync hoặc đồng bộ remote disk.
 
-Hai JVM socket thật đã PASS (SHA-256 file đầu-cuối) nhưng thao tác GUI Messenger và LAN vật lý vẫn NOT RUN; không dùng kết quả này để gán GUI VERIFIED. Chi tiết: [P3 report](p3-report.md).
+## F02 — Group Owner Relay
 
+`GroupService` quản lý group ID, owner, invitation accept/reject, roster, join/leave/remove, relay tin qua owner và ACK theo recipient. Ba JVM process smoke đã kiểm chứng backend, không phải GUI/physical LAN. Owner offline làm mất tuyến relay đang chạy; không có leader election, tự chuyển chủ hay guaranteed offline delivery. Group metadata và history được khôi phục từ local JSONL sau P4.
 
-## Bổ sung chất lượng P2 — timeout lời mời và hiển thị ACK (23/11/2026)
+## F03 — File Transfer
 
-```text
-Owner A -- GROUP_INVITE --> B/C
-        <-- GROUP_ACCEPT / GROUP_REJECT --
-        -- GROUP_UPDATE (accepted roster + revision) --> accepted members
-        -- GROUP_REMOVE (invite expires) --> unanswered invitees
+`FileTransferService` dùng cùng TCP session: OFFER → ACCEPT/REJECT → CHUNK, có cancel, progress, CRC32/đối chiếu kích thước và xử lý file tạm khi lỗi. Chunk thường **32 KiB**, nội dung gửi qua codec bounded; receiver quyết định nơi nhận, tránh traversal và overwrite. Chỉ hỗ trợ transfer P2P, không resume, không coi thao tác gửi file thành công là xác nhận phần mềm mở được file.
 
-GROUP_TEXT (original sender/messageId/time) --> owner relay --> recipients
-GROUP_ACK (original messageId, recipient)  --> owner forwards to origin
-         GroupService recipient counts --> LiveChatAdapter
-         --> ChatClientListener.onGroupReceiptChanged --> MainChatFrame bubble
-             0/N ... 1/N ... N/N; unknown send remains UNCERTAIN
-```
+## F05 — History
 
-Lời mời không được trả lời hết hạn theo mặc định sau 30 giây. Owner giữ nhóm đã có thành viên Accept; nếu chưa có ai Accept, thao tác tạo nhóm hoàn tất bằng lỗi timeout và không để lại nhóm chỉ có owner. Trạng thái ACK là bằng chứng nhận **từng recipient** trên phiên TCP; không cung cấp READ nhóm hoặc cam kết bảo mật danh tính. Không tạo TCP listener khác, scheduler riêng, Group coordinator phân tán hay persistence mới. GUI thật/LAN vật lý chưa nghiệm thu.
-## P4 — HistoryRepository / startup restore
+`HistoryRepository` ghi JSONL và phục hồi khi restart, lưu sender/time/state, conversation/group và file/media metadata. Lịch sử thuộc từng profile/dataDir, không đồng bộ giữa máy; kiểm thử process restart đã PASS. Chưa nghiệm thu lỗi disk full/ACL/crash; cách hiển thị/index và đọc JSONL có giới hạn bộ nhớ, không bảo đảm fsync trên mọi ACK.
 
-`LocalProfile.loadOrCreate` xác định `dataDir` trước khi `LiveChatService` tạo `HistoryRepository`. `HistoryRepository` tải `history/messages.jsonl` từ dataDir riêng của profile (không phải `target/`). `LiveChatService` sử dụng kho này khi gửi/nhận TEXT, ACK/READ và khi nhận sự kiện FileTransfer; `GroupService` lưu message/roster và nạp roster trong chế độ **chưa xác minh** sau restart; `LiveChatAdapter` khởi tạo sidebar từ metadata và load timeline trên worker ngoài Swing EDT; `MainChatFrame` giữ hội thoại dù peer offline. Khi đóng bình thường, `LiveChatService.close()` gọi `HistoryRepository.close()`, drain writer và flush.
+## F06–F08 — Media
 
-Dữ liệu **JSONL append-only** gồm `MESSAGE` (messageId, conversationId UUID ổn định, DIRECT/GROUP, sender/recipient UUID, timestamp UTC, TEXT/FILE, state, file metadata), `STATE`, `TRANSFER_STATE`, `GROUP` (groupId, ownerId, tên, member UUID, revision) và `PEER` (UUID + alias). Một bounded single writer (queue 1024) ghi tuần tự và `FileChannel.force`; update chỉ thêm event, reader gộp theo message ID và bỏ qua các dòng lỗi. Tin FILE chỉ ghi metadata, không ghi bytes/chunks và không dùng đường dẫn từ peer làm nơi lưu history. Tin FILE đang dở khi load được hiển thị INTERRUPTED/FAILED, không resume. Group roster cũ không tự trở thành quyền gửi mới.
+Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview GUI. Video MP4/AVI/MKV tối đa **128 MiB** dùng `Desktop.open` qua ứng dụng hệ điều hành. Sound WAV/MP3/M4A tối đa **8 MiB**, WAV PCM có Java Sound Play/Stop, định dạng còn lại dùng ứng dụng ngoài/fallback. Media dùng chung `FileTransferService` và lưu metadata vào history. Backend byte/type/restart đã PASS; **GUI thumbnail, video player/codec và playback âm thanh trên thiết bị thực NOT RUN**.
 
-Đọc có giới hạn: index RAM giữ tối đa 10.000 message và API `loadMessages(conversation,limit,offset)` tối đa 500 mỗi trang, thứ tự `sentAtUtc` rồi `messageId`. Dedup qua persisted message ID, kết hợp timeline RAM và disk; ACK/READ cập nhật state, không tạo bubble riêng. `HistoryRepository` chạy I/O trên worker trong đường ghi; phần đọc JSONL khi khởi tạo service xảy ra lúc startup nên launcher không được gọi khởi tạo nặng trực tiếp trên EDT. Cần lưu ý: ACK TCP hiện có nghĩa **đã xử lý ở phía ứng dụng**, chưa phải cam kết fsync trước ACK vì writer bất đồng bộ. Không có mã hóa history và không có mạng sync; dữ liệu nhạy cảm không phù hợp môi trường này.
+## GUI, giới hạn và bằng chứng
 
-Giới hạn hiện tại: chưa có thao tác UI để load trang cũ hơn 500; việc đọc file lúc startup vẫn duyệt toàn bộ JSONL (một dòng quá lớn vẫn có thể tốn bộ nhớ trước khi bị loại). Các trường hợp I/O/ACL lỗi phải được xem như rủi ro, không suy ra bền vững tuyệt đối từ ACK. Chi tiết chứng cứ: [P4 report](p4-report.md).
-## P5 — Media có type trên một đường FileTransfer (23/11/2026)
+Swing/FlatLaf hiển thị một `MainChatFrame` cho Live; callback cập nhật UI trên EDT, network/disk I/O không được chặn EDT. Không còn LoginFrame/Demo; GUI startup và hộp Accept/Reject trên localhost hai JVM đã quan sát được, nhưng GUI Messenger P2P/Group/Media chưa nghiệm thu. P1–P5 socket/process smoke và JUnit chỉ xác minh backend. **GUI thao tác thật, LAN nhiều máy vật lý, video/sound playback, extended concurrency/disk fault đều NOT RUN**; xem [ma trận](feature-matrix.md) và [P6](p6-final-report.md).
 
-`ComposerPanel → LiveChatAdapter.sendMessage(MessageContent.media(type, Attachment)) → LiveChatService.files() → FileTransferService.offer(peer,conversation,path,type) → LanSession → TCP`. `FILE_OFFER` bổ sung metadata `messageType=FILE|IMAGE|VIDEO|SOUND`; offer P3 không có trường mới được mặc định `FILE`. Mọi nội dung vẫn dùng `FILE_CHUNK` 32 KiB, CRC32, `FILE_DONE` và `FILE_RESULT`, không có listener/protocol riêng. Giới hạn IMAGE 16 MiB, SOUND 8 MiB, FILE/VIDEO 128 MiB. Transfer ID cũng là message ID, riêng ACK/READ text không thay đổi.
+## C6 verified lifecycle clarification (24/11/2026)
 
-`LiveChatService.persistTransfer` lưu loại media và trạng thái vào `HistoryRepository` JSONL, chỉ metadata + localPath **của máy hiện tại**, không truyền sourcePath từ A sang B. `LiveChatAdapter` khôi phục type và bubble cùng ID/time/sender sau restart, đổi transfer đang dở thành FAILED/INTERRUPTED. `MessageBubblePanel` hiện trạng thái/accept/reject/cancel/progress trong lúc truyền; khi COMPLETED, `MessageMedia` render ImageIO thumbnail async, nút Desktop.open video, Java Sound WAV Clip + fallback mở audio bên ngoài. Không decode ảnh/video/checksum trên EDT, không tự mở/phát; Clip đóng khi Stop/chuyển hội thoại/đóng app/kết thúc phát. Video không decode trong backend; ảnh có giới hạn 32MP và co kích thước.
-
-GUI/LAN nghiệm thu vật lý NOT RUN. Thông tin giới hạn và bằng chứng test: [p5-report.md](p5-report.md).
+`HistoryRepository.close()` now synchronizes with its existing synchronized mutation APIs, sets `closed=true` before its flush barrier, then shuts down the single writer. Newly accepted events cannot enter behind the barrier; post-close mutation attempts reject. This preserves JSONL and does not turn TCP ACK into a durable fsync acknowledgment. The C6 concurrent-close/restart JUnit test passes. GUI `LanConnectionDialog` still starts the bounded 30-second approval future before dispatching dialog creation to EDT; EDT-delay race and VoiceRecorder blocked-read cancellation remain unverified, not claimed fixed. See [C6 report](c6-final-verification-report.md).

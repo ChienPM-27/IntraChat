@@ -1,9 +1,11 @@
-# AGENTS — IntraChat MVP
+# AGENTS — Quy tắc duy trì IntraChat MVP
 
-- Java 21, Maven Wrapper, Swing/FlatLaf, Jackson, TCP plaintext; chỉ 11 chức năng F01–F11 tại [feature matrix](docs/feature-matrix.md).
-- Một ứng dụng Messenger Live, `LiveChatService`, `GroupService`, `FileTransferService`, `HistoryRepository`, `LanCoordinator/LanSession` và `WireMessage/WireCodec`. Không thêm TCP stack hay file service song song.
-- Không triển khai TLS/DPAPI/certificate/fingerprint, cloud, login, group leader election, database server hoặc tính năng thứ 12.
-- Giữ bất biến UUID sender, ID/timestamp, ACK/READ dựa trên sự kiện, integrity byte và lịch sử JSONL. Không thực hiện network/disk nặng trên Swing EDT.
-- Chạy `scripts/verify-all.ps1 -JavaHome <JDK21>` trước khi bàn giao; phân biệt PASS, FAIL và NOT RUN; không dùng Demo/mock làm bằng chứng Live.
-- Trước thao tác xóa/ghi đè: đọc `git status`, giữ file modified/untracked, tạo backup ngoài repo và kiểm tra SHA-256. Không tự commit/stash/reset/clean.
-- Docs chính: README, ROADMAP, docs/architecture.md, docs/feature-matrix.md, docs/p6-final-report.md; specs/evidence cũ chỉ là historical reference, không phải yêu cầu hiện hành.
+- Dùng **Java 21**, Maven Wrapper, Swing/FlatLaf và Jackson. Build bằng `mvnw.cmd`; chạy `scripts/verify-all.ps1 -JavaHome <JDK21>`.
+- Chỉ triển khai **11 chức năng F01–F11** theo [feature matrix](docs/feature-matrix.md). Không tự thêm cloud, video call hay chức năng thứ 12.
+- Duy trì một TCP plaintext transport (`LanCoordinator/LanSession/WireCodec`), một `GroupService`, một `FileTransferService` dùng chung file/media và một `HistoryRepository` JSONL.
+- Không khôi phục TLS, certificate, DPAPI, fingerprint, SAS, signed grants hay security gates cũ; không thêm framework nặng hoặc thay stack không cần thiết. Không dùng dữ liệu nhạy cảm qua TCP/JSONL không mã hóa.
+- Bảo toàn UUID sender, timestamp, trạng thái ACK/READ thực, bounds/chunk/file integrity, giới hạn memory, cleanup, và dữ liệu local. Không chạy I/O mạng/đĩa nặng trên Swing EDT.
+- Từ C4: **Live-only** — `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog → MainChatFrame/LiveChatAdapter`. Không Demo/Login/Mock, không authentication server. Một Messenger, một TCP stack; giữ headless `--diagnostics`.
+- Phân biệt backend PASS, GUI NOT RUN, physical LAN NOT RUN và playback NOT RUN. Không đổi NOT RUN thành PASS khi chưa chạy.
+- Kiểm tra `git status`, backup toàn bộ modified/untracked trước khi xóa; không tự commit/reset/stash/clean hoặc đụng LocalAppData thực.
+- Tài liệu chính: [README](README.md), [ROADMAP](ROADMAP.md), [architecture](docs/architecture.md), [matrix](docs/feature-matrix.md), [P6 report](docs/p6-final-report.md). Tài liệu specs/evidence đã archive không phải tài liệu bắt buộc cho agent.
