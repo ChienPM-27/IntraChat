@@ -2,7 +2,6 @@ package vn.intrachat.persistence;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import vn.intrachat.application.FileTransferService;
 import vn.intrachat.domain.ChatGroup;
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -218,10 +217,13 @@ public final class HistoryRepository implements AutoCloseable {
         catch(ExecutionException|TimeoutException|RejectedExecutionException e){throw new IOException(e);}
         if(writeFailure!=null)throw writeFailure;
     }
-    @Override public void close(){
+    @Override public synchronized void close(){
         if(closed)return;
+        // Serialize the close boundary with all synchronized mutation methods.
+        // No accepted event can be queued after the flush barrier.
+        closed=true;
         try{flush();}catch(IOException ex){LOG.log(Level.SEVERE,"History flush failed",ex);}
-        closed=true;writer.shutdown();
+        writer.shutdown();
         try{if(!writer.awaitTermination(15,TimeUnit.SECONDS))writer.shutdownNow();}
         catch(InterruptedException ex){Thread.currentThread().interrupt();writer.shutdownNow();}
     }
