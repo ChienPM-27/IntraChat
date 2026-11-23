@@ -37,7 +37,6 @@ class LiveComposerTest {
         var holder=new AtomicReference<ComposerPanel>();
         edt(()->holder.set(new ComposerPanel(Runnable::run,current::get,
             (chat,content)->{assertEquals("chat-A",chat);sent.add(content);},errors::add)));
-        edt(()->holder.get().setTextOnly(true)); // Mirror MainChatFrame Live startup
         try{
             edt(()->{
                 ComposerPanel composer=holder.get();
@@ -67,7 +66,6 @@ class LiveComposerTest {
         var holder=new AtomicReference<ComposerPanel>();
         edt(()->holder.set(new ComposerPanel(Runnable::run,current::get,
             (chat,content)->sent.add(content),errors::add)));
-        edt(()->holder.get().setTextOnly(true)); // Mirror MainChatFrame Live startup
         try{
             edt(()->{
                 ComposerPanel composer=holder.get();
@@ -93,7 +91,6 @@ class LiveComposerTest {
         var holder=new AtomicReference<ComposerPanel>();
         edt(()->holder.set(new ComposerPanel(Runnable::run,current::get,
             (chat,content)->sent.add(chat+":"+content.text()),m->{})));
-        edt(()->holder.get().setTextOnly(true)); // Mirror MainChatFrame Live startup
         try{
             edt(()->{
                 ComposerPanel composer=holder.get();

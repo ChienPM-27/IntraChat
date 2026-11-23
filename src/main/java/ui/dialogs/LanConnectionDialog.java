@@ -1,8 +1,6 @@
 package ui.dialogs;
 
-import ui.frames.LoginFrame;
 import ui.frames.MainChatFrame;
-import ui.components.ChatStyle;
 import listener.LiveChatAdapter;
 import vn.intrachat.application.*;
 import vn.intrachat.transport.*;
@@ -16,7 +14,6 @@ import java.util.concurrent.*;
 
 /** Single LAN connection UI with human approval of self-declared UUIDs. */
 public final class LanConnectionDialog extends JDialog {
-    private final LoginFrame launcher;
     private final LocalProfile profile;
     private final LiveChatService live;
     private final LanCoordinator coordinator;
@@ -31,14 +28,9 @@ public final class LanConnectionDialog extends JDialog {
     private MainChatFrame frame;
     private boolean closed;
 
-    public LanConnectionDialog(LoginFrame launcher,LocalProfile profile){
-        this(launcher,profile,new LiveChatService(profile));
-    }
-    public LanConnectionDialog(LoginFrame launcher,LocalProfile profile,LiveChatService service){
+    public LanConnectionDialog(LocalProfile profile,LiveChatService service){
         super((Frame)null,"IntraChat — Kết nối LAN",ModalityType.MODELESS);
-        this.launcher=Objects.requireNonNull(launcher);
         this.profile=Objects.requireNonNull(profile);
-        launcher.setEnabled(false);
         this.live=Objects.requireNonNull(service);
         this.coordinator=new LanCoordinator(profile,this::approveIncoming,this::onConnected);
         live.addListener(event->{
@@ -50,7 +42,7 @@ public final class LanConnectionDialog extends JDialog {
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         setSize(760,490);
         setMinimumSize(new Dimension(680,430));
-        setLocationRelativeTo(launcher);
+        setLocationRelativeTo(null);
         JPanel root=new JPanel(new BorderLayout(0,15));
         root.setBorder(new EmptyBorder(22,24,20,24));
         setContentPane(root);
@@ -97,7 +89,6 @@ public final class LanConnectionDialog extends JDialog {
                 closed=true;
                 coordinator.close();live.close();workers.shutdownNow();
                 if(frame!=null&&frame.isDisplayable())frame.dispose();
-                if(launcher.isDisplayable())launcher.setEnabled(true);
             }
         });
     }
@@ -179,7 +170,6 @@ public final class LanConnectionDialog extends JDialog {
             frame=new MainChatFrame(adapter.self(),adapter);
             frame.setVisible(true);
             setVisible(false);
-            launcher.dispose();
         }else{frame.toFront();frame.requestFocus();}
         disconnect.setEnabled(!live.connectedPeers().isEmpty());
     }

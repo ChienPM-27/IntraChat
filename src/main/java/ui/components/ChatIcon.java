@@ -7,6 +7,15 @@ import java.awt.geom.*;
 public record ChatIcon(Kind kind, Color color, int size) implements Icon {
     public enum Kind { LOGO, PLUS, SEARCH, IMAGE, VIDEO, FILE, MIC, SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK }
 
+    /** Shared application icon, independent from the deleted demo login window. */
+    public static Image appIconImage() {
+        var image = new java.awt.image.BufferedImage(48, 48, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        new ChatIcon(Kind.LOGO, ChatStyle.BLUE, 48).paintIcon(new javax.swing.JLabel(), graphics, 0, 0);
+        graphics.dispose();
+        return image;
+    }
+
     @Override
     public int getIconWidth() {
         return size;

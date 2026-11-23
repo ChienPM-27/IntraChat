@@ -17,7 +17,7 @@ import java.util.concurrent.*;
 
 /**
  * Messenger FE Live adapter backed by plain TCP socket events and RAM-only transcripts.
- * No demo login, seeded conversations, artificial delivery/read timers or persisted History.
+ * No demo login, seeded conversations or artificial delivery/read timers.
  */
 public final class LiveChatAdapter implements ChatActionHandler {
     private final LocalProfile local;
@@ -83,16 +83,8 @@ public final class LiveChatAdapter implements ChatActionHandler {
         groups.addListener(this::onGroupEvent);
     }
     public ChatUser self(){return self;}
-    @Override public boolean liveMode(){return true;}
     @Override public boolean connectionSettingsAvailable(){return connectionSettings!=null;}
     @Override public void openConnectionSettings(){if(connectionSettings!=null)connectionSettings.run();}
-    @Override public CompletionStage<ChatUser> signIn(String username,char[] password){
-        return CompletableFuture.failedFuture(new UnsupportedOperationException(
-            "Live uses local device profiles, not demo username/password"));
-    }
-    @Override public CompletionStage<ChatUser> register(String username,char[] password){
-        return signIn(username,password);
-    }
     @Override public void connect(ChatClientListener listener){
         subscriber=Objects.requireNonNull(listener);
         Runnable initial=()->{

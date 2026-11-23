@@ -16,17 +16,15 @@ class LiveReceiptVisibilityTest {
         String self=UUID.randomUUID().toString();
         var older=message(self,DeliveryState.UNCERTAIN);
         var newer=message(self,DeliveryState.DELIVERED);
-        assertTrue(MainChatFrame.shouldShowOutgoingReceipt(true,older,newer,self));
-        assertTrue(MainChatFrame.shouldShowOutgoingReceipt(true,newer,newer,self));
-        assertFalse(MainChatFrame.shouldShowOutgoingReceipt(false,older,newer,self),
-            "Demo keeps its existing last-outgoing-only receipt behavior");
+        assertTrue(MainChatFrame.shouldShowOutgoingReceipt(older,newer,self));
+        assertTrue(MainChatFrame.shouldShowOutgoingReceipt(newer,newer,self));
     }
     @Test void incomingAndOlderDeliveredMessagesDoNotShowManualRetry(){
         String self=UUID.randomUUID().toString();
         var older=message(self,DeliveryState.DELIVERED);
         var newest=message(self,DeliveryState.SEEN);
         var incoming=message(UUID.randomUUID().toString(),DeliveryState.UNCERTAIN);
-        assertFalse(MainChatFrame.shouldShowOutgoingReceipt(true,older,newest,self));
-        assertFalse(MainChatFrame.shouldShowOutgoingReceipt(true,incoming,newest,self));
+        assertFalse(MainChatFrame.shouldShowOutgoingReceipt(older,newest,self));
+        assertFalse(MainChatFrame.shouldShowOutgoingReceipt(incoming,newest,self));
     }
 }

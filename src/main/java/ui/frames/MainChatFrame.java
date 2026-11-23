@@ -63,13 +63,13 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private final LiveMessageVisibilityObserver visibleMessages;
 
     public MainChatFrame(ChatUser self, ChatActionHandler actions) {
-        super(actions.liveMode() ? "IntraChat — Live LAN TCP" : "IntraChat — Demo");
+        super("IntraChat — Live LAN TCP");
         this.self = self;
         this.actions = actions;
         this.visibleMessages = new LiveMessageVisibilityObserver(System::nanoTime,
             (conversationId,messageId) -> this.actions.onMessageVisible(conversationId,messageId));
         users.put(self.id(), self);
-        setIconImage(LoginFrame.iconImage());
+        setIconImage(ChatIcon.appIconImage());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(1100, 720);
         setMinimumSize(new Dimension(760, 520));
@@ -79,18 +79,13 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         root.add(buildSidebar(), BorderLayout.WEST);
         media = new MessageMedia(work, this, this::showNotice);
         composer = new ComposerPanel(work, () -> activeId, this::send, this::showNotice);
-        if (actions.liveMode()) {
-            composer.setTextOnly(true);
-            newGroup.setVisible(actions.groupAvailable());
-        }
+        newGroup.setVisible(actions.groupAvailable());
         root.add(buildChat());
         refreshDirectory();
         renderHistory(false);
         actions.connect(this);
-        if (actions.liveMode()) {
-            liveVisibilityTimer = new javax.swing.Timer(100, event -> checkLiveVisibleRows());
-            liveVisibilityTimer.start();
-        }
+        liveVisibilityTimer = new javax.swing.Timer(100, event -> checkLiveVisibleRows());
+        liveVisibilityTimer.start();
     }
 
     private JPanel buildSidebar() {
@@ -146,9 +141,8 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         JLabel profileName = label(self.displayName(), 13, Font.BOLD, INK);
         profileName.setToolTipText(self.displayName());
         identity.add(profileName);
-        identity.add(label(actions.liveMode()
-                ? "Live LAN TCP · Không mã hóa · Đã xem = tin đã hiển thị"
-                : "Phiên demo · Chỉ trên máy này", 11, Font.PLAIN, MUTED));
+        identity.add(label("Live LAN TCP · Không mã hóa · Đã xem = tin đã hiển thị",
+                11, Font.PLAIN, MUTED));
         profile.add(identity);
         sidebar.add(profile, BorderLayout.SOUTH);
         return sidebar;
@@ -234,7 +228,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         noConversations.setText(query.isEmpty() ? "Chưa có đoạn chat" : "Không tìm thấy đoạn chat");
         ((CardLayout) directoryCards.getLayout()).show(directoryCards, listModel.isEmpty() ? "empty" : "list");
         newGroup.setEnabled(actions.groupAvailable() && !creatingGroup && users.values().stream()
-            .filter(user->!user.id().equals(self.id())&&(!actions.liveMode()||user.online())).count()>0);
+            .filter(user->!user.id().equals(self.id())&&user.online()).count()>0);
     }
 
     static String searchKey(String value) {
@@ -276,7 +270,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         headerTitle.setText(row.title());
         headerAvatar.setIcon(new AvatarIcon(row.title(), row.avatarId(), 40, row.online(), chat.group()));
         headerState.setText(chat.group() ? chat.memberIds().size() + " thành viên" +
-                (actions.liveMode()&&!actions.groupOwnerOnline(chat.id()) ? " · Chủ nhóm offline — không thể gửi" : "")
+                (!actions.groupOwnerOnline(chat.id()) ? " · Chủ nhóm offline — không thể gửi" : "")
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
     }
 
@@ -330,7 +324,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     }
 
     private void createGroup() {
-        List<ChatUser> candidates = users.values().stream().filter(user -> !user.id().equals(self.id()) && (!actions.liveMode() || user.online())).toList();
+        List<ChatUser> candidates = users.values().stream().filter(user -> !user.id().equals(self.id()) && user.online()).toList();
         new CreateGroupDialog(this, candidates).open().ifPresent(selection -> {
             creatingGroup = true;
             newGroup.setEnabled(false);
@@ -401,9 +395,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             for (int index = 0; index < messages.size(); index++) {
                 ChatMessage message = messages.get(index);
                 MessageBubblePanel bubble = bubble(chat, message);
-                String groupReceipt=chat.group()&&actions.liveMode()&&self.id().equals(message.senderId())
+                String groupReceipt=chat.group()&&self.id().equals(message.senderId())
                     ?actions.groupReceiptLabel(chat.id(),message.id()):null;
-                bubble.showReceipt(groupReceipt!=null || shouldShowOutgoingReceipt(actions.liveMode(),message,lastMine,self.id())
+                bubble.showReceipt(groupReceipt!=null || shouldShowOutgoingReceipt(message,lastMine,self.id())
                     ? message.state() : null,groupReceipt);
                 if (!rebuild && history.getComponent(index) != bubble) {
                     rebuild = true;
@@ -440,14 +434,13 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     }
 
     /**
-     * Earlier uncertain Live sends also need a visible manual-retry control.
-     * Demo retains the original most-recent-outgoing-only receipt policy.
+     * Earlier uncertain sends also need a visible manual-retry control.
      */
-    static boolean shouldShowOutgoingReceipt(boolean live,ChatMessage message,
+    static boolean shouldShowOutgoingReceipt(ChatMessage message,
                                              ChatMessage lastOutgoing,String localId){
         if(message==null||localId==null||!localId.equals(message.senderId()))return false;
         return message==lastOutgoing
-            ||(live&&message.state()==DeliveryState.UNCERTAIN);
+            ||message.state()==DeliveryState.UNCERTAIN;
     }
 
     private ChatMessage lastOutgoing(List<ChatMessage> messages) {
@@ -465,13 +458,13 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         String sender = mine ? "Bạn" : author == null ? "Người dùng không xác định" : author.displayName();
         return rows.computeIfAbsent(message.id(),id->
             new MessageBubblePanel(message,mine,chat.group(),sender,media,
-                actions.liveMode()&&mine&&message.content().type()==MessageType.TEXT ? this::manuallyRetry : null,
+                mine&&message.content().type()==MessageType.TEXT ? this::manuallyRetry : null,
                 fileTransfers.get(message.id()),this::fileAction));
     }
 
     /** Only invoked by an explicit visible UNCERTAIN message bubble button. */
     private void manuallyRetry(String messageId){
-        if(!actions.liveMode()||activeId==null||messageId==null)return;
+        if(activeId==null||messageId==null)return;
         String conversation=activeId;
         showNotice("Đang gửi lại thủ công; tin có thể đã đến trước đó và bị trùng.");
         actions.retryMessage(conversation,messageId).whenComplete((result,failure)->onEdt(()->{
@@ -600,7 +593,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
 
     /** The only read trigger: actual foreground Live Swing message row within scroll viewport. */
     private void checkLiveVisibleRows() {
-        if (closed || !actions.liveMode() || activeId == null) return;
+        if (closed || activeId == null) return;
         java.util.List<LiveMessageVisibilityObserver.Row> samples = new ArrayList<>();
         for (ChatMessage message : timeline(activeId).orderedMessages()) {
             MessageBubblePanel bubble = rows.get(message.id());

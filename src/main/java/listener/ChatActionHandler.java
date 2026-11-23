@@ -1,7 +1,6 @@
 package listener;
 
 import model.ChatMessage;
-import model.ChatUser;
 import model.Conversation;
 import model.MessageContent;
 
@@ -10,10 +9,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 public interface ChatActionHandler extends AutoCloseable {
-    CompletionStage<ChatUser> signIn(String username, char[] password);
-
-    CompletionStage<ChatUser> register(String username, char[] password);
-
     void connect(ChatClientListener listener);
 
     CompletionStage<List<ChatMessage>> loadHistory(String conversationId);
@@ -34,16 +29,14 @@ public interface ChatActionHandler extends AutoCloseable {
     }
     default void cancelFile(String transferId) { }
     CompletionStage<Conversation> createGroup(String name, List<String> memberIds);
-    default boolean groupAvailable(){return !liveMode();}
+    default boolean groupAvailable(){return false;}
     default CompletionStage<Void> leaveGroup(String id){return CompletableFuture.failedFuture(new UnsupportedOperationException("Leave unavailable"));}
     default CompletionStage<Void> removeGroupMember(String id,String member){return CompletableFuture.failedFuture(new UnsupportedOperationException("Remove unavailable"));}
     default boolean isGroupOwner(String id){return false;}
     default boolean groupOwnerOnline(String id){return true;}
-    /** Evidence for each recipient of a Live Group message; null for direct/Demo. */
+    /** Evidence for each recipient of a group message; null for direct messages. */
     default String groupReceiptLabel(String conversationId,String messageId){return null;}
 
-    /** Live mode is real live LAN messaging, not MockChatService; default is Demo. */
-    default boolean liveMode() { return false; }
     /** Manage the existing live LAN session from the Messenger interface. */
     default boolean connectionSettingsAvailable() { return false; }
     default void openConnectionSettings() { }

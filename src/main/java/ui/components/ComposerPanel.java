@@ -6,7 +6,6 @@ import model.MessageType;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.nio.file.Path;
@@ -22,10 +21,6 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     private static final String[] EMOJIS = ("😀 😃 😄 😁 😂 🤣 😊 🙂 🙃 😉 😍 🥰 😘 😎 🤔 😅 😢 😭 "
             + "😮 😴 😡 🙌 👏 👍 👎 🙏 💙 ❤️ ✨ 🎉").split(" ");
     private final JTextArea input = new JTextArea(2, 20);
-    // Preserve the original Demo single-line composer; only Live is multiline.
-    private final JTextField demoInput = new JTextField();
-    private final JPanel inputCards = new JPanel(new CardLayout());
-    private boolean liveTextOnly;
     private boolean mediaEnabled=true;
     private final JPanel cards = new JPanel(new CardLayout());
     private final JPanel controls = panel(new FlowLayout(FlowLayout.LEADING, 1, 0));
@@ -65,7 +60,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         input.setWrapStyleWord(true);
         input.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         input.setBorder(new EmptyBorder(7, 10, 7, 10));
-        input.setToolTipText("Enter: gửi · Shift+Enter: xuống dòng · Tin chỉ lưu trong RAM");
+        input.setToolTipText("Enter: gửi · Shift+Enter: xuống dòng · Bản nháp chỉ lưu trong RAM");
         input.getAccessibleContext().setAccessibleName("Nhập tin nhắn");
         input.getAccessibleContext().setAccessibleDescription(
             "Enter để gửi, Shift+Enter để xuống dòng; tin nháp chỉ giữ trong phiên");
@@ -76,12 +71,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         inputScroll.setBorder(null);
-        inputCards.add(inputScroll,"live");
-        field(demoInput,"Aa");
-        demoInput.getAccessibleContext().setAccessibleName("Nhập tin nhắn Demo");
-        inputCards.add(demoInput,"demo");
-        ((CardLayout)inputCards.getLayout()).show(inputCards,"demo");
-        textBox.add(inputCards, BorderLayout.CENTER);
+        textBox.add(inputScroll, BorderLayout.CENTER);
         emoji.setContentAreaFilled(false);
         textBox.add(emoji, BorderLayout.EAST);
         compose.add(textBox, BorderLayout.CENTER);
@@ -115,7 +105,6 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
                 input.replaceSelection("\n");
             }
         });
-        demoInput.addActionListener(event -> sendText());
         send.addActionListener(event -> sendText());
         emoji.addActionListener(event -> showEmojis());
         refresh();
@@ -128,23 +117,6 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         return button;
     }
 
-    /** M2 Live cannot expose Group/File/Voice/Video features that have no real transport. */
-    public void setTextOnly(boolean onlyText) {
-        controls.setVisible(true);
-        for(Component tool:controls.getComponents())tool.setVisible(true);
-        if(liveTextOnly!=onlyText){
-            String previous=activeInput().getText();
-            liveTextOnly=onlyText;
-            activeInput().setText(previous);
-        }
-        setPreferredSize(new Dimension(0,onlyText?94:60));
-        ((CardLayout)inputCards.getLayout()).show(inputCards,onlyText?"live":"demo");
-        refresh();
-        revalidate();
-        repaint();
-    }
-    private JTextComponent activeInput(){return liveTextOnly?input:demoInput;}
-
     public void setMediaEnabled(boolean enabled){
         mediaEnabled=enabled;
         refresh();
@@ -152,17 +124,16 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     public void refresh() {
         boolean active = !closed && currentChat.get() != null && recorder == null;
         for (Component tool : controls.getComponents()) {
-            tool.setEnabled(active && !preparing && (!liveTextOnly || mediaEnabled));
+            tool.setEnabled(active && !preparing && mediaEnabled);
         }
         input.setEnabled(active);
-        demoInput.setEnabled(active);
         emoji.setEnabled(active);
         send.setEnabled(active);
     }
 
     private void sendText() {
         String chat = currentChat.get();
-        JTextComponent editor=activeInput();
+        JTextArea editor=input;
         String text = editor.getText();
         if (chat == null || text.isBlank()) {
             return;
@@ -181,14 +152,14 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     public void switchDraft(String previous, String next) {
         if (previous != null) {
-            drafts.put(previous, activeInput().getText());
+            drafts.put(previous, input.getText());
         }
-        activeInput().setText(next == null ? "" : drafts.getOrDefault(next, ""));
+        input.setText(next == null ? "" : drafts.getOrDefault(next, ""));
     }
 
     public void restoreText(String destination, String active, String text) {
         if (destination.equals(active)) {
-            JTextComponent editor=activeInput();
+            JTextArea editor=input;
             editor.setText(editor.getText().isBlank() ? text : text + "\n" + editor.getText());
         } else {
             drafts.merge(destination, text, (draft, failed) -> draft.isBlank() ? failed : failed + "\n" + draft);
@@ -208,8 +179,8 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
             option.setPreferredSize(new Dimension(40, 36));
             option.addActionListener(event -> {
                 popup.setVisible(false);
-                activeInput().replaceSelection(glyph);
-                activeInput().requestFocusInWindow();
+                input.replaceSelection(glyph);
+                input.requestFocusInWindow();
             });
             grid.add(option);
         }
@@ -316,6 +287,5 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         cancelRecording();
         drafts.clear(); // no persisted offline outbox or draft History
         input.setText("");
-        demoInput.setText("");
     }
 }
