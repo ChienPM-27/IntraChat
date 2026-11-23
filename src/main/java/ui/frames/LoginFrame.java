@@ -23,10 +23,16 @@ public final class LoginFrame extends JFrame {
     private final JButton submit = primary("Đăng nhập");
     private final JButton toggle = new JButton("Đăng ký");
     private boolean registration;
+    private final Runnable launchLan;
     private boolean transferred;
 
     public LoginFrame(ChatActionHandler actions) {
-        super("IntraChat");
+        this(actions, null);
+    }
+
+    public LoginFrame(ChatActionHandler actions, Runnable launchLan) {
+        super("IntraChat — Demo");
+        this.launchLan = launchLan;
         this.actions = actions;
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setIconImage(iconImage());
@@ -55,6 +61,18 @@ public final class LoginFrame extends JFrame {
         addRow(form, error, 8, 7, true);
         addRow(form, submit, 9, 8, true);
         addRow(form, toggle, 10, 6, false);
+        if (launchLan != null) {
+            JButton lan = secondary("Chat trong LAN (TCP)");
+            lan.setName("live-lan-entry");
+            lan.setForeground(BLUE);
+            lan.setToolTipText("Chat Live không cần tài khoản Demo; TCP không mã hóa, chỉ dùng LAN tin cậy");
+            lan.getAccessibleContext().setAccessibleDescription(
+                "Không cần tài khoản Demo hoặc mật khẩu Demo. Chọn Live để kết nối bằng TCP không mã hóa.");
+            lan.addActionListener(event -> launchLan.run());
+            addRow(form, lan, 11, 14, true);
+            setMinimumSize(new Dimension(440, 600));
+            setSize(520, 650);
+        }
 
         styleField(username, "Tên người dùng");
         styleField(password, "Mật khẩu demo");

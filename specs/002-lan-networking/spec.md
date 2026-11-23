@@ -1,8 +1,10 @@
+> **Ghi chú phạm vi đồ án (22/11/2026):** [ROADMAP hiện hành](../../ROADMAP.md) · [11 chức năng và nghiệm thu lớp học](../../docs/course-project-scope.md) · [Tích hợp Messenger](../../docs/messenger-integration-plan.md). **M1 53/60**; TCP v1 chẩn đoán đã có dialog bên trong Messenger; chưa cần đợi review Gate1 kiểu production để code các chức năng 11 tính năng trên M2. **Các yêu cầu Gate/audit bảo mật chuyên sâu ở phần lịch sử bên dưới chuyển thành nâng cao, không phải điều kiện để bắt đầu code**. Giữ an toàn tối thiểu, không tắt TLS M2, không giả mạo trạng thái hoặc ghi đè file ngoài ý muốn. **Task checkbox/biên bản Gate cũ không bị đổi thành PASS**; khi có tính năng Live thật hãy ghi test và trạng thái riêng trong [ma trận 11 chức năng](../../docs/feature-matrix.md).
+
 # Feature Specification: Nền tảng kết nối LAN P2P (Giai đoạn 02)
 
 **Feature Branch:** `002-lan-networking` (tên đề xuất; chưa tạo nhánh Git)
 **Created:** 2026-11-21
-**Status:** Clarified / Planned — 4 quyết định CL-02-01…04 đã chốt và [plan.md](plan.md) đã được tạo; chưa triển khai chức năng mạng
+**Status (cập nhật đồ án 22/11/2026):** M1 **53/60 task** — TCP diagnostic và dialog trong Messenger đã có, một số test local PASS; 7 task nghiệm thu LAN/Gate lịch sử còn mở. Phần mô tả kế hoạch ban đầu phía dưới được giữ làm hồ sơ.
 **Input:** [ROADMAP — Giai đoạn 02](../../ROADMAP.md), [nền tảng Giai đoạn 01](../001-project-foundation/spec.md)
 **Governing:** [IntraChat Constitution](../../.specify/memory/constitution.md) · [AGENTS](../../AGENTS.md)
 **Baseline:** [Protocol v1 draft](../001-project-foundation/contracts/protocol-v1-draft.md) · [Architecture](../../docs/architecture.md)

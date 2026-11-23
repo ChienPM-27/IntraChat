@@ -1,78 +1,93 @@
-# IntraChat Architecture — Foundation
+# IntraChat — Kiến trúc hiện hành và đích Messenger của đồ án
 
-**Status:** Design reviewed for Giai đoạn 01 (M0). Runtime networking/history are not implemented.
-**Links:** [Feature plan](../specs/001-project-foundation/plan.md) · [Constitution](../.specify/memory/constitution.md)
+**Cập nhật:** 22/11/2026 · [ROADMAP 11 chức năng](../ROADMAP.md) · [Phạm vi đồ án](course-project-scope.md) · [Kế hoạch UI](messenger-integration-plan.md).
 
-## Dependency boundaries
+## 1. Runtime hiện tại (đã xác nhận từ source)
 
 ```text
-                      +----------------------+
-                      | Swing UI             |
-                      | MainWindow (EDT)     |
-                      +----------+-----------+
-                                 | user actions, state presentation
-                                 v
-                      +----------------------+
-                      | application          |
-                      | AppInfo & use cases  |
-                      +----------+-----------+
-                                 | domain objects / ports
-                                 v
-                      +----------------------+
-                      | domain               |
-                      | PeerIdentity         |
-                      | ConnectionState      |
-                      +----------------------+
-                           ^              ^
-                           |              |
-          +----------------+              +-----------------+
-          |                                                  |
- +-------------------+                              +-------------------+
- | protocol          |                              | adapters (future) |
- | MessageMetadata   |                              | transport (002)   |
- | MessageType       |                              | history (005)     |
- +-------------------+                              +-------------------+
+ui.IntraChat (MAIN CLASS duy nhất trong JAR)
+    |
+    v
+ui.frames.LoginFrame
+    | Demo                       | Chat trong LAN
+    v                            v
+MockChatService             LanConnectionDialog
+    |                        |            |
+    |                        | M1 v1      | M2 v2 TLS
+    |                        v            v
+    |                  LanDiagnosticsDialog SecureChatCoordinator
+    |                       (PING/PONG)    |
+    |                                     LiveChatService
+    |                                           |
+    |                                    LiveChatAdapter
+    v                                           v
+    +------------------- MainChatFrame ---------+
+                             |
+                   ComposerPanel / timeline
+                 Sender / Time / State / Emoji
 ```
 
-- UI may depend on application/domain state, **not on TCP/UDP/SQL implementation**.
-- Application coordinates use cases and holds interfaces (ports) for future transport/history adapters.
-- Domain must stay independent of Swing, Java sockets, database and JSON serialization libraries.
-- Protocol represents typed immutable metadata; **no socket or parser exists yet**.
-- Transport planned for 002 only; persistence/history sync planned for 005 only.
+- **UI chỉ có một Messenger:** `ui.IntraChat`, `ui.frames.LoginFrame`, `ui.frames.MainChatFrame` và dialog/phần tử trong `ui`.
+- **Demo:** `model.mock.MockChatService`; có tin nhắn, nhóm, file/media mock. Không truyền LAN.
+- **Live hiện có:** `listener.LiveChatAdapter` ánh xạ `LiveChatService` → `ChatActionHandler/ChatClientListener`. Text/emoji, ACK/READ, sender/time/peer UUID và retry cục bộ qua TLS.
+- **Networking:** M1 TCP v1 chỉ diagnostics `NetworkCoordinator`; M2 dùng `SecureChatCoordinator`, `TlsChatSession`, `ChatV2Codec`. Dispatcher chung phân luồng v1/v2 ngay từ first frame. Group v3 hiện **không bật**.
+- **Group core prototype:** `GroupRoster`, `GroupOwnerGrantService`, `GroupV1Codec`, `GroupInboundMailbox`, `GroupRecipientLedger`, `GroupRestoreGuard`, `ProtectedGroupStore`. Chưa có Group Live fanout/GUI.
+- **History:** `LiveChatService.transcript` chỉ giữ trong RAM phiên; chưa có repository bền vững.
+- **File/Media:** `ComposerPanel`, `MediaFiles`, `MessageBubblePanel`, `VoiceRecorder` có UI Demo; `LiveChatAdapter.sendMessage` từ chối loại khác `TEXT`.
 
-## M0 source map
+## 2. Đích tối thiểu để hoàn thành 11 chức năng
 
-| File | Responsibility |
-| --- | --- |
-| `src/main/java/vn/intrachat/IntraChatApplication.java` | Single entrypoint; diagnostics or open window on EDT |
-| `src/main/java/vn/intrachat/ui/MainWindow.java` | Minimal title/status/error-free exit; no socket calls |
-| `src/main/java/vn/intrachat/application/AppInfo.java` | Product identity and startup capability flag |
-| `src/main/java/vn/intrachat/domain/PeerIdentity.java` | Immutable device UUID + mutable displayName copy |
-| `src/main/java/vn/intrachat/domain/ConnectionState.java` | Device connection state, not read/delivered indicator |
-| `src/main/java/vn/intrachat/domain/MessageDeliveryState.java` | Separate future message-delivery state vocabulary |
-| `src/main/java/vn/intrachat/protocol/MessageMetadata.java` | Typed metadata only: no JSON parser or network transport |
+```text
+                       MainChatFrame (Messenger Live)
+                           |
+                ChatActionHandler / ChatClientListener
+                           |
+                       LiveChatAdapter
+               /            |             \
+      LiveChatService   GroupService   FileTransferService
+           |                |             |
+      P2P session     roster + fanout   chunks + checksum
+           |                |             |
+           +------------- TCP/TLS shared -------------+
+                           |
+                    Verified LAN peers
+                           |
+                   HistoryRepository (local)
+                           |
+                    SQLite / persistence
 
-## Startup/shutdown
+MessageContent => TEXT | FILE | IMAGE | VIDEO | AUDIO
+MessageBubble  => Sender | Time | State | Content/Progress
+```
 
-1. Java invokes `IntraChatApplication.main`.
-2. `--diagnostics` prints a truthful startup state then exits (useful for non-GUI CI).
-3. Normal mode checks for a graphical session then schedules `MainWindow` using `SwingUtilities.invokeLater`.
-4. All Swing creation/updates occur on the **Event Dispatch Thread** (EDT).
-5. Closing the window releases Swing resources and exits. M0 does not create sockets, workers, databases or file transfers.
-6. Future long-running jobs must use background worker(s), bounded queues, cancellation and timeouts; update UI via `SwingUtilities.invokeLater`.
+Tên `GroupService`, `FileTransferService`, `HistoryRepository` là **thành phần cần viết**, không phải khẳng định class hiện đã tồn tại. Dùng `MessageContent`/FE model hiện tại, mở rộng type/metadata khi test yêu cầu, tránh tái xây UI riêng.
 
-## Evolution after M0
+## 3. Ranh giới phải giữ
 
-- **002:** TCP transport plus discovery/manual IP fallback; handshake and peer identification; no Internet server.
-- **003:** chat command handlers, event reception and truthful State/Sender/Time/Emoji UI.
-- **004:** decentralized Group membership and fanout; authorization of membership.
-- **005:** SQLite local store and P2P History delta sync with authenticated peers and per-conversation permission checks.
-- **006–007:** bounded streaming file transfer, Image/Video/Sound send/receive/play fallback.
+- **Không khôi phục UI cũ:** `vn.intrachat.IntraChatApplication`, `vn.intrachat.ui.MainWindow/NetworkPanel/InboundRequestDialog`, `ui.LiveIntraChat`, `ui.frames.LiveConnectionFrame` đã bị loại khỏi build. M1 diagnostics có dialog phụ trong Messenger.
+- **Không dùng Demo làm backend Live:** mock timers/seeded messages không được phát vào `LiveChatAdapter`.
+- **Không đưa socket/file/SQLite I/O vào Swing EDT:** worker xử lý, FE nhận events qua EDT.
+- **Không giả State/Time/Sender:** ACK ứng dụng khác READ từ viewport; sender là peer/group participant thực, giờ UTC lưu và local hiển thị.
+- **Không phá an toàn cơ bản:** M1 plaintext chỉ PING/PONG; Live tiếp tục dùng M2 TLS hiện tại; dữ liệu file chunk giới hạn, không traversal hoặc ghi đè bừa, không log dữ liệu riêng.
 
-## Security invariants
+## 4. Giảm độ phức tạp bảo mật đúng phạm vi lớp học
 
-Network bytes and file names are untrusted. Do not deserialize inbound native Java objects. Restrict frame/file sizes before allocation, prevent path traversal and accidental overwrites. Avoid logging content, user secrets or private history. No feature may advertise `delivered`, `read` or `synced` without confirmed evidence.
+Kiến trúc cũ đã có `DeviceIdentityStore`, `PinnedPeerStore`, `TlsContextFactory`, `PeerTrustService`, owner signing và `ProtectedGroupStore`. **Không xóa những phần đang chạy ổn định**. Nếu cần thiết có thể thiết kế Group fanout dựa trên session P2P sẵn có thay vì bắt buộc dựng thêm một giao thức mã hóa/group ticket mới; việc này vẫn cần validation recipient và test qua nhiều peer.
 
-## Tests
+Audit độc lập, penetration test, multi-user DPAPI, SBOM/provenance chuyên sâu và Gate review chuyên nghiệp **không phải điều kiện để bắt đầu code các chức năng còn thiếu trong đồ án**. Chúng vẫn nằm trong hồ sơ spec/evidence cũ với trạng thái chưa thực hiện; không suy ra hệ thống được chứng nhận.
 
-JUnit covers product identity, connection-state separation, immutable peer IDs and envelope metadata. A separate Windows GUI lifecycle check is required for M0; unit tests alone cannot demonstrate that all window close paths work.
+## 5. Build, mức bằng chứng
+
+- JDK 21, Maven Wrapper, Swing/FlatLaf, Jackson; network TCP/TLS theo source hiện hữu.
+- Lệnh build: `.\mvnw.cmd clean package`; launcher: `java -jar target/intrachat-0.1.0-SNAPSHOT.jar`.
+- Test gần nhất ghi trong repo 22/11/2026: `scripts/verify-m2.ps1 -Offline` **246/246 JUnit PASS** và executable JAR/diagnostics PASS. Đây là regression toàn dự án, không phải nghiệm thu 11 Live.
+- M0 **41/41**; M1 **53/60**; M2 **65/90**; Group **28/92**; History/File/Media **chưa có code Live**. Hai máy Windows vật lý vẫn chưa kiểm thử.
+
+## 6. Tài liệu dẫn đường
+
+- [Scope 11 chức năng](course-project-scope.md)
+- [UI Messenger](messenger-integration-plan.md) và [migration 21/11](ui-migration-2026-11-21.md)
+- [Feature matrix](feature-matrix.md)
+- [Spec 004 Group](../specs/004-group-chat/spec.md) · [005 History](../specs/005-chat-history/spec.md) · [006 File](../specs/006-file-transfer/spec.md) · [007 Media](../specs/007-multimedia/spec.md)
+
+Các báo cáo acceptance/Gate cũ vẫn là lịch sử kỹ thuật; **roadmap hiện hành** dùng tiêu chí chạy thật/đúng mục đích trên Messenger.

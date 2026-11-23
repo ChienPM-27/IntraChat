@@ -52,9 +52,11 @@ public final class CreateGroupDialog extends JDialog {
 
         JPanel footer = panel(new BorderLayout(0, 6));
         JPanel buttons = panel(new FlowLayout(FlowLayout.TRAILING, 6, 0));
-        JButton cancel = new JButton("Hủy");
+        JButton cancel = secondary("Hủy");
+        cancel.setName("group-cancel");
         cancel.addActionListener(event -> dispose());
         JButton create = primary("Tạo nhóm");
+        create.setName("group-create");
         create.addActionListener(event -> confirm());
         buttons.add(cancel);
         buttons.add(create);

@@ -1,4 +1,17 @@
 <!--
+Sync Impact Report — patch 1.0.1, 2026-11-22
+- Scope clarification: this is an academic course project targeting 11 working
+  Messenger features, not a production security-certification program.
+- No core MUST was weakened. Data/path safety, non-blocking UI, honest states,
+  bounded resources and source/test evidence remain binding.
+- Independent cryptographic audit, multi-user DPAPI assessment, external SBOM
+  certification and specialized Gate reviewer signoff are NOT universal
+  requirements of the Constitution; old specs may retain them as historical
+  stretch tasks. They do not block coding Group/History/File/Media.
+- ROADMAP, PRODUCT, README, feature matrix, UI plan, AGENTS, scope and new
+  005-007 specs synchronized. Legacy roadmap archived unmodified.
+-->
+<!--
 Sync Impact Report
 - Constitution version: 1.0.0 (initial ratification)
 - Added principles: I. LAN-First; II. Protocol Contract; III. Concurrency & Reliability;
@@ -113,6 +126,14 @@ Sync Impact Report
 
 The official GitHub Spec Kit CLI/templates have **not** yet been initialized in this repository. When initialized, maintainers **MUST** review generated files for consistency with this constitution rather than blindly replacing its project-specific rules.
 
+## Course-project scope clarification — 2026-11-22
+
+- The current maintainer explicitly prioritizes **11 working features in one Messenger UI** over advanced cryptography/audit. The feature priorities and classroom acceptance are defined in [ROADMAP](../../ROADMAP.md) and [course-project-scope](../../docs/course-project-scope.md).
+- **No independent external security audit, penetration-test certification, second-Windows-user DPAPI proof, enterprise SBOM/provenance approval or specialist reviewer is a global Constitution prerequisite** before implementing Group/File/History/Media. These may remain unchecked in historical Spec 002–004 trackers, but are not a blanket prohibition on further course-project coding.
+- **This does not authorize unsafe behavior:** Core Principles I–VII remain binding, particularly safe file paths, byte limits, no untrusted Java deserialization, non-blocking Swing UI, accurate message States and evidence-based feature claims. Existing M2 TLS/key handling must not be disabled merely to simplify paperwork; diagnose/replace individual blocking parts with tests if necessary.
+- Product acceptance is based on real P2P/Group/File/Emoji/History/Image/Video/Sound/State/Time/Sender workflows through `ui.IntraChat`/`MainChatFrame`. The old professional Gate 0/Gate 1 review model is kept for historical traceability, **not silently marked as passed**.
+- The amended scope is a **clarification of project delivery priorities**, not a release/security guarantee. If a course rubric introduces additional security or History Sync requirements, update the corresponding spec and test checklist.
+
 ## Governance
 
 - **Authority:** This constitution is the project's governing engineering agreement. Feature specs, plans, task lists, code reviews and agent instructions **MUST** comply; exceptions require written rationale and maintainer approval.
@@ -121,4 +142,4 @@ The official GitHub Spec Kit CLI/templates have **not** yet been initialized in 
 - **Review and enforcement:** Each feature plan **MUST** contain a Constitution Check, and unresolved violations of **MUST** requirements block feature completion.
 - **Initial adoption:** The first version is ratified on 2026-11-21. Future amendments retain the original Ratified date and change Last Amended.
 
-**Version: 1.0.0 | Ratified: 2026-11-21 | Last Amended: 2026-11-21**
+**Version: 1.0.1 | Ratified: 2026-11-21 | Last Amended: 2026-11-22**

@@ -54,8 +54,12 @@ public final class MediaFiles {
                 }
             }
             case SOUND -> {
-                try (AudioInputStream audio = audio(path)) {
-                    duration = Math.round(1000.0 * audio.getFrameLength() / audio.getFormat().getFrameRate());
+                if(!Set.of("wav","mp3","m4a").contains(extension))
+                    throw new IllegalArgumentException("Chỉ hỗ trợ gửi WAV, MP3 hoặc M4A.");
+                if(extension.equals("wav")) {
+                    try (AudioInputStream audio = audio(path)) {
+                        duration = Math.round(1000.0 * audio.getFrameLength() / audio.getFormat().getFrameRate());
+                    }
                 }
             }
             default -> {
@@ -74,7 +78,7 @@ public final class MediaFiles {
             case SOUND -> 8 * MIB;
             default -> 128 * MIB;
         };
-        if (size <= 0 || size > limit) {
+        if (size < 0 || (size == 0 && type != MessageType.FILE) || size > limit) {
             throw new IllegalArgumentException("Tệp phải có nội dung và không vượt quá " + limit / MIB + " MiB.");
         }
         return size;

@@ -4,6 +4,10 @@ import com.formdev.flatlaf.FlatClientProperties;
 import listener.ChatActionHandler;
 import listener.ChatClientListener;
 import model.*;
+import vn.intrachat.application.FileTransferService;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.io.IOException;
 import ui.components.*;
 import ui.dialogs.CreateGroupDialog;
 
@@ -28,6 +32,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private final Map<String, ChatMessage> previews = new HashMap<>();
     private final Map<String, ChatTimeline> timelines = new HashMap<>();
     private final Map<String, MessageBubblePanel> rows = new HashMap<>();
+    private final Map<String,FileTransferService.Transfer> fileTransfers=new HashMap<>();
     private final Set<String> loading = new HashSet<>();
     private final Set<String> loaded = new HashSet<>();
     private final Map<String, String> historyErrors = new HashMap<>();
@@ -54,11 +59,15 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private boolean updatingList;
     private boolean creatingGroup;
     private boolean closed;
+    private javax.swing.Timer liveVisibilityTimer;
+    private final LiveMessageVisibilityObserver visibleMessages;
 
     public MainChatFrame(ChatUser self, ChatActionHandler actions) {
-        super("IntraChat");
+        super(actions.liveMode() ? "IntraChat — Live LAN TCP" : "IntraChat — Demo");
         this.self = self;
         this.actions = actions;
+        this.visibleMessages = new LiveMessageVisibilityObserver(System::nanoTime,
+            (conversationId,messageId) -> this.actions.onMessageVisible(conversationId,messageId));
         users.put(self.id(), self);
         setIconImage(LoginFrame.iconImage());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -70,10 +79,18 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         root.add(buildSidebar(), BorderLayout.WEST);
         media = new MessageMedia(work, this, this::showNotice);
         composer = new ComposerPanel(work, () -> activeId, this::send, this::showNotice);
+        if (actions.liveMode()) {
+            composer.setTextOnly(true);
+            newGroup.setVisible(actions.groupAvailable());
+        }
         root.add(buildChat());
         refreshDirectory();
         renderHistory(false);
         actions.connect(this);
+        if (actions.liveMode()) {
+            liveVisibilityTimer = new javax.swing.Timer(100, event -> checkLiveVisibleRows());
+            liveVisibilityTimer.start();
+        }
     }
 
     private JPanel buildSidebar() {
@@ -129,7 +146,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         JLabel profileName = label(self.displayName(), 13, Font.BOLD, INK);
         profileName.setToolTipText(self.displayName());
         identity.add(profileName);
-        identity.add(label("Phiên demo · Chỉ trên máy này", 11, Font.PLAIN, MUTED));
+        identity.add(label(actions.liveMode()
+                ? "Live LAN TCP · Không mã hóa · Đã xem = tin đã hiển thị"
+                : "Phiên demo · Chỉ trên máy này", 11, Font.PLAIN, MUTED));
         profile.add(identity);
         sidebar.add(profile, BorderLayout.SOUTH);
         return sidebar;
@@ -146,6 +165,22 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         heading.add(headerTitle);
         heading.add(headerState);
         header.add(heading);
+        JPanel controls = panel(new FlowLayout(FlowLayout.TRAILING,6,0));
+        if(actions.groupAvailable()){
+            JButton manage=secondary("Nhóm");
+            manage.setName("group-manage");
+            manage.addActionListener(event->manageGroup());
+            controls.add(manage);
+        }
+        if (actions.connectionSettingsAvailable()) {
+            JButton lan = secondary("Kết nối LAN");
+            lan.setName("messenger-lan-settings");
+            lan.setForeground(BLUE);
+            lan.setToolTipText("Quản lý kết nối LAN TCP");
+            lan.addActionListener(event -> actions.openConnectionSettings());
+            controls.add(lan);
+        }
+        header.add(controls,BorderLayout.EAST);
         chat.add(header, BorderLayout.NORTH);
 
         scroll.setBorder(null);
@@ -198,7 +233,8 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         updatingList = false;
         noConversations.setText(query.isEmpty() ? "Chưa có đoạn chat" : "Không tìm thấy đoạn chat");
         ((CardLayout) directoryCards.getLayout()).show(directoryCards, listModel.isEmpty() ? "empty" : "list");
-        newGroup.setEnabled(!creatingGroup && users.size() > 1);
+        newGroup.setEnabled(actions.groupAvailable() && !creatingGroup && users.values().stream()
+            .filter(user->!user.id().equals(self.id())&&(!actions.liveMode()||user.online())).count()>0);
     }
 
     static String searchKey(String value) {
@@ -220,7 +256,8 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         rows.clear();
         showNotice("");
         refreshHeader();
-        composer.refresh();
+        Conversation selected=conversations.get(id);
+        composer.setMediaEnabled(selected!=null && !selected.group());
         if (id != null && !loaded.contains(id)) {
             load(id);
         }
@@ -238,7 +275,8 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         ConversationRenderer.Row row = row(chat);
         headerTitle.setText(row.title());
         headerAvatar.setIcon(new AvatarIcon(row.title(), row.avatarId(), 40, row.online(), chat.group()));
-        headerState.setText(chat.group() ? chat.memberIds().size() + " thành viên"
+        headerState.setText(chat.group() ? chat.memberIds().size() + " thành viên" +
+                (actions.liveMode()&&!actions.groupOwnerOnline(chat.id()) ? " · Chủ nhóm offline — không thể gửi" : "")
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
     }
 
@@ -263,8 +301,36 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         }));
     }
 
+    private void manageGroup(){
+        Conversation group=conversations.get(activeId);
+        if(group==null||!group.group())return;
+        StringBuilder summary=new StringBuilder("Thành viên nhóm:\n");
+        for(String id:group.memberIds()){
+            ChatUser u=users.get(id);
+            summary.append(u==null?id:u.displayName()).append(" [").append(id).append("]\n");
+        }
+        boolean owner=actions.isGroupOwner(group.id());
+        Object[] options=owner?new Object[]{"Loại thành viên","Đóng"}:new Object[]{"Rời nhóm","Đóng"};
+        int choice=JOptionPane.showOptionDialog(this,summary.toString(),group.title(),
+            JOptionPane.DEFAULT_OPTION,JOptionPane.PLAIN_MESSAGE,null,options,options[1]);
+        if(choice!=0)return;
+        if(owner){
+            java.util.List<String> others=group.memberIds().stream().filter(id->!id.equals(self.id())).toList();
+            if(others.isEmpty())return;
+            String selected=(String)JOptionPane.showInputDialog(this,"Chọn UUID thành viên cần loại",
+                "Loại thành viên",JOptionPane.PLAIN_MESSAGE,null,others.toArray(),others.get(0));
+            if(selected!=null)actions.removeGroupMember(group.id(),selected).whenComplete((ok,error)->onEdt(()->{
+                if(error!=null)showNotice("Không thể loại: "+error(error,"Lỗi kết nối"));
+            }));
+        }else{
+            actions.leaveGroup(group.id()).whenComplete((ok,error)->onEdt(()->{
+                if(error!=null)showNotice("Không thể rời nhóm: "+error(error,"Lỗi kết nối"));
+            }));
+        }
+    }
+
     private void createGroup() {
-        List<ChatUser> candidates = users.values().stream().filter(user -> !user.id().equals(self.id())).toList();
+        List<ChatUser> candidates = users.values().stream().filter(user -> !user.id().equals(self.id()) && (!actions.liveMode() || user.online())).toList();
         new CreateGroupDialog(this, candidates).open().ifPresent(selection -> {
             creatingGroup = true;
             newGroup.setEnabled(false);
@@ -335,7 +401,10 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             for (int index = 0; index < messages.size(); index++) {
                 ChatMessage message = messages.get(index);
                 MessageBubblePanel bubble = bubble(chat, message);
-                bubble.showReceipt(message == lastMine ? message.state() : null);
+                String groupReceipt=chat.group()&&actions.liveMode()&&self.id().equals(message.senderId())
+                    ?actions.groupReceiptLabel(chat.id(),message.id()):null;
+                bubble.showReceipt(groupReceipt!=null || shouldShowOutgoingReceipt(actions.liveMode(),message,lastMine,self.id())
+                    ? message.state() : null,groupReceipt);
                 if (!rebuild && history.getComponent(index) != bubble) {
                     rebuild = true;
                 }
@@ -370,6 +439,17 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         });
     }
 
+    /**
+     * Earlier uncertain Live sends also need a visible manual-retry control.
+     * Demo retains the original most-recent-outgoing-only receipt policy.
+     */
+    static boolean shouldShowOutgoingReceipt(boolean live,ChatMessage message,
+                                             ChatMessage lastOutgoing,String localId){
+        if(message==null||localId==null||!localId.equals(message.senderId()))return false;
+        return message==lastOutgoing
+            ||(live&&message.state()==DeliveryState.UNCERTAIN);
+    }
+
     private ChatMessage lastOutgoing(List<ChatMessage> messages) {
         for (int index = messages.size() - 1; index >= 0; index--) {
             if (messages.get(index).senderId().equals(self.id())) {
@@ -383,8 +463,23 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         ChatUser author = users.get(message.senderId());
         boolean mine = message.senderId().equals(self.id());
         String sender = mine ? "Bạn" : author == null ? "Người dùng không xác định" : author.displayName();
-        return rows.computeIfAbsent(message.id(),
-                id -> new MessageBubblePanel(message, mine, chat.group(), sender, media));
+        return rows.computeIfAbsent(message.id(),id->
+            new MessageBubblePanel(message,mine,chat.group(),sender,media,
+                actions.liveMode()&&mine&&message.content().type()==MessageType.TEXT ? this::manuallyRetry : null,
+                fileTransfers.get(message.id()),this::fileAction));
+    }
+
+    /** Only invoked by an explicit visible UNCERTAIN message bubble button. */
+    private void manuallyRetry(String messageId){
+        if(!actions.liveMode()||activeId==null||messageId==null)return;
+        String conversation=activeId;
+        showNotice("Đang gửi lại thủ công; tin có thể đã đến trước đó và bị trùng.");
+        actions.retryMessage(conversation,messageId).whenComplete((result,failure)->onEdt(()->{
+            if(failure!=null)
+                showNotice("Không thể gửi lại: "+error(failure,"Phiên không còn xác minh hoặc tin không ở trạng thái Chưa rõ."));
+            else
+                showNotice("Đã yêu cầu gửi lại. Chỉ ACK phía nhận mới xác nhận Đã nhận.");
+        }));
     }
 
     private void showEmptyHistory() {
@@ -423,6 +518,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             snapshot.users().forEach(user -> users.put(user.id(), user));
             conversations.clear();
             snapshot.conversations().forEach(chat -> conversations.put(chat.id(), chat));
+            // Retain in-memory timeline when peers disconnect; persistence follows in P4.
             snapshot.previews().forEach(this::updatePreview);
             if (activeId == null || !conversations.containsKey(activeId)) {
                 switchChat(conversations.keySet().stream().findFirst().orElse(null));
@@ -432,6 +528,50 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         });
     }
 
+    private void fileAction(String action,String id){
+        FileTransferService.Transfer t=fileTransfers.get(id);
+        if(t==null)return;
+        try{
+            switch(action){
+                case "accept" -> {
+                    JFileChooser chooser=new JFileChooser();
+                    chooser.setDialogTitle("Chọn nơi lưu tệp nhận");
+                    chooser.setSelectedFile(new java.io.File(t.fileName()));
+                    if(chooser.showSaveDialog(this)==JFileChooser.APPROVE_OPTION){
+                        Path path=chooser.getSelectedFile().toPath();
+                        if(Files.exists(path)){
+                            showNotice("Tệp đã tồn tại. Chọn tên tệp khác để không ghi đè.");return;
+                        }
+                        work.submit(()->{
+                            try{actions.acceptFile(id,path);}catch(IOException ex){onEdt(()->showNotice(ex.getMessage()));}
+                        });
+                    }
+                }
+                case "reject" -> work.submit(()->{
+                    try{actions.rejectFile(id);}catch(IOException ex){onEdt(()->showNotice(ex.getMessage()));}
+                });
+                case "cancel" -> work.submit(()->actions.cancelFile(id));
+                case "open" -> {
+                    Path path=t.localPath();
+                    if(path!=null&&Files.isRegularFile(path))work.submit(()->{
+                        try{
+                            if(java.awt.Desktop.isDesktopSupported())
+                                java.awt.Desktop.getDesktop().open(path.toFile());
+                        }catch(IOException ex){onEdt(()->showNotice("Không mở được file: "+ex.getMessage()));}
+                    });
+                    else showNotice("File không còn tồn tại ở đường dẫn cục bộ.");
+                }
+            }
+        }catch(RuntimeException ex){showNotice("Lỗi thao tác file: "+ex.getMessage());}
+    }
+    @Override public void onFileTransfer(FileTransferService.Transfer t){
+        onEdt(()->{
+            fileTransfers.put(t.transferId().toString(),t);
+            MessageBubblePanel bubble=rows.get(t.transferId().toString());
+            if(bubble!=null)bubble.showFileTransfer(t,this::fileAction);
+            if(t.conversationId().toString().equals(activeId))renderHistory(false);
+        });
+    }
     @Override
     public void onMessageReceived(ChatMessage message) {
         onEdt(() -> receive(message));
@@ -447,14 +587,37 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     }
 
     @Override
+    public void onGroupReceiptChanged(String conversationId,String messageId){
+        onEdt(()->{
+            if(conversationId.equals(activeId))renderHistory(false);
+        });
+    }
+
+    @Override
     public void onConnectionError(String message) {
         onEdt(() -> showNotice(message));
+    }
+
+    /** The only read trigger: actual foreground Live Swing message row within scroll viewport. */
+    private void checkLiveVisibleRows() {
+        if (closed || !actions.liveMode() || activeId == null) return;
+        java.util.List<LiveMessageVisibilityObserver.Row> samples = new ArrayList<>();
+        for (ChatMessage message : timeline(activeId).orderedMessages()) {
+            MessageBubblePanel bubble = rows.get(message.id());
+            if (bubble == null) continue;
+            samples.add(new LiveMessageVisibilityObserver.Row(activeId, message.id(),
+                !message.senderId().equals(self.id()), bubble.isShowing(), bubble.getBounds()));
+        }
+        visibleMessages.observe(true, isShowing() && isActive()
+            && WindowsForegroundGuard.isForeground(this), activeId,
+            scroll.getViewport().getViewRect(), samples);
     }
 
     @Override
     public void dispose() {
         if (!closed) {
             closed = true;
+            if (liveVisibilityTimer != null) liveVisibilityTimer.stop();
             composer.close();
             media.close();
             work.shutdownNow();

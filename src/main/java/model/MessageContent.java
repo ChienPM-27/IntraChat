@@ -8,9 +8,9 @@ public record MessageContent(MessageType type, String text, Attachment attachmen
     public MessageContent {
         Objects.requireNonNull(type);
         if (type == MessageType.TEXT) {
-            if (text == null || text.isBlank() || text.length() > MAX_TEXT_LENGTH || attachment != null) {
-                throw new IllegalArgumentException("Nhập nội dung từ 1 đến 8.000 ký tự.");
-            }
+            if (attachment != null) throw new IllegalArgumentException("Chỉ gửi văn bản trong tin text.");
+            // Same code-point AND UTF-8 byte limits as real protected CHAT_V2; no silent emoji loss.
+            new vn.intrachat.domain.ChatText(text);
         } else if (attachment == null || text != null) {
             throw new IllegalArgumentException("Tin đa phương tiện cần một tệp đính kèm.");
         }

@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -64,6 +65,31 @@ public final class ChatStyle {
         button.setForeground(Color.WHITE);
         button.setFont(button.getFont().deriveFont(Font.BOLD));
         return button;
+    }
+
+    /** Visual system for all LAN/Group dialogs inside the Messenger shell. */
+    public static JButton secondary(String text) {
+        JButton button = new JButton(text);
+        button.putClientProperty(FlatClientProperties.STYLE, "arc: 12; borderWidth: 0");
+        button.setBackground(FIELD);
+        button.setForeground(INK);
+        button.setFont(button.getFont().deriveFont(Font.BOLD));
+        return button;
+    }
+
+    public static void dialogField(JTextField input, String placeholder) {
+        field(input, placeholder);
+        input.putClientProperty(FlatClientProperties.STYLE,
+            "arc: 12; borderWidth: 0; margin: 7,12,7,12");
+        input.setPreferredSize(new Dimension(input.getColumns()<=8?94:226, 40));
+    }
+
+    public static JPanel dialogCard(LayoutManager layout) {
+        JPanel card = panel(layout);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(LINE, 1, true),
+            new EmptyBorder(15, 17, 15, 17)));
+        return card;
     }
 
     public static JButton iconButton(ChatIcon.Kind kind, String name, Color color) {

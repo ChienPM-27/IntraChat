@@ -1,12 +1,14 @@
+> **Ghi chú phạm vi đồ án (22/11/2026):** [ROADMAP hiện hành](../../ROADMAP.md) · [11 chức năng và nghiệm thu lớp học](../../docs/course-project-scope.md) · [Tích hợp Messenger](../../docs/messenger-integration-plan.md). **M1 53/60**; TCP v1 chẩn đoán đã có dialog bên trong Messenger; chưa cần đợi review Gate1 kiểu production để code các chức năng 11 tính năng trên M2. **Các yêu cầu Gate/audit bảo mật chuyên sâu ở phần lịch sử bên dưới chuyển thành nâng cao, không phải điều kiện để bắt đầu code**. Giữ an toàn tối thiểu, không tắt TLS M2, không giả mạo trạng thái hoặc ghi đè file ngoài ý muốn. **Task checkbox/biên bản Gate cũ không bị đổi thành PASS**; khi có tính năng Live thật hãy ghi test và trạng thái riêng trong [ma trận 11 chức năng](../../docs/feature-matrix.md).
+
 # Implementation Plan: IntraChat — 002 LAN Networking (M1)
 
 **Feature:** `002-lan-networking`
 **Date:** 2026-11-21
-**Status:** Planned / Design complete at Gate 0 — **no LAN networking implementation or tests yet**
+**Status (mới nhất):** **In Progress 53/60**; TCP M1 diagnostic đã có trong Messenger, hai Windows LAN PC vật lý chưa test. Số 36/60 và 45 JUnit phía dưới là snapshot lịch sử khi lập kế hoạch.
 **Spec:** [spec.md](spec.md) · **Checklist:** [checklists/requirements.md](checklists/requirements.md)
 **Constitution:** [v1.0.0](../../.specify/memory/constitution.md)
-**Base release:** M0 Java/Swing foundation; **not Verified** — 38/41 tasks, T025/T040/T041 remain open
-**Git branch:** Current repository remains `main`; `002-lan-networking` is a proposed work branch, not created by this plan.
+**Base release:** **M0 Verified (41/41 tasks)** on Temurin JDK21 and 5/5 network-denied GUI cycles; [evidence](../001-project-foundation/evidence/m0-jdk21-offline.md)
+**Git branch:** Implementation on `feat/m1-lan-networking` (includes merged FE demo branch); `main` remains the shared integration branch.
 
 ## Summary
 
@@ -23,7 +25,7 @@ Build the **M1 LAN transport foundation** for two or more Windows IntraChat peer
 
 **Carry-over:** CL-01 direct P2P without central server; CL-02 Windows target; CL-03 Video/Sound file sending/playing, not calls; CL-04 History later syncs **only authorized peers** over P2P (not in M1).
 
-**Delivery boundary:** The code, dependencies, contracts, benchmarks and tests below are **proposed tasks**, not results. Making this `plan.md` does not close open M0 acceptance criteria and does not prove M1 can communicate over LAN.
+**Delivery boundary:** M0 Gate 1 was subsequently VERIFIED with actual Temurin21 and per-JVM network-denied GUI tests. M1 code, networking benchmarks and tests are separate tasks and **must not be claimed working** merely because this `plan.md` exists.
 
 ## Technical Context
 
@@ -34,7 +36,7 @@ Build the **M1 LAN transport foundation** for two or more Windows IntraChat peer
 | Build & structure | Single-module Maven with `mvnw.cmd` **3.9.16**, existing `pom.xml` | Reuse working foundation; do not introduce unnecessary modules |
 | UI | Swing, all UI operations on EDT, network commands asynchronous | Existing `MainWindow` and `IntraChatApplication`; no socket calls from listeners |
 | Tests | JUnit Jupiter **5.14.4**, Surefire **3.5.6** | Existing baseline: **9 JUnit tests** passed on Windows 11/JDK25. M1 tests **NOT RUN** |
-| Runtime JSON | **Jackson databind 2.21.5** (proposed pinned version, dependency compatibility must be confirmed at implementation) | Avoid writing a brittle custom JSON parser; adds one runtime library family; keep POJO/wire DTO validation explicit |
+| Runtime JSON | **Jackson databind 2.22.4** (proposed pinned version, dependency compatibility must be confirmed at implementation) | Avoid writing a brittle custom JSON parser; adds one runtime library family; keep POJO/wire DTO validation explicit |
 | Logging | `java.util.logging`, structured event codes, sanitized metadata | Existing JDK mechanism; never log HELLO raw data/private contents/secrets |
 | Transport | Direct TCP sockets, one peer can listen and initiate | Framed, ordered byte stream; no Internet relay or UDP discovery |
 | Addressing | **IPv4 literal entered manually**; bind selected local IPv4 interface + configurable port | Simplest testable Windows M1; IPv6/hostnames/discovery intentionally deferred |
@@ -184,7 +186,7 @@ Future: Chat service (003), Group (004), History sync & ACL (005)
 | **ADR-05** | **No TLS/auth; synthetic diagnostics only, warning** | Mutual TLS, TOFU/pairing, encrypted chat | CL-02-03, keeps M1 transport teachable; not safe for private data; auth/ACL blocking requirement before 005 |
 | **ADR-06** | **Manual reconnect only** | Backoff scheduler/auto reconnect | CL-02-04; user must click after failure, simpler state machine; less convenience |
 | **ADR-07** | **Length-prefixed UTF-8 JSON 4-byte big-endian**, max 1 MiB | Newline JSON, Java serialization, protobuf | Works with split/merged TCP reads, inspectable, matches 001 draft; JSON overhead and need strict parser |
-| **ADR-08** | **Jackson databind 2.21.5** for DTO parser | Build ad hoc parser, Gson, org.json | Strong JSON mapping and strict JSON constraints, testable; runtime dependency and strict validation configuration required |
+| **ADR-08** | **Jackson databind 2.22.4** for DTO parser | Build ad hoc parser, Gson, org.json | Strong JSON mapping and strict JSON constraints, testable; runtime dependency and strict validation configuration required |
 | **ADR-09** | **Java 21 virtual threads + bounded semaphores/queues** | SwingWorker for sockets, fixed pool, async NIO selector | Clear blocking I/O without EDT blocking; virtual threads are cheap but **not resource bounds** |
 | **ADR-10** | **One active session per declared remote device ID**, deterministic duplicate policy | Any number of sessions, indiscriminate close-first | Avoid confusing duplicate UI rows; remote ID can be spoofed, so this is only operational dedup, **not authentication** |
 | **ADR-11** | **No auto Windows Firewall changes** | Add admin rule silently or accept public-profile inbound | Clear consent, avoids privilege escalation; requires user/IT setup |
@@ -192,7 +194,7 @@ Future: Chat service (003), Group (004), History sync & ACL (005)
 | **ADR-13** | **Only diagnostics request/response messages** | Early CHAT_TEXT or history exchange | Prevents accidental launch of insecure user chat/storage before M2/005 |
 | **ADR-14** | **No JDK 25-only APIs; Java 21 runtime gate before M1 Verified** | Lift baseline to JDK25 silently | Honors original baseline and avoids unsupported compatibility claims |
 
-**Open implementation-proof obligation:** confirm Jackson 2.21.5 artifact resolution, transitive modules and strict duplicate-key/unknown-property/trailing-token behavior under JDK21 during `tasks.md` implementation; same for virtual-thread shutdown. Do not claim the selected version/test suite is running merely because it appears in plan.
+**Open implementation-proof obligation:** confirm Jackson 2.22.4 artifact resolution, transitive modules and strict duplicate-key/unknown-property/trailing-token behavior under JDK21 during `tasks.md` implementation; same for virtual-thread shutdown. Do not claim the selected version/test suite is running merely because it appears in plan.
 
 ## Wire Contract & Handshake v1 — Proposed
 
@@ -419,7 +421,7 @@ The existing domain `ConnectionState` enum may remain coarse (`DISCONNECTED`, `C
 ### Phase 0 — Close M0 blockers / Research
 
 - Reconfirm JDK21 runtime compatibility and physically offline GUI acceptance from M0; close T025/T040/T041 or explicitly document any approved deviation.
-- Validate Jackson 2.21.5 transitive dependency compatibility and strict JSON settings; create `research.md`, prototype only in dedicated test scope.
+- Validate Jackson 2.22.4 transitive dependency compatibility and strict JSON settings; create `research.md`, prototype only in dedicated test scope.
 - Produce a small versioned `contracts/network-v1.md` with actual examples, error codes and acceptance/reject semantics. Reconcile HELLO destination bootstrap sentinel and `MessageType` addition against M0 metadata tests.
 
 ### Phase 1 — Protocol & Transport (test-first)

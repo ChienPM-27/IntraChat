@@ -6,7 +6,9 @@ import model.MessageType;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.JTextComponent;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -19,9 +21,15 @@ import static ui.components.ChatStyle.*;
 public final class ComposerPanel extends JPanel implements AutoCloseable {
     private static final String[] EMOJIS = ("😀 😃 😄 😁 😂 🤣 😊 🙂 🙃 😉 😍 🥰 😘 😎 🤔 😅 😢 😭 "
             + "😮 😴 😡 🙌 👏 👍 👎 🙏 💙 ❤️ ✨ 🎉").split(" ");
-    private final JTextField input = new JTextField();
+    private final JTextArea input = new JTextArea(2, 20);
+    // Preserve the original Demo single-line composer; only Live is multiline.
+    private final JTextField demoInput = new JTextField();
+    private final JPanel inputCards = new JPanel(new CardLayout());
+    private boolean liveTextOnly;
+    private boolean mediaEnabled=true;
     private final JPanel cards = new JPanel(new CardLayout());
     private final JPanel controls = panel(new FlowLayout(FlowLayout.LEADING, 1, 0));
+    private JButton fileTool;
     private final JButton emoji = iconButton(ChatIcon.Kind.SMILE, "Chèn emoji", BLUE);
     private final JButton send = primary("Gửi");
     private final JButton stop = primary("Dừng / Gửi");
@@ -48,16 +56,35 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
         addTool(ChatIcon.Kind.IMAGE, "Gửi ảnh", () -> choose(MessageType.IMAGE));
         addTool(ChatIcon.Kind.VIDEO, "Gửi video", () -> choose(MessageType.VIDEO));
-        addTool(ChatIcon.Kind.FILE, "Gửi tệp", () -> choose(MessageType.FILE));
-        addTool(ChatIcon.Kind.MIC, "Ghi âm", this::record);
+        fileTool=addTool(ChatIcon.Kind.FILE, "Gửi tệp", () -> choose(MessageType.FILE));
+        addTool(ChatIcon.Kind.MIC, "Chọn âm thanh", () -> choose(MessageType.SOUND));
+        addTool(ChatIcon.Kind.MIC, "Ghi âm WAV", this::record);
         add(controls, BorderLayout.WEST);
 
-        field(input, "Aa");
+        input.setLineWrap(true);
+        input.setWrapStyleWord(true);
+        input.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        input.setBorder(new EmptyBorder(7, 10, 7, 10));
+        input.setToolTipText("Enter: gửi · Shift+Enter: xuống dòng · Tin chỉ lưu trong RAM");
         input.getAccessibleContext().setAccessibleName("Nhập tin nhắn");
+        input.getAccessibleContext().setAccessibleDescription(
+            "Enter để gửi, Shift+Enter để xuống dòng; tin nháp chỉ giữ trong phiên");
         JPanel compose = panel(new BorderLayout(5, 0));
+        JPanel textBox = panel(new BorderLayout(3, 0));
+        textBox.setBorder(BorderFactory.createLineBorder(LINE, 1, true));
+        JScrollPane inputScroll = new JScrollPane(input,
+            ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        inputScroll.setBorder(null);
+        inputCards.add(inputScroll,"live");
+        field(demoInput,"Aa");
+        demoInput.getAccessibleContext().setAccessibleName("Nhập tin nhắn Demo");
+        inputCards.add(demoInput,"demo");
+        ((CardLayout)inputCards.getLayout()).show(inputCards,"demo");
+        textBox.add(inputCards, BorderLayout.CENTER);
         emoji.setContentAreaFilled(false);
-        input.putClientProperty(com.formdev.flatlaf.FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, emoji);
-        compose.add(input);
+        textBox.add(emoji, BorderLayout.EAST);
+        compose.add(textBox, BorderLayout.CENTER);
         compose.add(send, BorderLayout.EAST);
         cards.add(compose, "text");
 
@@ -76,38 +103,77 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         recording.add(stop);
         cards.add(recording, "record");
         add(cards);
-        input.addActionListener(event -> sendText());
+        input.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke("ENTER"), "live-send-enter");
+        input.getActionMap().put("live-send-enter",new AbstractAction(){
+            @Override public void actionPerformed(ActionEvent event){sendText();}
+        });
+        input.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke("shift ENTER"), "live-insert-newline");
+        input.getActionMap().put("live-insert-newline",new AbstractAction(){
+            @Override public void actionPerformed(ActionEvent event){
+                input.replaceSelection("\n");
+            }
+        });
+        demoInput.addActionListener(event -> sendText());
         send.addActionListener(event -> sendText());
         emoji.addActionListener(event -> showEmojis());
         refresh();
     }
 
-    private void addTool(ChatIcon.Kind kind, String description, Runnable action) {
+    private JButton addTool(ChatIcon.Kind kind, String description, Runnable action) {
         JButton button = iconButton(kind, description, BLUE);
         button.addActionListener(event -> action.run());
         controls.add(button);
+        return button;
     }
 
+    /** M2 Live cannot expose Group/File/Voice/Video features that have no real transport. */
+    public void setTextOnly(boolean onlyText) {
+        controls.setVisible(true);
+        for(Component tool:controls.getComponents())tool.setVisible(true);
+        if(liveTextOnly!=onlyText){
+            String previous=activeInput().getText();
+            liveTextOnly=onlyText;
+            activeInput().setText(previous);
+        }
+        setPreferredSize(new Dimension(0,onlyText?94:60));
+        ((CardLayout)inputCards.getLayout()).show(inputCards,onlyText?"live":"demo");
+        refresh();
+        revalidate();
+        repaint();
+    }
+    private JTextComponent activeInput(){return liveTextOnly?input:demoInput;}
+
+    public void setMediaEnabled(boolean enabled){
+        mediaEnabled=enabled;
+        refresh();
+    }
     public void refresh() {
         boolean active = !closed && currentChat.get() != null && recorder == null;
         for (Component tool : controls.getComponents()) {
-            tool.setEnabled(active && !preparing);
+            tool.setEnabled(active && !preparing && (!liveTextOnly || mediaEnabled));
         }
         input.setEnabled(active);
+        demoInput.setEnabled(active);
         emoji.setEnabled(active);
         send.setEnabled(active);
     }
 
     private void sendText() {
         String chat = currentChat.get();
-        String text = input.getText().strip();
-        if (chat == null || text.isEmpty()) {
+        JTextComponent editor=activeInput();
+        String text = editor.getText();
+        if (chat == null || text.isBlank()) {
             return;
         }
         try {
-            outgoing.accept(chat, MessageContent.text(text));
-            input.setText("");
-            input.requestFocusInWindow();
+            // Validate full code points/UTF-8 bytes before dispatch; never truncate
+            // or silently replace unmatched surrogate chars.
+            MessageContent validated=MessageContent.text(text);
+            outgoing.accept(chat, validated);
+            editor.setText("");
+            editor.requestFocusInWindow();
         } catch (IllegalArgumentException failure) {
             status.accept(failure.getMessage());
         }
@@ -115,16 +181,17 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     public void switchDraft(String previous, String next) {
         if (previous != null) {
-            drafts.put(previous, input.getText());
+            drafts.put(previous, activeInput().getText());
         }
-        input.setText(next == null ? "" : drafts.getOrDefault(next, ""));
+        activeInput().setText(next == null ? "" : drafts.getOrDefault(next, ""));
     }
 
     public void restoreText(String destination, String active, String text) {
         if (destination.equals(active)) {
-            input.setText(input.getText().isBlank() ? text : text + " " + input.getText());
+            JTextComponent editor=activeInput();
+            editor.setText(editor.getText().isBlank() ? text : text + "\n" + editor.getText());
         } else {
-            drafts.merge(destination, text, (draft, failed) -> draft.isBlank() ? failed : failed + " " + draft);
+            drafts.merge(destination, text, (draft, failed) -> draft.isBlank() ? failed : failed + "\n" + draft);
         }
     }
 
@@ -141,8 +208,8 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
             option.setPreferredSize(new Dimension(40, 36));
             option.addActionListener(event -> {
                 popup.setVisible(false);
-                input.replaceSelection(glyph);
-                input.requestFocusInWindow();
+                activeInput().replaceSelection(glyph);
+                activeInput().requestFocusInWindow();
             });
             grid.add(option);
         }
@@ -161,13 +228,16 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         chooser.setDialogTitle(switch (type) {
             case IMAGE -> "Chọn ảnh để gửi";
             case VIDEO -> "Chọn video để gửi";
+            case SOUND -> "Chọn âm thanh để gửi";
             default -> "Chọn tệp để gửi";
         });
-        if (type == MessageType.IMAGE || type == MessageType.VIDEO) {
+        if (type == MessageType.IMAGE || type == MessageType.VIDEO || type == MessageType.SOUND) {
             chooser.setAcceptAllFileFilterUsed(false);
             chooser.setFileFilter(type == MessageType.IMAGE
                     ? new FileNameExtensionFilter("Ảnh PNG / JPEG", "png", "jpg", "jpeg")
-                    : new FileNameExtensionFilter("Video MP4 / AVI / MKV", "mp4", "avi", "mkv"));
+                    : type == MessageType.VIDEO
+                    ? new FileNameExtensionFilter("Video MP4 / AVI / MKV", "mp4", "avi", "mkv")
+                    : new FileNameExtensionFilter("Âm thanh WAV / MP3 / M4A", "wav", "mp3", "m4a"));
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
@@ -244,5 +314,8 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     public void close() {
         closed = true;
         cancelRecording();
+        drafts.clear(); // no persisted offline outbox or draft History
+        input.setText("");
+        demoInput.setText("");
     }
 }

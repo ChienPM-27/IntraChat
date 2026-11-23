@@ -35,6 +35,6 @@
 - **Result:** Spec có thể được dùng làm đầu vào để lập kế hoạch giai đoạn 01.
 - **Đã có:** `plan.md` với lựa chọn stack, bản thiết kế protocol, History sync và Constitution Check ở mức thiết kế.
 - **Đã có:** `tasks.md` mô tả T001–T041, tất cả đang chưa triển khai.
-- **Đã thực hiện một phần:** Có mã nguồn Java/Swing và [bằng chứng build/test](../evidence/m0-test-results.md) với 9/9 JUnit trên JDK 25 (Java release 21). Chưa kiểm chứng runtime JDK 21 và GUI trong điều kiện Internet bị ngắt hoàn toàn; không được đánh dấu M0 Verified.
+- **Đã nghiệm thu M0 (2026-11-21):** Actual Temurin21, clean-source offline Maven build, 9/9 JUnit và 5/5 GUI open/close chạy trong JVM bị chặn toàn bộ Java network APIs (0 TCP/UDP); [bằng chứng](../evidence/m0-jdk21-offline.md). **Không** khẳng định adapter Windows đã bị ngắt vật lý. M0 Verified theo [report](../evidence/m0-acceptance-report.md).
 - **Plan đã xác định:** Java 21, Swing, Maven, JUnit; TCP/JSON framed cho P2P, local-first History sync (triển khai về sau), mục tiêu test và Constitution Check I–VII. Những nội dung vẫn cần chứng minh thực tế được đánh dấu là chưa triển khai.
 - **Quan trọng:** Các checkbox ở đây chỉ xác nhận đã rà soát **tài liệu đặc tả**; không có nghĩa yêu cầu chức năng đã được triển khai hoặc nghiệm thu.
