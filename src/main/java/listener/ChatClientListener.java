@@ -5,11 +5,15 @@ import model.ChatSnapshot;
 import model.DeliveryState;
 
 public interface ChatClientListener {
+    default void onFileTransfer(vn.intrachat.application.FileTransferService.Transfer transfer) { }
     void onDirectoryChanged(ChatSnapshot snapshot);
 
     void onMessageReceived(ChatMessage message);
 
     void onDeliveryStateChanged(String conversationId, String messageId, DeliveryState state);
+
+    /** A recipient ACK count can change without a DeliveryState transition. */
+    default void onGroupReceiptChanged(String conversationId,String messageId) { }
 
     void onConnectionError(String message);
 }

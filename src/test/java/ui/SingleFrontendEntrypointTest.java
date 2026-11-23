@@ -44,7 +44,7 @@ class SingleFrontendEntrypointTest {
                 SwingUtilities.invokeAndWait(() -> {
                     window[0] = new LoginFrame(demo, opens::incrementAndGet);
                     window[0].setVisible(true);
-                    JButton lan = findButton(window[0], "Chat trong LAN (TLS 1.3)");
+                    JButton lan = findButton(window[0], "Chat trong LAN (TCP)");
                     assertNotNull(lan);
                     lan.doClick();
                     assertEquals(1, opens.get());

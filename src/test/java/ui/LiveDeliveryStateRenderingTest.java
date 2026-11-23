@@ -61,6 +61,20 @@ class LiveDeliveryStateRenderingTest {
         incoming.showReceipt(DeliveryState.UNCERTAIN);
         assertNull(find(incoming,"live-manual-retry",JButton.class));
     }
+    @Test void groupBubbleShowsPerRecipientCountsWithoutClaimingAllDelivered(){
+        var msg=message();
+        var bubble=new MessageBubblePanel(msg,true,true,"Bạn",null);
+        JLabel receipt=find(bubble,"message-receipt",JLabel.class);
+        assertNotNull(receipt);
+        bubble.showReceipt(DeliveryState.SENT,"Đã nhận 0/2");
+        assertEquals("Đã nhận 0/2",receipt.getText());
+        bubble.showReceipt(DeliveryState.SENT,"Đã nhận 1/2");
+        assertEquals("Đã nhận 1/2",receipt.getText());
+        bubble.showReceipt(DeliveryState.UNCERTAIN,"Đã nhận 1/2");
+        assertEquals("Chưa rõ · Đã nhận 1/2",receipt.getText());
+        bubble.showReceipt(DeliveryState.DELIVERED,"Đã nhận 2/2");
+        assertEquals("Đã nhận 2/2",receipt.getText());
+    }
     @Test void firstStatusAfterFailedCannotDisplaySeenWithoutAuthenticatedEvidence(){
         assertEquals("Chưa rõ",DeliveryState.UNCERTAIN.label());
         assertEquals("Thất bại",DeliveryState.FAILED.label());

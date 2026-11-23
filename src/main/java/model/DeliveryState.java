@@ -1,8 +1,8 @@
 package model;
 
 /**
- * UI status is evidence-driven. SENT is only a local TLS write; DELIVERED
- * requires authenticated application ACK and SEEN requires a receipt emitted
+ * UI status is evidence-driven. SENT is only a local TCP write; DELIVERED
+ * requires an application ACK from the bound TCP peer and SEEN requires a receipt emitted
  * after real foreground display. UNCERTAIN is not a definitive failure.
  */
 public enum DeliveryState {

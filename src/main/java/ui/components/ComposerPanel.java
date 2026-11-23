@@ -26,8 +26,10 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     private final JTextField demoInput = new JTextField();
     private final JPanel inputCards = new JPanel(new CardLayout());
     private boolean liveTextOnly;
+    private boolean mediaEnabled=true;
     private final JPanel cards = new JPanel(new CardLayout());
     private final JPanel controls = panel(new FlowLayout(FlowLayout.LEADING, 1, 0));
+    private JButton fileTool;
     private final JButton emoji = iconButton(ChatIcon.Kind.SMILE, "Chèn emoji", BLUE);
     private final JButton send = primary("Gửi");
     private final JButton stop = primary("Dừng / Gửi");
@@ -54,8 +56,9 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
         addTool(ChatIcon.Kind.IMAGE, "Gửi ảnh", () -> choose(MessageType.IMAGE));
         addTool(ChatIcon.Kind.VIDEO, "Gửi video", () -> choose(MessageType.VIDEO));
-        addTool(ChatIcon.Kind.FILE, "Gửi tệp", () -> choose(MessageType.FILE));
-        addTool(ChatIcon.Kind.MIC, "Ghi âm", this::record);
+        fileTool=addTool(ChatIcon.Kind.FILE, "Gửi tệp", () -> choose(MessageType.FILE));
+        addTool(ChatIcon.Kind.MIC, "Chọn âm thanh", () -> choose(MessageType.SOUND));
+        addTool(ChatIcon.Kind.MIC, "Ghi âm WAV", this::record);
         add(controls, BorderLayout.WEST);
 
         input.setLineWrap(true);
@@ -118,16 +121,17 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         refresh();
     }
 
-    private void addTool(ChatIcon.Kind kind, String description, Runnable action) {
+    private JButton addTool(ChatIcon.Kind kind, String description, Runnable action) {
         JButton button = iconButton(kind, description, BLUE);
         button.addActionListener(event -> action.run());
         controls.add(button);
+        return button;
     }
 
     /** M2 Live cannot expose Group/File/Voice/Video features that have no real transport. */
     public void setTextOnly(boolean onlyText) {
-        controls.setVisible(!onlyText);
-        if (onlyText) cancelRecording();
+        controls.setVisible(true);
+        for(Component tool:controls.getComponents())tool.setVisible(true);
         if(liveTextOnly!=onlyText){
             String previous=activeInput().getText();
             liveTextOnly=onlyText;
@@ -141,10 +145,14 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     }
     private JTextComponent activeInput(){return liveTextOnly?input:demoInput;}
 
+    public void setMediaEnabled(boolean enabled){
+        mediaEnabled=enabled;
+        refresh();
+    }
     public void refresh() {
         boolean active = !closed && currentChat.get() != null && recorder == null;
         for (Component tool : controls.getComponents()) {
-            tool.setEnabled(active && !preparing);
+            tool.setEnabled(active && !preparing && (!liveTextOnly || mediaEnabled));
         }
         input.setEnabled(active);
         demoInput.setEnabled(active);
@@ -220,13 +228,16 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         chooser.setDialogTitle(switch (type) {
             case IMAGE -> "Chọn ảnh để gửi";
             case VIDEO -> "Chọn video để gửi";
+            case SOUND -> "Chọn âm thanh để gửi";
             default -> "Chọn tệp để gửi";
         });
-        if (type == MessageType.IMAGE || type == MessageType.VIDEO) {
+        if (type == MessageType.IMAGE || type == MessageType.VIDEO || type == MessageType.SOUND) {
             chooser.setAcceptAllFileFilterUsed(false);
             chooser.setFileFilter(type == MessageType.IMAGE
                     ? new FileNameExtensionFilter("Ảnh PNG / JPEG", "png", "jpg", "jpeg")
-                    : new FileNameExtensionFilter("Video MP4 / AVI / MKV", "mp4", "avi", "mkv"));
+                    : type == MessageType.VIDEO
+                    ? new FileNameExtensionFilter("Video MP4 / AVI / MKV", "mp4", "avi", "mkv")
+                    : new FileNameExtensionFilter("Âm thanh WAV / MP3 / M4A", "wav", "mp3", "m4a"));
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;

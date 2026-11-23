@@ -57,7 +57,7 @@ public final class MessageMedia implements AutoCloseable {
             button.setPreferredSize(new Dimension(Math.max(1, (int) (attachment.width() * scale)),
                     Math.max(1, (int) (attachment.height() * scale))));
         }
-        button.addActionListener(event -> run(() -> MediaFiles.image(attachment.path(), Integer.MAX_VALUE), image -> {
+        button.addActionListener(event -> run(() -> MediaFiles.image(attachment.path(), 1600), image -> {
             JScrollPane scroll = new JScrollPane(new JLabel(new ImageIcon(image)));
             Dimension size = owner.getToolkit().getScreenSize();
             scroll.setPreferredSize(new Dimension(Math.min(image.getWidth() + 24, size.width * 3 / 4),
@@ -253,6 +253,23 @@ public final class MessageMedia implements AutoCloseable {
             add(play, BorderLayout.WEST);
             add(track);
             add(time, BorderLayout.EAST);
+            JButton external=new JButton("Mở ngoài");
+            external.setToolTipText("Mở bằng ứng dụng mặc định nếu không thể phát nội bộ");
+            external.addActionListener(event -> run(() -> {
+                if(!java.nio.file.Files.isRegularFile(attachment.path()))
+                    throw new IOException("File không còn tồn tại");
+                if(!Desktop.isDesktopSupported()||!Desktop.getDesktop().isSupported(Desktop.Action.OPEN))
+                    throw new IOException("Không có ứng dụng mặc định");
+                Desktop.getDesktop().open(attachment.path().toFile());
+                return true;
+            }, result -> {}, "Không mở được âm thanh bằng ứng dụng mặc định."));
+            JPanel actions=new JPanel(new FlowLayout(FlowLayout.LEFT,2,0));
+            actions.setOpaque(false);
+            JButton stop=new JButton("Dừng");
+            stop.addActionListener(event -> stopPlayback());
+            actions.add(stop);
+            actions.add(external);
+            add(actions,BorderLayout.SOUTH);
         }
 
         private void toggle() {
@@ -320,6 +337,7 @@ public final class MessageMedia implements AutoCloseable {
             if (!active.isRunning()) {
                 updateIcon(false);
                 timer.stop();
+                if(active.getFramePosition()>=active.getFrameLength())stopPlayback();
             }
         }
 

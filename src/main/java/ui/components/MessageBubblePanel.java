@@ -3,6 +3,8 @@ package ui.components;
 import model.ChatMessage;
 import model.DeliveryState;
 import model.MessageType;
+import vn.intrachat.application.FileTransferService;
+import java.util.function.BiConsumer;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -20,14 +22,20 @@ import static ui.components.ChatStyle.*;
 public final class MessageBubblePanel extends JPanel {
     private final JLabel receipt = label("", 11, Font.PLAIN, MUTED);
     private JButton manualRetry;
+    private JPanel fileArea;
 
     public MessageBubblePanel(ChatMessage message, boolean mine, boolean group, String sender, MessageMedia media) {
-        this(message,mine,group,sender,media,null);
+        this(message,mine,group,sender,media,null,null,null);
     }
 
     /** Retrying an UNCERTAIN message is a separate explicit user command, never a timer. */
     public MessageBubblePanel(ChatMessage message,boolean mine,boolean group,String sender,
                               MessageMedia media,Consumer<String> onManualRetry) {
+        this(message,mine,group,sender,media,onManualRetry,null,null);
+    }
+    public MessageBubblePanel(ChatMessage message, boolean mine, boolean group, String sender,
+            MessageMedia media, Consumer<String> onManualRetry,
+            FileTransferService.Transfer transfer, BiConsumer<String,String> fileAction) {
         super(new FlowLayout(mine ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
         setOpaque(false);
         setBorder(new EmptyBorder(4, 18, 4, 18));
@@ -59,15 +67,25 @@ public final class MessageBubblePanel extends JPanel {
         bubble.setBorder(visualMedia ? new EmptyBorder(5, 5, 5, 5) : new EmptyBorder(7, 11, 7, 11));
         bubble.setAlignmentX(alignment);
         bubble.add(message.content().type() == MessageType.TEXT ? text(message.content().text(), ink)
-                : media.render(message.content(), mine));
+                : transfer!=null && (transfer.state()!=FileTransferService.State.COMPLETED ||
+                        message.content().type()==MessageType.FILE)
+                    ? fileLabel(transfer,ink) : media.render(message.content(), mine));
         bubble.setToolTipText(sender + " · " + time);
         bubble.getAccessibleContext().setAccessibleName(sender + " · " + time);
         stack.add(bubble);
+        if(transfer!=null){
+            fileArea=new JPanel();fileArea.setOpaque(false);
+            fileArea.setLayout(new BoxLayout(fileArea,BoxLayout.Y_AXIS));
+            fileArea.setAlignmentX(alignment);
+            stack.add(fileArea);
+            showFileTransfer(transfer,fileAction);
+        }
 
         JLabel timestamp = label(time, 11, Font.PLAIN, MUTED);
         timestamp.setBorder(new EmptyBorder(2, 5, 0, 5));
         timestamp.setAlignmentX(alignment);
         stack.add(timestamp);
+        receipt.setName("message-receipt");
         receipt.setBorder(new EmptyBorder(2, 5, 0, 5));
         receipt.setAlignmentX(alignment);
         receipt.setVisible(false);
@@ -89,10 +107,59 @@ public final class MessageBubblePanel extends JPanel {
         add(stack);
     }
 
+    private static JPanel fileLabel(FileTransferService.Transfer t,Color ink){
+        JPanel panel=new JPanel(new GridLayout(2,1));panel.setOpaque(false);
+        panel.add(label(t.messageType().name()+" · "+t.fileName(),13,Font.BOLD,ink));
+        panel.add(label(MediaFiles.size(t.fileSize()),12,Font.PLAIN,ink));
+        return panel;
+    }
+    public void showFileTransfer(FileTransferService.Transfer t,BiConsumer<String,String> action){
+        if(fileArea==null)return;
+        fileArea.removeAll();
+        long bytes=t.transferredBytes();
+        String state=t.state().name();
+        String description=switch(t.state()){
+            case OFFERED -> "Đang gửi lời mời";
+            case WAITING_ACCEPT -> "Đang chờ chấp nhận";
+            case TRANSFERRING -> "Đang truyền";
+            case COMPLETED -> "Đã lưu thành công";
+            case REJECTED -> "Đã từ chối";
+            case CANCELLED -> "Đã hủy";
+            case FAILED -> "Lỗi: "+t.error();
+        };
+        fileArea.add(label(description+" · "+MediaFiles.size(bytes)+" / "+
+            MediaFiles.size(t.fileSize()),11,Font.PLAIN,MUTED));
+        JProgressBar progress=new JProgressBar(0,1000);
+        progress.setValue(t.fileSize()==0?(t.state()==FileTransferService.State.COMPLETED?1000:0):
+            (int)Math.min(1000,bytes*1000/t.fileSize()));
+        progress.setPreferredSize(new Dimension(220,9));
+        fileArea.add(progress);
+        JPanel buttons=new JPanel(new FlowLayout(FlowLayout.LEFT,4,0));buttons.setOpaque(false);
+        // The caller owns local identity; only the receiver has no sourcePath until accept.
+        if(t.state()==FileTransferService.State.WAITING_ACCEPT && t.localPath()==null){
+            addFileButton(buttons,"Nhận / Chọn nơi lưu",()->action.accept("accept",t.transferId().toString()));
+            addFileButton(buttons,"Từ chối",()->action.accept("reject",t.transferId().toString()));
+        }
+        if(t.state()==FileTransferService.State.WAITING_ACCEPT||t.state()==FileTransferService.State.TRANSFERRING)
+            addFileButton(buttons,"Hủy",()->action.accept("cancel",t.transferId().toString()));
+        if(t.state()==FileTransferService.State.COMPLETED&&t.localPath()!=null)
+            addFileButton(buttons,"Mở tệp / vị trí",()->action.accept("open",t.transferId().toString()));
+        fileArea.add(buttons);
+        fileArea.revalidate();fileArea.repaint();
+    }
+    private static void addFileButton(JPanel target,String title,Runnable action){
+        JButton button=new JButton(title);button.setFont(button.getFont().deriveFont(11f));
+        button.addActionListener(e->action.run());target.add(button);
+    }
     public void showReceipt(DeliveryState state) {
-        receipt.setVisible(state != null);
-        if (state != null) {
-            receipt.setText(state.label());
+        showReceipt(state,null);
+    }
+    public void showReceipt(DeliveryState state,String groupRecipientCount) {
+        receipt.setVisible(state != null || groupRecipientCount != null);
+        if (state != null || groupRecipientCount != null) {
+            receipt.setText(groupRecipientCount == null ? state.label() :
+                (state == DeliveryState.UNCERTAIN || state == DeliveryState.FAILED
+                    ? state.label()+" · "+groupRecipientCount : groupRecipientCount));
             receipt.setIcon(state == DeliveryState.SENT
                 ? new ChatIcon(ChatIcon.Kind.CHECK,MUTED,13)
                 : state == DeliveryState.DELIVERED

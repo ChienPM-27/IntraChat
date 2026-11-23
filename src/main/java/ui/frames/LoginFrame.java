@@ -62,12 +62,12 @@ public final class LoginFrame extends JFrame {
         addRow(form, submit, 9, 8, true);
         addRow(form, toggle, 10, 6, false);
         if (launchLan != null) {
-            JButton lan = secondary("Chat trong LAN (TLS 1.3)");
+            JButton lan = secondary("Chat trong LAN (TCP)");
             lan.setName("live-lan-entry");
             lan.setForeground(BLUE);
-            lan.setToolTipText("Chat Live không cần tài khoản Demo; xác minh danh tính thiết bị bằng TLS 1.3 và SAS");
+            lan.setToolTipText("Chat Live không cần tài khoản Demo; TCP không mã hóa, chỉ dùng LAN tin cậy");
             lan.getAccessibleContext().setAccessibleDescription(
-                "Không cần tài khoản Demo hoặc mật khẩu Demo. Chọn Live để kết nối và xác minh thiết bị.");
+                "Không cần tài khoản Demo hoặc mật khẩu Demo. Chọn Live để kết nối bằng TCP không mã hóa.");
             lan.addActionListener(event -> launchLan.run());
             addRow(form, lan, 11, 14, true);
             setMinimumSize(new Dimension(440, 600));
