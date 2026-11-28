@@ -385,6 +385,10 @@ public final class LiveChatAdapter implements ChatActionHandler {
     @Override public CompletionStage<Void> leaveGroup(String id){
         try{return groups.leave(UUID.fromString(id));}catch(RuntimeException ex){return CompletableFuture.failedFuture(ex);}
     }
+    @Override public CompletionStage<Void> addGroupMember(String id,String member){
+        try{return groups.addMember(UUID.fromString(id),UUID.fromString(member));}
+        catch(RuntimeException ex){return CompletableFuture.failedFuture(ex);}
+    }
     @Override public CompletionStage<Void> removeGroupMember(String id,String member){
         try{return groups.remove(UUID.fromString(id),UUID.fromString(member));}
         catch(RuntimeException ex){return CompletableFuture.failedFuture(ex);}

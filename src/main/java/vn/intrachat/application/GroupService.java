@@ -132,7 +132,7 @@ public final class GroupService implements AutoCloseable {
     private CompletableFuture<Void> send(UUID peer,WireMessage.Type type,UUID groupId,Map<String,String> data){
         return tcp.sendGroup(peer,type,groupId,data);
     }
-    public CompletionStage<ChatGroup> createGroup(String name,List<UUID> targets){
+    public synchronized CompletionStage<ChatGroup> createGroup(String name,List<UUID> targets){
         if(groups.size()>=16||name==null||name.isBlank()||name.length()>60 || targets==null ||targets.isEmpty()||targets.size()>4
             ||new HashSet<>(targets).size()!=targets.size()||targets.contains(me))
             return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid group"));
@@ -152,22 +152,39 @@ public final class GroupService implements AutoCloseable {
         }
         announce(group,null,null,0,0,"Đang mời "+targets.size()+" thành viên");
         CompletableFuture.delayedExecutor(inviteTimeout.toMillis(),TimeUnit.MILLISECONDS)
-            .execute(()->expireInvitations(id));
+            .execute(()->expireInvitations(id,states));
         return first;
     }
-    private synchronized void expireInvitations(UUID id){
-        if(closed)return;
-        Map<UUID,Boolean> states=invitations.remove(id);
-        if(states==null)return;
+    /** Invite one connected peer to an existing group; membership changes only on acceptance. */
+    public synchronized CompletionStage<Void> addMember(UUID id,UUID peer){
+        ChatGroup group=groups.get(id);
+        if(group==null||!group.ownerId().equals(me)||group.contains(peer)||group.memberIds().size()>=5)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid group member"));
+        if(!tcp.connectedPeers().containsKey(peer))
+            return CompletableFuture.failedFuture(new IOException("Invitee offline"));
+        if(invitations.containsKey(id))
+            return CompletableFuture.failedFuture(new IOException("Another group invitation is pending"));
+        Map<UUID,Boolean> states=new ConcurrentHashMap<>();
+        states.put(peer,false);
+        invitations.put(id,states);
+        CompletableFuture.delayedExecutor(inviteTimeout.toMillis(),TimeUnit.MILLISECONDS)
+            .execute(()->expireInvitations(id,states));
+        return send(peer,WireMessage.Type.GROUP_INVITE,id,Map.of("name",group.groupName(),"owner",me.toString()))
+            .whenComplete((ok,error)->{
+                if(error!=null)synchronized(GroupService.this){ if(invitations.get(id)==states)invitations.remove(id,states); }
+            });
+    }
+    private synchronized void expireInvitations(UUID id,Map<UUID,Boolean> states){
+        if(closed||invitations.get(id)!=states||!invitations.remove(id,states))return;
         List<UUID> unanswered=states.entrySet().stream().filter(e->!e.getValue())
             .map(Map.Entry::getKey).toList();
         ChatGroup group=groups.get(id);
         for(UUID peer:unanswered)
             send(peer,WireMessage.Type.GROUP_REMOVE,id,Map.of()).exceptionally(error->null);
         CompletableFuture<ChatGroup> waiting=creations.remove(id);
-        if(group!=null&&group.memberIds().size()<2){
+        if(waiting!=null&&group!=null&&group.memberIds().size()<2){
             groups.remove(id,group);
-            if(waiting!=null)waiting.completeExceptionally(new IOException("Group invitation timed out"));
+            waiting.completeExceptionally(new IOException("Group invitation timed out"));
         }
         if(!unanswered.isEmpty())announce(group,null,null,0,0,
             "Hết thời gian chờ phản hồi của "+unanswered.size()+" lời mời");
@@ -237,7 +254,7 @@ public final class GroupService implements AutoCloseable {
             announce(group,null,null,0,0,"Đã rời nhóm");
         });
     }
-    public CompletionStage<Void> remove(UUID groupId,UUID member){
+    public synchronized CompletionStage<Void> remove(UUID groupId,UUID member){
         ChatGroup group=groups.get(groupId);
         if(group==null||!group.ownerId().equals(me)||me.equals(member)||!group.contains(member))
             return CompletableFuture.failedFuture(new IllegalArgumentException("Only owner can remove member"));
@@ -254,16 +271,18 @@ public final class GroupService implements AutoCloseable {
         Map<String,String> data=frame.payload();
         switch(frame.type()){
             case GROUP_INVITE -> {
-                if(!via.toString().equals(data.get("owner"))||groups.containsKey(id))return;
+                ChatGroup existing=groups.get(id);
+                if(!via.toString().equals(data.get("owner"))||
+                    (existing!=null&&(existing.contains(me)||!existing.ownerId().equals(via))))return;
                 String name=data.get("name");
                 if(name==null||name.isBlank()||name.length()>60)return;
-                pending.put(id,new Pending(via,name));
+                Pending request=new Pending(via,name);
+                if(pending.putIfAbsent(id,request)!=null)return;
                 String label=tcp.connectedPeers().getOrDefault(via,via.toString());
                 memberNames.put(via,label);
                 invitation.decide(via,label,name).whenComplete((yes,error)->{
                     synchronized(GroupService.this){
-                    Pending invite=pending.remove(id);
-                    if(invite==null||closed)return;
+                    if(closed||pending.get(id)!=request||!pending.remove(id,request))return;
                     boolean accepted=error==null&&Boolean.TRUE.equals(yes);
                     if(accepted){
                         ChatGroup joined=new ChatGroup(id,name,via,List.of(via,me),0);
@@ -279,8 +298,9 @@ public final class GroupService implements AutoCloseable {
                 ChatGroup group=groups.get(id);
                 if(group==null||!group.ownerId().equals(me))return;
                 Map<UUID,Boolean> invites=invitations.get(id);
-                if(invites==null||!invites.containsKey(via)||Boolean.TRUE.equals(invites.put(via,true)))return;
-                if(group.memberIds().size()>=5)return;
+                if(invites==null||invites.remove(via)==null)return;
+                if(invites.isEmpty())invitations.remove(id,invites);
+                if(group.memberIds().size()>=5||group.contains(via))return;
                 List<UUID> members=new ArrayList<>(group.memberIds());members.add(via);
                 ChatGroup changed=group.withMembers(members);groups.put(id,changed);update(changed);
                 CompletableFuture<ChatGroup> first=creations.remove(id);
@@ -290,10 +310,13 @@ public final class GroupService implements AutoCloseable {
                 Map<UUID,Boolean> invites=invitations.get(id);
                 if(invites!=null&&invites.containsKey(via)){invites.remove(via);
                     announce(groups.get(id),null,null,0,0,"Lời mời bị từ chối: "+via);
-                    if(invites.isEmpty()&&groups.get(id).memberIds().size()==1){
+                    if(invites.isEmpty()){
+                        invitations.remove(id,invites);
                         CompletableFuture<ChatGroup> first=creations.remove(id);
-                        if(first!=null)first.completeExceptionally(new IOException("All invitations declined"));
-                        groups.remove(id);
+                        if(first!=null){
+                            first.completeExceptionally(new IOException("All invitations declined"));
+                            groups.remove(id);
+                        }
                     }
                 }
             }

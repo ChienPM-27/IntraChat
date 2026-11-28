@@ -340,6 +340,10 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         if(group==null||!group.group())return;
         String ownerId=actions.groupOwnerId(group.id());
         new GroupMembersDialog(this,group,self,Map.copyOf(users),ownerId,actions.groupOwnerOnline(group.id()),
+            member->actions.addGroupMember(group.id(),member).whenComplete((ok,error)->onEdt(()->{
+                if(error!=null)showNotice("Không thể mời: "+error(error,"Lỗi kết nối"));
+                else showNotice("Đã gửi lời mời tham gia nhóm");
+            })),
             member->actions.removeGroupMember(group.id(),member).whenComplete((ok,error)->onEdt(()->{
                 if(error!=null)showNotice("Không thể loại: "+error(error,"Lỗi kết nối"));
             })),

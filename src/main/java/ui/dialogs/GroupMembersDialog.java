@@ -17,7 +17,7 @@ import static ui.components.ChatStyle.*;
 public final class GroupMembersDialog extends JDialog {
     public GroupMembersDialog(Window owner, Conversation group, ChatUser self,
                               Map<String,ChatUser> users, String ownerId,
-                              boolean ownerReady, Consumer<String> remove, Runnable leave) {
+                              boolean ownerReady, Consumer<String> add, Consumer<String> remove, Runnable leave) {
         super(owner,"Thành viên nhóm",ModalityType.APPLICATION_MODAL);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         boolean isOwner=Objects.equals(ownerId,self.id());
@@ -79,6 +79,23 @@ public final class GroupMembersDialog extends JDialog {
         JPanel footer=panel(new BorderLayout(0,8));
         footer.add(label("Trạng thái kết nối chỉ phản ánh liên kết trực tiếp với máy này.",12,Font.PLAIN,MUTED),BorderLayout.NORTH);
         JPanel buttons=panel(new FlowLayout(FlowLayout.TRAILING,8,0));
+        if(isOwner){
+            var candidates=users.values().stream()
+                .filter(user->user.online()&&!user.id().equals(self.id())&&!group.memberIds().contains(user.id()))
+                .sorted(java.util.Comparator.comparing(ChatUser::displayName)).toList();
+            JButton invite=secondary("Thêm thành viên");invite.setName("group-add");
+            invite.setEnabled(group.memberIds().size()<5&&!candidates.isEmpty());
+            invite.addActionListener(e->{
+                String[] labels=candidates.stream().map(user->user.displayName()+" · "+user.id()).toArray(String[]::new);
+                Object selected=JOptionPane.showInputDialog(this,"Chọn người đang kết nối","Thêm thành viên",
+                    JOptionPane.PLAIN_MESSAGE,null,labels,labels[0]);
+                if(selected!=null){
+                    int index=java.util.Arrays.asList(labels).indexOf(selected);
+                    if(index>=0){dispose();add.accept(candidates.get(index).id());}
+                }
+            });
+            buttons.add(invite);
+        }
         if(!isOwner){
             JButton exit=secondary("Rời nhóm");exit.setForeground(RED);exit.setName("group-leave");
             exit.setEnabled(ownerReady);

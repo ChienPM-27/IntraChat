@@ -31,6 +31,7 @@ public interface ChatActionHandler extends AutoCloseable {
     CompletionStage<Conversation> createGroup(String name, List<String> memberIds);
     default boolean groupAvailable(){return false;}
     default CompletionStage<Void> leaveGroup(String id){return CompletableFuture.failedFuture(new UnsupportedOperationException("Leave unavailable"));}
+    default CompletionStage<Void> addGroupMember(String id,String member){return CompletableFuture.failedFuture(new UnsupportedOperationException("Invite unavailable"));}
     default CompletionStage<Void> removeGroupMember(String id,String member){return CompletableFuture.failedFuture(new UnsupportedOperationException("Remove unavailable"));}
     default boolean isGroupOwner(String id){return false;}
     default String groupOwnerId(String id){return null;}
