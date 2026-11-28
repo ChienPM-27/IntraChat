@@ -1,39 +1,31 @@
-# IntraChat — ma trận 11 chức năng MVP (23/11/2026)
+# IntraChat — Ma trận 11 chức năng MVP (28/11/2026)
 
-Backend PASS là kiểm thử JVM/socket, **không** là nghiệm thu GUI hay LAN vật lý. `NOT RUN` giữ nguyên khi chưa có bằng chứng.
+Backend PASS là kiểm thử JVM/socket. GUI PASS (smoke) chỉ áp dụng cho kịch bản đã chạy trên localhost. PARTIAL là có bằng chứng nhưng chưa nghiệm thu toàn bộ. Không có chức năng nào được tuyên bố FULLY ACCEPTED trên mọi lớp; LAN vật lý vẫn NOT RUN.
 
-| ID | Chức năng | Implementation / backend verification | GUI | LAN vật lý | Persistence / Playback / giới hạn |
+| ID | Chức năng | Backend / implementation | GUI localhost | LAN vật lý | Persistence / Playback / giới hạn |
 |---|---|---|---|---|---|
-| F01 | P2P Chat | LiveChatService/TCP hai JVM, TEXT hai chiều PASS | NOT RUN | NOT RUN | History JSONL; TCP plaintext |
-| F02 | Group Chat | GroupService Owner Relay ba JVM, invite/roster/ACK PASS | NOT RUN | NOT RUN | Group metadata/history local; owner offline không relay |
-| F03 | File Transfer | FileTransferService offer/accept/reject/chunk/CRC/cancel PASS | NOT RUN | NOT RUN | Metadata history; 128 MiB; no resume; P2P |
-| F04 | Emoji | Unicode TEXT qua TCP PASS | NOT RUN | NOT RUN | JSONL text |
-| F05 | Chat History | HistoryRepository JSONL, restart hai/ba JVM PASS | NOT RUN | NOT RUN | Local-only, không sync; disk failures NOT RUN |
-| F06 | Image | PNG/JPEG byte/type/restore, component test PASS | NOT RUN | NOT RUN | 16 MiB / 32 MP; thumbnail GUI NOT RUN |
-| F07 | Video | Transfer/type/restore backend PASS | NOT RUN | NOT RUN | 128 MiB; Desktop.open/codec playback NOT RUN |
-| F08 | Sound | Transfer/type/restore, WAV component PASS | NOT RUN | NOT RUN | 8 MiB; WAV Java Sound/device + external playback NOT RUN |
-| F09 | State | SENT/ACK/READ from socket events PASS | NOT RUN | NOT RUN | State JSONL; foreground UI observation NOT RUN |
-| F10 | Time | Timestamp UTC via socket PASS | NOT RUN | NOT RUN | Timestamp JSONL; GUI formatting NOT RUN |
-| F11 | Sender | UUID through P2P/group socket PASS | NOT RUN | NOT RUN | Sender metadata JSONL; unauthenticated UUID |
+| F01 | P2P Chat | PASS — text hai JVM, ACK/READ, reconnect | PASS smoke — hai chiều, startup/reconnect | NOT RUN | History JSONL; 4 active sessions; TCP plaintext |
+| F02 | Group Chat | PASS — owner relay, roster sync, text/media, partial failure | PASS smoke — tạo nhóm, owner/member media, nút Nhóm theo ngữ cảnh | NOT RUN | 5 thành viên; owner offline không relay |
+| F03 | File Transfer | PASS — OFFER/ACCEPT/REJECT, CRC/chunk/cancel; tự lưu, tên trùng, lỗi folder | PASS smoke — gửi/nhận không hỏi nơi lưu, P2P/nhóm | NOT RUN | 128 MiB; 1 transfer/peer; không resume |
+| F04 | Emoji | PASS — Unicode TEXT | PASS smoke C6 | NOT RUN | JSONL text |
+| F05 | History | PASS — restart JSONL, metadata, profile, endpoint | PARTIAL — startup profile cũ, offline, reconnect; chưa full media-history GUI restore | NOT RUN | Local-only; 10.000 message entries RAM, 500/view; disk full/crash NOT RUN |
+| F06 | Image | PASS — PNG/JPEG validation, bytes/type/restore, group relay | PASS smoke — PNG thumbnail | NOT RUN | 16 MiB / 32 MP |
+| F07 | Video | PASS — bytes/type/restore, group relay | PARTIAL — mẫu MP4 signature được gửi/nhận | NOT RUN | 128 MiB; Desktop.open/codec playback NOT RUN |
+| F08 | Sound | PASS — WAV/MP3/M4A transfer, group relay | PARTIAL — WAV controls, một micro và nốt nhạc | NOT RUN | 8 MiB; ghi âm 120 giây; capture/playback NOT RUN |
+| F09 | State | PASS — TEXT ACK/READ, file FILE_RESULT, group per-recipient outcome | PARTIAL — delivered/seen C6, media completion | NOT RUN | Không đồng nghĩa đọc bằng mắt; không tự resend |
+| F10 | Time | PASS — UTC timestamp, group originalSentAt | PARTIAL — hiển thị giờ | NOT RUN | Timestamp JSONL |
+| F11 | Sender | PASS — UUID P2P/group, từ chối group origin sai | PARTIAL — tên/nhãn người gửi | NOT RUN | UUID tự khai, không xác thực mật mã |
 
-**Chứng cứ:** P1–P5 process smoke/JUnit trong [P6 report](p6-final-report.md) và [C4 report](c4-cleanup-report.md). C4 chỉ kiểm chứng GUI startup, chưa nghiệm thu GUI Messenger P2P/Group/Media. C0–C3 có [báo cáo riêng](c0-c3-cleanup-report.md). Không dùng evidence M0/M1/M2/TLS lưu trữ để chứng minh backend P1–P5.
+## Hành vi xuyên chức năng
 
-**Chưa nghiệm thu:** thao tác nhiều cửa sổ Messenger, LAN hai/ba PC thật, MP4 player/codec, WAV trên thiết bị thật, video cancel/disconnect/concurrency/duplicate offer, disk full/permission/crash. Không coi transfer bytes là playback.
+- Profile cũ mở Messenger ngay cả offline, nhớ user gần nhất và cổng Listen; tự thử lại endpoint private/loopback đã lưu. Profile mới kết nối thủ công lần đầu; lịch sử cũ thiếu IP/port cần kết nối một lần để ghi nhớ.
+- Settings bánh răng ở bên phải Profile; nút Nhóm chỉ hiện trong nhóm; + tạo nhóm vẫn ở sidebar.
+- Media nhận tự lưu vào `data/<user>/media/` hoặc mediaDir của -DataDir. P2P tên trùng thêm hậu tố; nhóm dùng groupId/transferId. Không tự mở tệp.
+- GroupMedia sử dụng một FileTransferService; owner forward sau CRC/size, một logical message UUID, kết quả theo thành viên, timeout tổng 10 phút, 16 active group jobs. Cancel best-effort.
+- Auto reconnect không scan LAN, không tự resend, không resume, không tự chuyển owner. Mọi máy cần cùng phiên bản. Chỉ dùng LAN tin cậy.
 
-## C6 acceptance delta (24/11/2026)
+## Chứng cứ và giới hạn
 
-Across F01–F11 existing P1–P5 automated backend regression remains PASS (97 JUnit after C6). **F01 GUI P2P two-way localhost PASS**, **F04 GUI Unicode/emoji PASS**; **F09 GUI delivered/seen PARTIAL**, **F10/F11 GUI time/sender display PARTIAL**. GUI Group F02, GUI file/media F03/F06/F07/F08, GUI history restart F05 NOT RUN. Physical LAN for every function NOT RUN; audio/video device playback NOT RUN. No overall feature is FULLY ACCEPTED against all acceptance layers. Full [F01–F11 C6 matrix](c6-final-verification-report.md#h-feature-acceptance-matrix).
+Xem [current-verification](current-verification.md) cho số test và script chạy thực tế; [C6 matrix lịch sử](c6-final-verification-report.md#h-feature-acceptance-matrix) cho baseline 24/11; [P6 report](p6-final-report.md) cho lịch sử cleanup. GUI media smoke dùng ba cửa sổ trên một JVM, reconnect smoke dùng hai JVM độc lập; không suy diễn thành LAN vật lý hoặc playback.
 
-## Group Media / Auto-save delta (28/11/2026)
-
-- F02/F03/F06/F07/F08: P2P và nhóm hỗ trợ file/image/video/sound dùng một FileTransferService; GroupMediaEndToEndTest dùng ba node TCP thật, chủ nhóm và thành viên gửi cả bốn loại, CRC/bytes, UUID/thời gian, một row GROUP mỗi máy, tự lưu không overwrite, từ chối origin giả và partial failure khi thành viên offline. Restore JSONL PASS.
-- AutoSaveMediaTest: P2P mặc định tự lưu vào mediaDir của người nhận; tên trùng có hậu tố, lỗi không tạo được thư mục báo FAILED. Test protocol cũ dùng chế độ nhận thủ công riêng để tiếp tục kiểm chứng reject/cancel.
-- MediaGuiSmoke: ba cửa sổ Messenger thật trên localhost; gửi/nhận tự động PNG, WAV, mẫu MP4 (signature), tệp thường; ảnh từ chủ nhóm, WAV từ thành viên qua chủ nhóm; thumbnail, WAV controls, một micro. Không mở hộp thoại lưu. GUI smoke PASS, không đồng nghĩa tất cả scenario GUI đã nghiệm thu.
-- F05: profile mặc định `data/<user>`, media trong `media/` của profile; người dùng có thể chọn lại user hoặc -DataDir. Không tự di chuyển dữ liệu profile cũ.
-- Vẫn NOT RUN: LAN vật lý, microphone capture, playback codec/thiết bị, stress disk full/crash. Giới hạn: owner online, 5 thành viên, 1 transfer/peer, không resume/offline queue, tổng timeout group 10 phút, hủy best-effort. Mọi máy cần cùng phiên bản.
-
-## Reconnect delta (28/11/2026)
-
-- F01/F05/F09: mở Messenger trực tiếp với profile đã có; giữ history offline, nhớ IP/cổng Listen thành công, tự nối lại peer cũ và giữ UUID. PeerReconnectTest kiểm thử restart, peer bật muộn, từ chối UUID sai/peer chưa biết, pause. Không tự resend.
-- F02/F03/F06–F08: đồng bộ roster nhóm với owner khi reconnect; test gửi group text và file sau restart.
-- Không scan LAN; IP thay đổi hoặc lịch sử cũ thiếu endpoint phải kết nối thủ công để cập nhật. LAN vật lý và playback vẫn NOT RUN.
+Chưa nghiệm thu: physical LAN, codec/hardware playback, microphone capture, blocked-read cancellation, stress concurrency/disk full/ACL/crash, GUI history media restart đầy đủ và audit lifecycle toàn diện.

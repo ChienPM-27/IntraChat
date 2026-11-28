@@ -13,7 +13,7 @@
 | F05 | Chat History | F11 | Sender |
 | F06 | Image | | |
 
-Kết quả backend P1–P5 trước cleanup: 95 JUnit PASS và process smoke P1–P5 PASS. **GUI, LAN vật lý, MP4/WAV playback thực NOT RUN**; xem [feature matrix](docs/feature-matrix.md).
+**Hiện trạng 28/11/2026:** 109/109 JUnit PASS; backend P1–P5 PASS; GUI localhost media, nhóm, contextual controls và auto reconnect có smoke PASS. LAN vật lý, microphone capture và playback thực NOT RUN. Xem [ma trận tính năng](docs/feature-matrix.md), [thiết kế GUI](DESIGN.md) và [báo cáo kiểm chứng hiện hành](docs/current-verification.md).
 
 ## Yêu cầu và build
 
@@ -25,7 +25,7 @@ Chạy nhanh trên Windows (build, chạy JUnit và mở ứng dụng):
 .\run.cmd
 ```
 
-Script ưu tiên JDK 21 từ `JAVA_HOME`, JDK portable đã cài bằng `scripts/get-jdk21-portable.ps1`, rồi JDK trên `PATH`. Có thể chỉ định đường dẫn JDK hoặc chạy lại JAR đã build mà không build lại:
+Script ưu tiên JDK 21 từ `JAVA_HOME`, JDK portable đã cài bằng `scripts/get-jdk21-portable.ps1`, rồi JDK trên `PATH` và các thư mục vendor JDK trong Program Files. Có thể chỉ định đường dẫn JDK hoặc chạy lại JAR đã build mà không build lại:
 
 ```powershell
 .\run.cmd -JavaHome 'C:\Path\To\jdk-21'
@@ -47,7 +47,7 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 java -jar target\intrachat-0.1.0-SNAPSHOT.jar
 ```
 
-JAR có Main-Class `ui.IntraChat`. **Luồng C4 Live-only**: `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog → MainChatFrame/LiveChatAdapter`. Không có Demo login, đăng ký hoặc mật khẩu. Profile mới mở dialog kết nối; profile đã tồn tại mở thẳng Messenger (kể cả offline) và tự Listen/reconnect ngầm. Ứng dụng tự nhận diện IPv4 LAN riêng (10/8, 172.16/12, 192.168/16) của card mạng đang hoạt động và tự Listen cổng `47321` hoặc cổng Listen thành công gần nhất. Nếu có nhiều IP, chọn Stop rồi chọn IPv4 khác trong danh sách hoặc nhập thủ công và Listen lại. Nếu không có IPv4 LAN riêng, ứng dụng dùng `127.0.0.1` (chỉ máy này). Nếu cổng bận, đổi cổng rồi Listen lại. Profile mới mở Messenger khi kết nối đầu tiên được chấp nhận. Trong Messenger có nút **Kết nối LAN** để mở lại dialog. Đóng cửa sổ để dừng phiên và bảo toàn History. Có thể chạy `java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics` mà không cần GUI.
+JAR có Main-Class `ui.IntraChat`. **Luồng C4 Live-only**: `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog → MainChatFrame/LiveChatAdapter`. Không có Demo login, đăng ký hoặc mật khẩu. Profile mới mở dialog kết nối; profile đã tồn tại mở thẳng Messenger (kể cả offline) và tự Listen/reconnect ngầm. Ứng dụng tự nhận diện IPv4 LAN riêng (10/8, 172.16/12, 192.168/16) của card mạng đang hoạt động và tự Listen cổng `47321` hoặc cổng Listen thành công gần nhất. Nếu có nhiều IP, chọn Stop rồi chọn IPv4 khác trong danh sách hoặc nhập thủ công và Listen lại. Nếu không có IPv4 LAN riêng, ứng dụng dùng `127.0.0.1` (chỉ máy này). Nếu cổng bận, đổi cổng rồi Listen lại. Profile mới mở Messenger khi kết nối đầu tiên được chấp nhận. Trong Messenger, biểu tượng bánh răng **Cài đặt kết nối LAN** ở bên phải profile (cuối sidebar) mở lại dialog. Nút **Nhóm** chỉ xuất hiện khi chọn hội thoại nhóm. Đóng cửa sổ để dừng phiên và bảo toàn History. Có thể chạy `java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics` mà không cần GUI.
 
 ## Chạy hai JVM độc lập (cùng PC)
 
@@ -60,7 +60,7 @@ java '-Dintrachat.dataDir=C:\Temp\IntraChat-A' -jar target\intrachat-0.1.0-SNAPS
 java '-Dintrachat.dataDir=C:\Temp\IntraChat-B' -jar target\intrachat-0.1.0-SNAPSHOT.jar
 ```
 
-Trong cửa sổ kết nối Live, A **Stop** nếu đang Listen, chọn `127.0.0.1` và **Listen** cổng `47321`; B **Connect** đến `127.0.0.1:47321` (B không cần Listen; có thể Stop hoặc đổi cổng nếu trùng); A **Accept** hoặc thử **Reject**. Sau khi kết nối, gửi P2P text và emoji hai chiều, kiểm tra Sender/Time/State. SENT, DELIVERED (ACK), SEEN (READ khi hội thoại foreground) là các trạng thái khác nhau; SEEN không chứng minh đọc bằng mắt. Tự kết nối lại với peer đã ghi nhận IP/port, không tự động resend. Disconnect thủ công tạm dừng reconnect trong phiên hiện tại; nhấn Connect để tiếp tục.
+Trong cửa sổ kết nối Live, A **Stop** nếu đang Listen, chọn `127.0.0.1` và **Listen** cổng `47321`; B **Connect** đến `127.0.0.1:47321` (để thử reconnect hai chiều, B cũng Listen trên 127.0.0.1 với cổng riêng, ví dụ 47322; đổi cổng nếu trùng); A **Accept** hoặc thử **Reject**. Sau khi kết nối, gửi P2P text và emoji hai chiều, kiểm tra Sender/Time/State. SENT, DELIVERED (ACK), SEEN (READ khi hội thoại foreground) là các trạng thái khác nhau; SEEN không chứng minh đọc bằng mắt. Tự kết nối lại với peer đã ghi nhận IP/port, không tự động resend. Disconnect thủ công tạm dừng reconnect trong phiên hiện tại; nhấn Connect để tiếp tục.
 
 ## Group ba JVM
 
@@ -68,13 +68,13 @@ Mở thêm C với `-Dintrachat.dataDir=C:\Temp\IntraChat-C`. A Listen trên `12
 
 ## Hai máy Windows cùng LAN
 
-Trên máy A mở IntraChat, ghi nhận IPv4 và port trong trạng thái **Đang Listen** (mặc định `47321`). Nếu chọn nhầm card mạng, dùng `ipconfig` để kiểm tra IP LAN/Wi-Fi, Stop rồi chọn IP đúng và Listen lại. Trên B kết nối đến **IPv4 thực của A**, không dùng `127.0.0.1` giữa hai máy. Đảm bảo cùng mạng/subnet hoặc có route phù hợp, Windows Firewall cho phép inbound TCP tới cổng/application trên mạng Private; không mở Internet/public port. A Accept. Sử dụng `intrachat.dataDir` độc lập trên từng JVM/máy, chỉ thử với dữ liệu mẫu. GUI/LAN vật lý chưa được nghiệm thu tự động.
+Trên máy A mở IntraChat, ghi nhận IPv4 và port trong trạng thái **Đang Listen** (mặc định `47321`). Nếu chọn nhầm card mạng, dùng `ipconfig` để kiểm tra IP LAN/Wi-Fi, Stop rồi chọn IP đúng và Listen lại. Trên B kết nối đến **IPv4 thực của A**, không dùng `127.0.0.1` giữa hai máy. Đảm bảo cùng mạng/subnet hoặc có route phù hợp, Windows Firewall cho phép inbound TCP tới cổng/application trên mạng Private; không mở Internet/public port. A Accept. Sử dụng `intrachat.dataDir` độc lập trên từng JVM/máy, chỉ thử với dữ liệu mẫu. LAN vật lý chưa được nghiệm thu; smoke GUI hiện có chỉ chạy localhost.
 
 ## File, Image, Video, Sound
 
 Ở hội thoại cá nhân đang kết nối hoặc nhóm có chủ nhóm online, chọn ảnh, video, tệp, nốt nhạc (WAV/MP3/M4A) hoặc micro (ghi âm WAV). Phía nhận tự động lưu trong `data/<tên user>/media/`, không hỏi vị trí lưu. File P2P trùng tên được thêm hậu tố `(1)`; media nhóm nằm trong thư mục con theo groupId/transferId để giữ tên gốc và tránh ghi đè.
 
-Chủ nhóm gửi trực tiếp đến các thành viên; thành viên gửi qua chủ nhóm, chủ nhóm chỉ chuyển tiếp sau khi lưu và kiểm tra CRC32 thành công. Một tin media giữ cùng UUID, người gửi và thời gian trên mọi máy, trạng thái người gửi hiển thị số thành viên đã nhận và lỗi/chưa xác nhận. Chủ nhóm offline thì không relay; thành viên offline hoặc đang bận truyền có thể thất bại riêng. Không tự resend/resume, không lưu hộp thoại chọn vị trí. Hủy là best-effort, không thu hồi bản sao đã nhận.
+Chủ nhóm gửi trực tiếp đến các thành viên; thành viên gửi qua chủ nhóm, chủ nhóm chỉ chuyển tiếp sau khi lưu và kiểm tra CRC32 thành công. Một tin media giữ cùng UUID, người gửi và thời gian trên mọi máy, trạng thái người gửi hiển thị số thành viên đã nhận và lỗi/chưa xác nhận. Chủ nhóm offline thì không relay; thành viên offline hoặc đang bận truyền có thể thất bại riêng. Không tự resend/resume, không hiện hộp thoại chọn vị trí lưu. Hủy là best-effort, không thu hồi bản sao đã nhận.
 
 Chunk 32 KiB, kiểm tra CRC32 và kích thước; file/video 128 MiB, ảnh PNG/JPEG 16 MiB/32 MP, âm thanh WAV/MP3/M4A 8 MiB, ghi âm tối đa 120 giây. WAV PCM phát bằng Java Sound; video MP4/AVI/MKV và MP3/M4A mở player mặc định. Chỉ dùng LAN tin cậy: tự nhận tệp không đồng nghĩa tự mở/chạy tệp; dữ liệu không mã hóa. Mọi thiết bị cần cập nhật cùng phiên bản để dùng Group Media.
 
@@ -82,7 +82,7 @@ Chunk 32 KiB, kiểm tra CRC32 và kích thước; file/video 128 MiB, ảnh PNG
 
 - Profile cũ mở thẳng Messenger, hiển thị history và trạng thái offline ngay; retry ngầm tới tối đa 32 endpoint đã nhớ, tối đa 4 session hoạt động. Mỗi endpoint thử lại khoảng 15 giây, có giãn thời điểm giữa hai máy. Không scan LAN, không gọi Internet.
 - Sau kết nối thành công, history lưu UUID, IP quan sát từ socket và cổng Listen được peer công bố (không dùng cổng TCP nguồn ngẫu nhiên). IP tự kết nối chỉ thuộc LAN riêng hoặc loopback. Peer mới vẫn phải Accept; reconnect tự chấp nhận chỉ khi UUID và IP đã ghi nhận khớp. UUID tự khai, không phải xác thực mật mã; chỉ dùng LAN tin cậy.
-- Lịch sử trước bản reconnect chỉ có UUID/tên, không có IP/port: cần kết nối thủ công **một lần** trên hai bản cập nhật để ghi nhớ. Nếu IP/cổng thay đổi và không còn tuyến đã lưu, dùng Kết nối LAN để cập nhật. Không tự dò IP mới. Tự reconnect không tự gửi lại tin hay resume file dang dở.
+- Lịch sử trước bản reconnect chỉ có UUID/tên, không có IP/port: cần kết nối thủ công **một lần** trên hai bản cập nhật để ghi nhớ. Nếu IP/cổng thay đổi và không còn tuyến đã lưu, dùng bánh răng Cài đặt kết nối LAN để cập nhật. Không tự dò IP mới. Tự reconnect không tự gửi lại tin hay resume file dang dở.
 - Nhóm được khôi phục từ history; thành viên đồng bộ roster với chủ nhóm qua GROUP_SYNC/GROUP_UPDATE trước khi gửi media/text. Không tự chuyển chủ nhóm; cần tất cả máy dùng phiên bản mới.
 - Kiểm thử GUI độc lập trên Windows (profile/port tạm): `powershell -ExecutionPolicy Bypass -File scripts/verify-reconnect-gui.ps1 -JavaHome <JDK21>` sau khi build JAR.
 
@@ -97,7 +97,7 @@ Chunk 32 KiB, kiểm tra CRC32 và kích thước; file/video 128 MiB, ảnh PNG
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-all.ps1 -JavaHome 'C:\Path\To\jdk-21'
 ```
 
-Script chạy P1–P5 smoke và Git diff check, log dưới `%TEMP%` (không trong `target/`). Kết quả mới và giới hạn được ghi trong [báo cáo C0–C3](docs/c0-c3-cleanup-report.md), [báo cáo P6](docs/p6-final-report.md), [architecture](docs/architecture.md) và [ma trận 11 tính năng](docs/feature-matrix.md).
+Script chạy P1–P5 smoke và Git diff check, log dưới `%TEMP%` (không trong `target/`). Kết quả mới nhất: [current-verification](docs/current-verification.md). Bằng chứng lịch sử và kiến trúc: [báo cáo C0–C3](docs/c0-c3-cleanup-report.md), [báo cáo P6](docs/p6-final-report.md), [architecture](docs/architecture.md) và [ma trận 11 tính năng](docs/feature-matrix.md).
 
 ### Kiểm thử giao diện media end-to-end
 
@@ -107,8 +107,14 @@ Sau khi build JAR, chạy smoke riêng trên desktop Windows bằng JDK 21 (ba c
 java -cp target\intrachat-0.1.0-SNAPSHOT.jar scripts\MediaGuiSmoke.java "$env:TEMP\IntraChat-MediaGui-$([guid]::NewGuid().ToString('N'))"
 ```
 
-Smoke tự thao tác nút gửi/chọn tệp qua TCP localhost, kiểm tra nhận tự động không có hộp thoại lưu, bytes PNG/WAV/mẫu MP4/tệp, thumbnail ảnh và điều khiển WAV, nhóm có đúng một micro và gửi media hai chiều. Mẫu MP4 chỉ có signature, không kiểm chứng playback. Không thu microphone thật, không mở player bên ngoài, không kiểm chứng LAN vật lý.
+Smoke tự thao tác nút gửi/chọn tệp qua TCP localhost, kiểm tra nhận tự động không có hộp thoại lưu, bytes PNG/WAV/mẫu MP4/tệp, thumbnail ảnh và điều khiển WAV, nhóm có đúng một micro và gửi media hai chiều; nút Nhóm chỉ hiện trong nhóm, bánh răng nằm bên phải Profile và gọi đúng callback mở cài đặt. Mẫu MP4 chỉ có signature, không kiểm chứng playback. Không thu microphone thật, không mở player bên ngoài, không kiểm chứng LAN vật lý.
 
-### C6 verification note (24/11/2026)
+### Bằng chứng lịch sử C6 (24/11/2026; không phải trạng thái mới nhất)
 
-JDK 21 clean test package: **97/97 JUnit PASS**; `scripts/verify-all.ps1` P1–P5 PASS. Two separate GUI JVMs using temporary `-Dintrachat.dataDir=...` directories passed localhost Listen/Connect/Accept, Unicode P2P two-way messages and normal GUI close. This is **not** physical LAN acceptance. GUI Group/media/history restart, extended media race cases, hardware playback and physical LAN still require tests. The history writer's synchronized close boundary now rejects new writes before flush. See [C6 final verification report](docs/c6-final-verification-report.md).
+JDK 21 clean test package: **97/97 JUnit PASS**; `scripts/verify-all.ps1` P1–P5 PASS. Two separate GUI JVMs using temporary `-Dintrachat.dataDir=...` directories passed localhost Listen/Connect/Accept, Unicode P2P two-way messages and normal GUI close. This is **not** physical LAN acceptance. Tại mốc C6, GUI Group/media/history restart và các ca stress chưa được chạy; xem báo cáo hiện hành để biết phần đã kiểm thử bổ sung. Hardware playback và physical LAN vẫn chưa được kiểm chứng. The history writer's synchronized close boundary now rejects new writes before flush. See [C6 final verification report](docs/c6-final-verification-report.md).
+## Xử lý sự cố và tài liệu
+
+- JAR bị Windows khóa: đóng IntraChat đang chạy, sau đó chạy lại `run.cmd` không dùng `-SkipBuild` để build code mới. Không xóa profile/history/media để sửa lỗi build.
+- Không tự kết nối: kiểm tra IP/port, firewall Private, phiên bản hai máy và mở bánh răng Settings để kết nối thủ công nếu endpoint cũ chưa được ghi nhận hoặc đã đổi.
+- Media nhóm thất bại một phần: kiểm tra chủ nhóm đã online/đồng bộ roster, thành viên offline/bận truyền và giới hạn kích thước. Không gửi lại tự động.
+- [ROADMAP](ROADMAP.md), [AGENTS](AGENTS.md), [kiến trúc](docs/architecture.md), [ma trận](docs/feature-matrix.md), [thiết kế](DESIGN.md), [báo cáo P6](docs/p6-final-report.md). Báo cáo C0–C6 giữ kết quả lịch sử; xem [current-verification](docs/current-verification.md) cho trạng thái mới nhất.

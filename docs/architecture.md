@@ -1,4 +1,4 @@
-# Kiến trúc IntraChat MVP hiện hành (23/11/2026)
+# Kiến trúc IntraChat MVP hiện hành (28/11/2026)
 
 Tài liệu này mô tả code hiện có, không phải kiến trúc TLS/M1/M2 lịch sử. Xem [README](../README.md), [feature matrix](feature-matrix.md), [P6 report](p6-final-report.md).
 
@@ -6,10 +6,11 @@ Tài liệu này mô tả code hiện có, không phải kiến trúc TLS/M1/M2 
 ui.IntraChat
   └─ LocalProfile (UUID/displayName/dataDir)
       └─ LiveChatService (worker, ngoài EDT)
-          └─ LanConnectionDialog (Listen / Connect / Accept / Reject)
-              └─ MainChatFrame (Swing EDT) ↔ LiveChatAdapter
+          ├─ LanConnectionDialog (Listen / Connect / Accept / Reject)
+          │   └─ PeerReconnect (saved endpoints, retry)
+          └─ MainChatFrame (Swing EDT) ↔ LiveChatAdapter
                 ├─ LiveChatService (TEXT, Emoji, ACK/READ)
-                ├─ GroupService (owner relay, invite, membership)
+                ├─ GroupService → GroupMedia (owner relay, invite, membership)
                 ├─ FileTransferService (file/image/video/sound)
                 └─ HistoryRepository (JSONL, restore)
                       ↕
@@ -20,15 +21,15 @@ ui.IntraChat
                  TCP LAN plaintext
 ```
 
-Sơ đồ là luồng chức năng, không khẳng định mọi cạnh là dependency trực tiếp. Các service Live sử dụng những session do coordinator quản lý; adapter đồng bộ model/UI. C4 đã loại bỏ MockChatService và LoginFrame. Profile mới mở dialog kết nối trước; profile cũ mở MainChatFrame ngay cả khi offline. LanConnectionDialog quản lý Listen/reconnect và mở lại khi người dùng chọn Kết nối LAN. Nút Kết nối LAN mở lại dialog đang có, không tạo Messenger thứ hai.
+Sơ đồ là luồng chức năng, không khẳng định mọi cạnh là dependency trực tiếp. Các service Live sử dụng những session do coordinator quản lý; adapter đồng bộ model/UI. C4 đã loại bỏ MockChatService và LoginFrame. Profile mới mở dialog kết nối trước; profile cũ mở MainChatFrame ngay cả khi offline. LanConnectionDialog quản lý Listen/reconnect và mở lại khi người dùng chọn biểu tượng bánh răng Cài đặt kết nối LAN bên phải profile ở cuối sidebar, không tạo Messenger thứ hai. Nút Nhóm chỉ hiển thị trong hội thoại nhóm.
 
 ## Profile và dữ liệu cục bộ
 
-`LocalProfile` tạo UUID và display name được lưu giữa các lần chạy trong data directory (mặc định `data/<tên user>` trong thư mục project); JVM có thể chỉ định thư mục tách biệt bằng `-Dintrachat.dataDir=...`. UUID/display name do peer tự khai, **không xác thực danh tính**. `HistoryRepository` lưu các bản ghi JSONL local, khôi phục transcript và group metadata/timeline khi khởi động lại; không đồng bộ lịch sử giữa máy. Metadata file/media được ghi lại, nhưng nội dung file nhận vẫn phụ thuộc đường dẫn và vòng đời file thực tế. Offline có thể xem history đã lưu; không có offline network delivery.
+`LocalProfile` nhớ user gần nhất trong data/last-user.txt; tạo UUID và display name được lưu giữa các lần chạy trong data directory (mặc định `data/<tên user>` trong thư mục project); JVM có thể chỉ định thư mục tách biệt bằng `-Dintrachat.dataDir=...`. UUID/display name do peer tự khai, **không xác thực danh tính**. `HistoryRepository` lưu các bản ghi JSONL local, khôi phục transcript và group metadata/timeline khi khởi động lại; không đồng bộ lịch sử giữa máy. File nhận tự lưu dưới media/; data/ được Git ignore. Metadata file/media được ghi lại, nhưng nội dung file nhận vẫn phụ thuộc đường dẫn và vòng đời file thực tế. Offline có thể xem history đã lưu; không có offline network delivery.
 
 ## Kết nối TCP và giao thức
 
-`LanCoordinator` nhận kết nối Listen/Connect, yêu cầu Accept/Reject và quản lý session. `LanSession` sử dụng TCP socket, vòng đọc và ghi được phối hợp, timeout và cleanup khi ngắt. `FrameCodec` dùng độ dài int32, giới hạn frame **1 MiB**; `WireCodec` mã hóa envelope JSON/UTF-8 của `WireMessage` với messageId, conversationId, senderId, recipientId, timestamp và payload. Không dùng Java object deserialization, TLS, certificate, fingerprint, SAS, DPAPI hoặc signed group protocol. Dữ liệu **TCP và JSONL plaintext, không mã hóa**, chỉ dùng mạng LAN tin cậy và dữ liệu thử; không đưa cổng ra Internet.
+`LanCoordinator` nhận kết nối Listen/Connect, yêu cầu Accept/Reject cho peer mới, kiểm tra UUID đích khi reconnect và quản lý session. `LanSession` sử dụng TCP socket, vòng đọc và ghi được phối hợp, timeout và cleanup khi ngắt. `FrameCodec` dùng độ dài int32, giới hạn frame **1 MiB**; `WireCodec` mã hóa envelope JSON/UTF-8 của `WireMessage` với messageId, conversationId, senderId, recipientId, timestamp và payload. Không dùng Java object deserialization, TLS, certificate, fingerprint, SAS, DPAPI hoặc signed group protocol. Dữ liệu **TCP và JSONL plaintext, không mã hóa**, chỉ dùng mạng LAN tin cậy và dữ liệu thử; không đưa cổng ra Internet.
 
 ## Tự kết nối lại
 
@@ -58,6 +59,8 @@ Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview GUI. Video MP
 
 Swing/FlatLaf hiển thị một `MainChatFrame` cho Live; callback cập nhật UI trên EDT, network/disk I/O không được chặn EDT. Không còn LoginFrame/Demo; GUI startup và hộp Accept/Reject trên localhost hai JVM đã quan sát được, GUI Messenger P2P/Group/Media có smoke localhost; xem ma trận delta. P1–P5 socket/process smoke và JUnit chỉ xác minh backend. **LAN nhiều máy vật lý, video/sound playback, extended concurrency/disk full/crash đều NOT RUN**; xem [ma trận](feature-matrix.md) và [P6](p6-final-report.md).
 
-## C6 verified lifecycle clarification (24/11/2026)
+## Bằng chứng lịch sử C6 — lifecycle clarification (24/11/2026)
 
-`HistoryRepository.close()` now synchronizes with its existing synchronized mutation APIs, sets `closed=true` before its flush barrier, then shuts down the single writer. Newly accepted events cannot enter behind the barrier; post-close mutation attempts reject. This preserves JSONL and does not turn TCP ACK into a durable fsync acknowledgment. The C6 concurrent-close/restart JUnit test passes. GUI `LanConnectionDialog` still starts the bounded 30-second approval future before dispatching dialog creation to EDT; EDT-delay race and VoiceRecorder blocked-read cancellation remain unverified, not claimed fixed. See [C6 report](c6-final-verification-report.md).
+`HistoryRepository.close()` now synchronizes with its existing synchronized mutation APIs, sets `closed=true` before its flush barrier, then shuts down the single writer. Newly accepted events cannot enter behind the barrier; post-close mutation attempts reject. This preserves JSONL and does not turn TCP ACK into a durable fsync acknowledgment. The C6 concurrent-close/restart JUnit test passes. GUI approval vẫn có timeout 30 giây; bản hiện hành kiểm tra decision.isDone() trước khi tạo dialog EDT. Stress timeout-vs-approval và VoiceRecorder blocked-read cancellation vẫn chưa được nghiệm thu. See [C6 report](c6-final-verification-report.md).
+
+Kiểm chứng hiện hành và giới hạn theo lớp: [current-verification](current-verification.md). Thiết kế GUI: [DESIGN](../DESIGN.md).

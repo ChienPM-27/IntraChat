@@ -1,5 +1,7 @@
 # P6 — Báo cáo hiện hành sau C0–C3 (23/11/2026)
 
+> **Ghi chú 28/11/2026:** Đây là snapshot bằng chứng lịch sử tại ngày ghi trên báo cáo; số file, commit, kết quả PASS/NOT RUN và phạm vi audit bên dưới không phải hiện trạng mới nhất. Xem [kiểm chứng hiện hành](current-verification.md), [ma trận](feature-matrix.md) và [ROADMAP](../ROADMAP.md) cho các thay đổi sau C6 (Group Media, auto-save, auto reconnect và GUI Settings).
+
 **P6 PARTIAL / MVP PARTIAL ACCEPTANCE.** C0–C3 hoàn thành, C4 Live-only backend/cleanup đã kiểm chứng nhưng GUI acceptance pending; C5 đã thực hiện một phần (cleanup an toàn và backend regression PASS), C6 chưa thực hiện. Không tuyên bố `P6 COMPLETE` hoặc `MVP FULLY ACCEPTED`.
 
 ## Trạng thái Git và archive

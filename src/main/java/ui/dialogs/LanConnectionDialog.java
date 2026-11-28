@@ -120,7 +120,7 @@ public final class LanConnectionDialog extends JDialog {
         startListening();
         reconnect.start();
         if(returning&&live.history().peerEndpoints().isEmpty()&&!live.history().peers().isEmpty()){
-            String notice="Lịch sử cũ chưa lưu IP/port. Mở Kết nối LAN và kết nối một lần để ghi nhớ.";
+            String notice="Lịch sử cũ chưa lưu IP/port. Mở Cài đặt kết nối LAN (bánh răng cạnh profile) và kết nối một lần để ghi nhớ.";
             report(notice);frame.onConnectionError(notice);
         }
     }

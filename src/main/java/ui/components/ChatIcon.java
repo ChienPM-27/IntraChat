@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.geom.*;
 
 public record ChatIcon(Kind kind, Color color, int size) implements Icon {
-    public enum Kind { LOGO, PLUS, SEARCH, IMAGE, VIDEO, FILE, AUDIO, MIC, SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK }
+    public enum Kind { LOGO, PLUS, SEARCH, SETTINGS, IMAGE, VIDEO, FILE, AUDIO, MIC, SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK }
 
     /** Shared application icon, independent from the deleted demo login window. */
     public static Image appIconImage() {
@@ -46,6 +46,22 @@ public record ChatIcon(Kind kind, Color color, int size) implements Icon {
             case SEARCH -> {
                 draw.draw(new Ellipse2D.Double(4, 4, 11, 11));
                 draw.drawLine(13, 13, 20, 20);
+            }
+            case SETTINGS -> {
+                Path2D gear = new Path2D.Double();
+                // Eight teeth, with a circular bearing in the center.
+                double[] radii = {8, 10, 10, 8};
+                for (int i = 0; i < 32; i++) {
+                    double angle = -Math.PI / 2 + (i - 1.5) * Math.PI / 16;
+                    double radius = radii[i % radii.length];
+                    double x = 12 + radius * Math.cos(angle);
+                    double y = 12 + radius * Math.sin(angle);
+                    if (i == 0) gear.moveTo(x, y);
+                    else gear.lineTo(x, y);
+                }
+                gear.closePath();
+                draw.draw(gear);
+                draw.draw(new Ellipse2D.Double(8.5, 8.5, 7, 7));
             }
             case IMAGE -> {
                 draw.draw(new RoundRectangle2D.Double(3, 4, 18, 16, 4, 4));

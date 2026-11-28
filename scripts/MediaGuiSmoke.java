@@ -106,11 +106,12 @@ public class MediaGuiSmoke {
         Files.write(file,new byte[]{1,2,3,4});
         var a=LocalProfile.loadOrCreate(dir.resolve("A"));var b=LocalProfile.loadOrCreate(dir.resolve("B"));var c=LocalProfile.loadOrCreate(dir.resolve("C"));
         int port;try(var s=new ServerSocket(0)){port=s.getLocalPort();}
+        var settingsOpened=new java.util.concurrent.atomic.AtomicInteger();
         try(var sa=new LiveChatService(a);var sb=new LiveChatService(b);var sc=new LiveChatService(c);
             var ca=new LanCoordinator(a,i->CompletableFuture.completedFuture(true),p->{try{sa.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
             var cb=new LanCoordinator(b,i->CompletableFuture.completedFuture(true),p->{try{sb.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
             var cc=new LanCoordinator(c,i->CompletableFuture.completedFuture(true),p->{try{sc.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
-            var aa=new LiveChatAdapter(a,a.displayName(),sa,()->{});
+            var aa=new LiveChatAdapter(a,a.displayName(),sa,()->{},settingsOpened::incrementAndGet);
             var ab=new LiveChatAdapter(b,b.displayName(),sb,()->{});
             var ac=new LiveChatAdapter(c,c.displayName(),sc,()->{})){
             ca.startListening(new NetworkConfig("127.0.0.1",port));
@@ -126,6 +127,21 @@ public class MediaGuiSmoke {
             try{
                 until(()->edt(()->tool(left,ChatIcon.Kind.IMAGE).isEnabled()&&tool(right,ChatIcon.Kind.IMAGE).isEnabled()),"online media");
                 until(()->edt(()->selectGroup(left,sa.conversationId(b.deviceId()).toString())&&selectGroup(right,sb.conversationId(a.deviceId()).toString())),"Select direct chat");
+                edt(()->{
+                    var manage=button(left,x->"group-manage".equals(x.getName()));
+                    var gear=button(left,x->"messenger-lan-settings".equals(x.getName()));
+                    check(manage!=null&&!manage.isShowing(),"No group management in direct chat");
+                    check(gear!=null&&gear.isShowing()&&gear.getIcon() instanceof ChatIcon icon&&icon.kind()==ChatIcon.Kind.SETTINGS,"Settings icon visible");
+                    var profile=components(left,JPanel.class).stream().filter(x->"messenger-profile".equals(x.getName())).findFirst().orElseThrow();
+                    check(SwingUtilities.isDescendingFrom(gear,profile),"Settings belongs to profile");
+                    check(((BorderLayout)profile.getLayout()).getLayoutComponent(BorderLayout.EAST)==gear.getParent(),"Settings on right");
+                    check(gear.getText()==null||gear.getText().isBlank(),"Icon only");
+                    check("Cài đặt kết nối LAN".equals(gear.getAccessibleContext().getAccessibleName()),"Accessible settings name");
+                    gear.doClick();
+                    check(settingsOpened.get()==1,"Settings callback");
+                    check(button(left,x->"Tạo nhóm mới".equals(x.getAccessibleContext().getAccessibleName())).isShowing(),"Create group still present");
+                    return null;
+                });
                 check(edt(()->components(left,JButton.class).stream().filter(x->x.getIcon() instanceof ChatIcon i&&i.kind()==ChatIcon.Kind.MIC).count()==1),"One mic");
                 for(var sample:List.of(png,video,wav,file)){
                     ChatIcon.Kind kind=sample==png?ChatIcon.Kind.IMAGE:sample==video?ChatIcon.Kind.VIDEO:sample==wav?ChatIcon.Kind.AUDIO:ChatIcon.Kind.FILE;
@@ -151,6 +167,7 @@ public class MediaGuiSmoke {
                 try{
                     var group=aa.createGroup("Media smoke",List.of(b.deviceId().toString(),c.deviceId().toString())).toCompletableFuture().get(10,TimeUnit.SECONDS);
                     until(()->edt(()->selectGroup(left,group.id())&&selectGroup(right,group.id())&&selectGroup(third,group.id())),"Group visible");
+                    until(()->edt(()->button(left,x->"group-manage".equals(x.getName())).isShowing()&&button(right,x->"group-manage".equals(x.getName())).isShowing()),"Group management visible in group");
                     until(()->edt(()->tool(left,ChatIcon.Kind.MIC).isEnabled()&&tool(right,ChatIcon.Kind.MIC).isEnabled()&&tool(third,ChatIcon.Kind.MIC).isEnabled()),"Group media enabled");
                     check(edt(()->components(left,JButton.class).stream().filter(x->x.getIcon() instanceof ChatIcon i&&i.kind()==ChatIcon.Kind.MIC).count()==1),"Group one mic");
                     UUID gid=UUID.fromString(group.id());
@@ -168,6 +185,9 @@ public class MediaGuiSmoke {
                     verifyGroupRows(gid,List.of(sa,sb,sc),a.deviceId(),png);
                     verifyGroupRows(gid,List.of(sa,sb,sc),b.deviceId(),wav);
                     System.out.println("PASS_GUI_GROUP_OWNER_AND_MEMBER_MEDIA_AUTOSAVE");
+                    until(()->edt(()->selectGroup(left,sa.conversationId(b.deviceId()).toString())),"Return to direct chat");
+                    until(()->edt(()->!button(left,x->"group-manage".equals(x.getName())).isShowing()),"Hide group management again");
+                    System.out.println("PASS_GUI_CONTEXTUAL_GROUP_AND_PROFILE_SETTINGS");
                 }finally{edt(()->{inviteTimer.stop();return null;});}
             }finally{edt(()->{left.dispose();right.dispose();third.dispose();return null;});}
         }

@@ -47,6 +47,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private final JPanel directoryCards = new JPanel(new CardLayout());
     private final JLabel noConversations = label("Không tìm thấy đoạn chat", 13, Font.PLAIN, MUTED);
     private final JButton newGroup = iconButton(ChatIcon.Kind.PLUS, "Tạo nhóm mới", BLUE);
+    private final JButton manage = secondary("Nhóm");
     private final JLabel headerAvatar = new JLabel();
     private final JLabel headerTitle = label("Đoạn chat", 16, Font.BOLD, INK);
     private final JLabel headerState = label(" ", 12, Font.PLAIN, MUTED);
@@ -134,6 +135,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         sidebar.add(directoryCards);
 
         JPanel profile = panel(new BorderLayout(9, 0));
+        profile.setName("messenger-profile");
         profile.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, LINE),
                 new EmptyBorder(10, 14, 10, 14)));
         profile.add(new JLabel(new AvatarIcon(self.displayName(), self.id(), 34, false, false)), BorderLayout.WEST);
@@ -141,9 +143,19 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         JLabel profileName = label(self.displayName(), 13, Font.BOLD, INK);
         profileName.setToolTipText(self.displayName());
         identity.add(profileName);
-        identity.add(label("Live LAN TCP · Không mã hóa · Đã xem = tin đã hiển thị",
-                11, Font.PLAIN, MUTED));
-        profile.add(identity);
+        JLabel profileStatus = label("LAN TCP · Không mã hóa", 11, Font.PLAIN, MUTED);
+        profileStatus.setToolTipText("Live LAN TCP · Không mã hóa · Đã xem = tin đã hiển thị");
+        identity.add(profileStatus);
+        profile.add(identity, BorderLayout.CENTER);
+        if (actions.connectionSettingsAvailable()) {
+            JButton settings = iconButton(ChatIcon.Kind.SETTINGS, "Cài đặt kết nối LAN", MUTED);
+            settings.setName("messenger-lan-settings");
+            settings.setBackground(FIELD);
+            settings.addActionListener(event -> actions.openConnectionSettings());
+            JPanel settingsSlot = panel(new GridBagLayout());
+            settingsSlot.add(settings);
+            profile.add(settingsSlot, BorderLayout.EAST);
+        }
         sidebar.add(profile, BorderLayout.SOUTH);
         return sidebar;
     }
@@ -160,20 +172,10 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         heading.add(headerState);
         header.add(heading);
         JPanel controls = panel(new FlowLayout(FlowLayout.TRAILING,6,0));
-        if(actions.groupAvailable()){
-            JButton manage=secondary("Nhóm");
-            manage.setName("group-manage");
-            manage.addActionListener(event->manageGroup());
-            controls.add(manage);
-        }
-        if (actions.connectionSettingsAvailable()) {
-            JButton lan = secondary("Kết nối LAN");
-            lan.setName("messenger-lan-settings");
-            lan.setForeground(BLUE);
-            lan.setToolTipText("Quản lý kết nối LAN TCP");
-            lan.addActionListener(event -> actions.openConnectionSettings());
-            controls.add(lan);
-        }
+        manage.setName("group-manage");
+        manage.setVisible(false);
+        manage.addActionListener(event -> manageGroup());
+        controls.add(manage);
         header.add(controls,BorderLayout.EAST);
         chat.add(header, BorderLayout.NORTH);
 
@@ -268,6 +270,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
 
     private void refreshHeader() {
         Conversation chat = conversations.get(activeId);
+        manage.setVisible(actions.groupAvailable() && chat != null && chat.group());
         if (chat == null) {
             headerTitle.setText("Đoạn chat");
             headerAvatar.setIcon(null);

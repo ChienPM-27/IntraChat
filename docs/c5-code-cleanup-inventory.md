@@ -1,5 +1,7 @@
 ﻿# C5 — Code Cleanup Inventory (23/11/2026)
 
+> **Ghi chú 28/11/2026:** Đây là snapshot bằng chứng lịch sử tại ngày ghi trên báo cáo; số file, commit, kết quả PASS/NOT RUN và phạm vi audit bên dưới không phải hiện trạng mới nhất. Xem [kiểm chứng hiện hành](current-verification.md), [ma trận](feature-matrix.md) và [ROADMAP](../ROADMAP.md) cho các thay đổi sau C6 (Group Media, auto-save, auto reconnect và GUI Settings).
+
 Repository branch main; baseline HEAD f9b415af9dad8e312cac4a9d7c099411f7d50390.
 
 ## Production Java — 46 files
