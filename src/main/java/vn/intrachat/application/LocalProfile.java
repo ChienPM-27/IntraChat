@@ -3,6 +3,10 @@ package vn.intrachat.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -20,20 +24,87 @@ public record LocalProfile(UUID deviceId, String displayName, Path dataDir) {
         dataDir = dataDir.toAbsolutePath().normalize();
     }
 
+    public Path mediaDir() {
+        return dataDir.resolve("media");
+    }
+
+    public static Path defaultDataRoot() {
+        String override = System.getProperty("intrachat.dataDir");
+        if (override != null && !override.isBlank()) return Path.of(override).toAbsolutePath().normalize();
+        return Path.of("data").toAbsolutePath().normalize();
+    }
+
     public static Path defaultDataDir() {
         String override = System.getProperty("intrachat.dataDir");
-        if (override != null && !override.isBlank()) return Path.of(override);
-        String local = System.getenv("LOCALAPPDATA");
-        if (local == null || local.isBlank())
-            return Path.of(System.getProperty("user.home"), ".intrachat", "data");
-        return Path.of(local, "IntraChat", "data");
+        if (override != null && !override.isBlank()) return Path.of(override).toAbsolutePath().normalize();
+        String user = System.getProperty("intrachat.user");
+        if (user != null && !user.isBlank()) return userDataDir(user);
+        return defaultDataRoot();
+    }
+
+    public static Path userDataDir(String userName) {
+        return defaultDataRoot().resolve(safeFolderName(userName));
+    }
+
+    public static String safeFolderName(String userName) {
+        if (userName == null || userName.isBlank()) {
+            throw new IllegalArgumentException("User name must not be blank");
+        }
+        String trimmed = userName.trim();
+        if (trimmed.length() > 80) {
+            throw new IllegalArgumentException("User name must be 1..80 characters");
+        }
+        StringBuilder clean = new StringBuilder(trimmed.length());
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
+            if (c < 32 || "<>:\"/\\|?*".indexOf(c) >= 0) {
+                clean.append('_');
+            } else {
+                clean.append(c);
+            }
+        }
+        String result = clean.toString().replaceAll("[. ]+$", "");
+        if (result.isBlank() || result.equals(".") || result.equals("..")
+                || result.toUpperCase(Locale.ROOT).matches("(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])([.].*)?")) {
+            result = "user-" + (result.isBlank() ? "default" : result);
+        }
+        return result;
+    }
+
+    public static List<String> listExistingUsers(Path dataRoot) {
+        if (dataRoot == null || !Files.isDirectory(dataRoot)) return List.of();
+        List<String> users = new ArrayList<>();
+        try (var stream = Files.list(dataRoot)) {
+            for (Path dir : stream.toList()) {
+                if (!Files.isDirectory(dir)) continue;
+                Path profileFile = dir.resolve("profile.json");
+                if (!Files.isRegularFile(profileFile)) continue;
+                try {
+                    Stored item = JSON.readValue(profileFile.toFile(), Stored.class);
+                    if (item != null && item.displayName() != null && !item.displayName().isBlank()) {
+                        users.add(item.displayName().trim());
+                    }
+                } catch (Exception ignored) {
+                    users.add(dir.getFileName().toString());
+                }
+            }
+        } catch (IOException ignored) {
+            return List.of();
+        }
+        Collections.sort(users, String.CASE_INSENSITIVE_ORDER);
+        return users;
     }
 
     public static LocalProfile loadOrCreate() throws IOException {
-        return loadOrCreate(defaultDataDir());
+        String user = System.getProperty("intrachat.user");
+        return loadOrCreate(defaultDataDir(), user);
     }
 
     public static LocalProfile loadOrCreate(Path directory) throws IOException {
+        return loadOrCreate(directory, null);
+    }
+
+    public static LocalProfile loadOrCreate(Path directory, String preferredDisplayName) throws IOException {
         Path dir = directory.toAbsolutePath().normalize();
         Files.createDirectories(dir);
         Path file = dir.resolve("profile.json");
@@ -47,8 +118,10 @@ public record LocalProfile(UUID deviceId, String displayName, Path dataDir) {
                 throw new IOException("Invalid local profile at " + file + ". Repair it manually; no identity was overwritten.", invalid);
             }
         }
-        LocalProfile profile = new LocalProfile(UUID.randomUUID(),
-            "Thiết bị " + UUID.randomUUID().toString().substring(0, 8), dir);
+        String displayName = (preferredDisplayName != null && !preferredDisplayName.isBlank())
+            ? preferredDisplayName.trim()
+            : "Thiết bị " + UUID.randomUUID().toString().substring(0, 8);
+        LocalProfile profile = new LocalProfile(UUID.randomUUID(), displayName, dir);
         Path temp = Files.createTempFile(dir, "profile-", ".tmp");
         try {
             JSON.writerWithDefaultPrettyPrinter().writeValue(temp.toFile(),

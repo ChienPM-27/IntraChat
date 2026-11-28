@@ -31,11 +31,12 @@ Script ưu tiên JDK 21 từ `JAVA_HOME`, JDK portable đã cài bằng `scripts
 .\run.cmd -JavaHome 'C:\Path\To\jdk-21'
 .\run.cmd -SkipBuild
 .\run.cmd -SkipBuild -Diagnostics
+.\run.cmd -SkipBuild -User Alice
+.\run.cmd -SkipBuild -User Bob
 .\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-A'
-.\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-B'
 ```
 
-Hai lệnh cuối chạy trong hai terminal riêng để thử chat localhost. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
+Khi chạy `.\run.cmd` không truyền `-User` hoặc `-DataDir`, ứng dụng sẽ hỏi tên người dùng (hoặc chọn user đã có) để lưu hồ sơ, lịch sử và media riêng vào `data/<tên user>/` trong thư mục project. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
 
 Hoặc build và chạy thủ công:
 
@@ -71,11 +72,15 @@ Trên máy A mở IntraChat, ghi nhận IPv4 và port trong trạng thái **Đan
 
 ## File, Image, Video, Sound
 
-Ở hội thoại P2P Live **đang kết nối**, chọn tệp/media qua composer (ảnh, video, tệp, biểu tượng nốt nhạc để chọn WAV/MP3/M4A, hoặc một biểu tượng micro để ghi âm WAV), gửi **OFFER**; người nhận **Accept/Reject**, chọn nơi lưu; xem progress hoặc Cancel. Truyền theo CHUNK **32 KiB**, có CRC32/kiểm tra kích thước; không overwrite file có sẵn, không resume; file lỗi/cancel cần cleanup. File thường và video tối đa **128 MiB**. Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview. Video MP4/AVI/MKV tối đa **128 MiB**, mở bằng ứng dụng OS qua `Desktop.open`. Sound WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop, MP3/M4A mở player mặc định. Gửi/nhận bytes **không** chứng minh playback thực: MP4/codec và thiết bị âm thanh NOT RUN. Chat nhóm MVP chỉ hỗ trợ văn bản/emoji; các nút media bị khóa và có tooltip giải thích. Chat cá nhân ngoại tuyến cũng không gửi được media; kết nối lại để mở các nút.
+Ở hội thoại cá nhân đang kết nối hoặc nhóm có chủ nhóm online, chọn ảnh, video, tệp, nốt nhạc (WAV/MP3/M4A) hoặc micro (ghi âm WAV). Phía nhận tự động lưu trong `data/<tên user>/media/`, không hỏi vị trí lưu. File P2P trùng tên được thêm hậu tố `(1)`; media nhóm nằm trong thư mục con theo groupId/transferId để giữ tên gốc và tránh ghi đè.
+
+Chủ nhóm gửi trực tiếp đến các thành viên; thành viên gửi qua chủ nhóm, chủ nhóm chỉ chuyển tiếp sau khi lưu và kiểm tra CRC32 thành công. Một tin media giữ cùng UUID, người gửi và thời gian trên mọi máy, trạng thái người gửi hiển thị số thành viên đã nhận và lỗi/chưa xác nhận. Chủ nhóm offline thì không relay; thành viên offline hoặc đang bận truyền có thể thất bại riêng. Không tự resend/resume, không lưu hộp thoại chọn vị trí. Hủy là best-effort, không thu hồi bản sao đã nhận.
+
+Chunk 32 KiB, kiểm tra CRC32 và kích thước; file/video 128 MiB, ảnh PNG/JPEG 16 MiB/32 MP, âm thanh WAV/MP3/M4A 8 MiB, ghi âm tối đa 120 giây. WAV PCM phát bằng Java Sound; video MP4/AVI/MKV và MP3/M4A mở player mặc định. Chỉ dùng LAN tin cậy: tự nhận tệp không đồng nghĩa tự mở/chạy tệp; dữ liệu không mã hóa. Mọi thiết bị cần cập nhật cùng phiên bản để dùng Group Media.
 
 ## History và dữ liệu
 
-`LocalProfile` lưu UUID/displayName, `HistoryRepository` lưu transcript, sender/time/state, group và metadata file/media trong JSONL riêng từng profile. Mặc định trong `%LOCALAPPDATA%\IntraChat\data`; override bằng JVM property `-Dintrachat.dataDir=<thư mục>`. Gửi vài tin, đóng ứng dụng và chạy lại **cùng dataDir**, mở hội thoại để xem History được khôi phục, kể cả khi peer offline. Không có cloud sync; JSONL không mã hóa, không nên dùng nội dung nhạy cảm; file/media đã nhận phải còn tồn tại để mở lại.
+`LocalProfile` lưu UUID/displayName, `HistoryRepository` lưu transcript, sender/time/state, group và metadata file/media trong JSONL riêng từng user. Mặc định lưu theo tên user trong `data/<tên user>/` ngay tại thư mục project (gồm `profile.json`, `history/`, `media/`) để tránh lẫn dữ liệu và media giữa các user; có thể chọn user qua `-Dintrachat.user=<tên>` (hoặc `.\run.cmd -User <tên>`), hoặc override toàn bộ đường dẫn bằng `-Dintrachat.dataDir=<thư mục>`. Gửi vài tin, đóng ứng dụng và chạy lại **cùng user / dataDir**, mở hội thoại để xem History và media được khôi phục, kể cả khi peer offline. Không có cloud sync; JSONL không mã hóa, không nên dùng nội dung nhạy cảm; file/media đã nhận phải còn tồn tại để mở lại.
 
 ## Kiểm chứng
 
@@ -88,13 +93,13 @@ Script chạy P1–P5 smoke và Git diff check, log dưới `%TEMP%` (không tro
 
 ### Kiểm thử giao diện media end-to-end
 
-Sau khi build JAR, chạy smoke riêng trên desktop Windows bằng JDK 21 (hai cửa sổ thử nghiệm, profile tạm, không dùng dữ liệu thật):
+Sau khi build JAR, chạy smoke riêng trên desktop Windows bằng JDK 21 (ba cửa sổ thử nghiệm, profile tạm, không dùng dữ liệu thật):
 
 ```powershell
 java -cp target\intrachat-0.1.0-SNAPSHOT.jar scripts\MediaGuiSmoke.java "$env:TEMP\IntraChat-MediaGui-$([guid]::NewGuid().ToString('N'))"
 ```
 
-Smoke tự thao tác nút gửi/chọn tệp và nhận/chọn nơi lưu qua TCP localhost, so sánh bytes PNG/WAV/mẫu MP4/tệp, kiểm tra thumbnail ảnh và điều khiển WAV, nhóm có đúng một micro và khóa media. Mẫu MP4 chỉ có signature, không kiểm chứng playback. Không thu microphone thật, không mở player bên ngoài, không kiểm chứng LAN vật lý.
+Smoke tự thao tác nút gửi/chọn tệp qua TCP localhost, kiểm tra nhận tự động không có hộp thoại lưu, bytes PNG/WAV/mẫu MP4/tệp, thumbnail ảnh và điều khiển WAV, nhóm có đúng một micro và gửi media hai chiều. Mẫu MP4 chỉ có signature, không kiểm chứng playback. Không thu microphone thật, không mở player bên ngoài, không kiểm chứng LAN vật lý.
 
 ### C6 verification note (24/11/2026)
 

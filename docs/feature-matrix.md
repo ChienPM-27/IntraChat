@@ -23,3 +23,11 @@ Backend PASS là kiểm thử JVM/socket, **không** là nghiệm thu GUI hay LA
 ## C6 acceptance delta (24/11/2026)
 
 Across F01–F11 existing P1–P5 automated backend regression remains PASS (97 JUnit after C6). **F01 GUI P2P two-way localhost PASS**, **F04 GUI Unicode/emoji PASS**; **F09 GUI delivered/seen PARTIAL**, **F10/F11 GUI time/sender display PARTIAL**. GUI Group F02, GUI file/media F03/F06/F07/F08, GUI history restart F05 NOT RUN. Physical LAN for every function NOT RUN; audio/video device playback NOT RUN. No overall feature is FULLY ACCEPTED against all acceptance layers. Full [F01–F11 C6 matrix](c6-final-verification-report.md#h-feature-acceptance-matrix).
+
+## Group Media / Auto-save delta (28/11/2026)
+
+- F02/F03/F06/F07/F08: P2P và nhóm hỗ trợ file/image/video/sound dùng một FileTransferService; GroupMediaEndToEndTest dùng ba node TCP thật, chủ nhóm và thành viên gửi cả bốn loại, CRC/bytes, UUID/thời gian, một row GROUP mỗi máy, tự lưu không overwrite, từ chối origin giả và partial failure khi thành viên offline. Restore JSONL PASS.
+- AutoSaveMediaTest: P2P mặc định tự lưu vào mediaDir của người nhận; tên trùng có hậu tố, lỗi không tạo được thư mục báo FAILED. Test protocol cũ dùng chế độ nhận thủ công riêng để tiếp tục kiểm chứng reject/cancel.
+- MediaGuiSmoke: ba cửa sổ Messenger thật trên localhost; gửi/nhận tự động PNG, WAV, mẫu MP4 (signature), tệp thường; ảnh từ chủ nhóm, WAV từ thành viên qua chủ nhóm; thumbnail, WAV controls, một micro. Không mở hộp thoại lưu. GUI smoke PASS, không đồng nghĩa tất cả scenario GUI đã nghiệm thu.
+- F05: profile mặc định `data/<user>`, media trong `media/` của profile; người dùng có thể chọn lại user hoặc -DataDir. Không tự di chuyển dữ liệu profile cũ.
+- Vẫn NOT RUN: LAN vật lý, microphone capture, playback codec/thiết bị, stress disk full/crash. Giới hạn: owner online, 5 thành viên, 1 transfer/peer, không resume/offline queue, tổng timeout group 10 phút, hủy best-effort. Mọi máy cần cùng phiên bản.

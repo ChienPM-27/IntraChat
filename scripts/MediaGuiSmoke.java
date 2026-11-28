@@ -16,12 +16,13 @@ import java.net.ServerSocket;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
-/** Explicit desktop smoke: two real Messenger frames, real TCP, isolated profiles.
+/** Explicit desktop smoke: three real Messenger frames, real TCP, isolated profiles.
  * No microphone capture, codec playback, or physical LAN acceptance. */
 public class MediaGuiSmoke {
     static void check(boolean condition,String message) {
@@ -80,6 +81,19 @@ public class MediaGuiSmoke {
         }
         return false;
     }
+    static boolean groupComplete(LiveChatService service,UUID group,UUID origin){
+        return service.history().loadMessages(group,500,0).stream().anyMatch(e->e.senderId().equals(origin)&&e.transferState().equals("COMPLETED"));
+    }
+    static void verifyGroupRows(UUID group,List<LiveChatService> services,UUID origin,Path source)throws Exception{
+        UUID common=null;
+        for(var service:services){
+            var rows=service.history().loadMessages(group,500,0).stream().filter(e->e.senderId().equals(origin)&&e.transferState().equals("COMPLETED")).toList();
+            check(rows.size()==1,"One group media row");
+            var row=rows.getFirst();
+            if(common==null)common=row.messageId();else check(common.equals(row.messageId()),"Stable group ID");
+            check(java.util.Arrays.equals(Files.readAllBytes(source),Files.readAllBytes(Path.of(row.localPath()))),"Group bytes");
+        }
+    }
     public static void main(String[] args)throws Exception{
         check(!GraphicsEnvironment.isHeadless(),"Desktop required");
         Path dir=Path.of(args[0]);Files.createDirectories(dir);
@@ -90,32 +104,35 @@ public class MediaGuiSmoke {
         }
         Files.write(video,new byte[]{0,0,0,20,'f','t','y','p','i','s','o','m'}); // signature fixture only
         Files.write(file,new byte[]{1,2,3,4});
-        var a=LocalProfile.loadOrCreate(dir.resolve("A"));var b=LocalProfile.loadOrCreate(dir.resolve("B"));
+        var a=LocalProfile.loadOrCreate(dir.resolve("A"));var b=LocalProfile.loadOrCreate(dir.resolve("B"));var c=LocalProfile.loadOrCreate(dir.resolve("C"));
         int port;try(var s=new ServerSocket(0)){port=s.getLocalPort();}
-        try(var sa=new LiveChatService(a);var sb=new LiveChatService(b);
+        try(var sa=new LiveChatService(a);var sb=new LiveChatService(b);var sc=new LiveChatService(c);
             var ca=new LanCoordinator(a,i->CompletableFuture.completedFuture(true),p->{try{sa.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
             var cb=new LanCoordinator(b,i->CompletableFuture.completedFuture(true),p->{try{sb.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
+            var cc=new LanCoordinator(c,i->CompletableFuture.completedFuture(true),p->{try{sc.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
             var aa=new LiveChatAdapter(a,a.displayName(),sa,()->{});
-            var ab=new LiveChatAdapter(b,b.displayName(),sb,()->{})){
+            var ab=new LiveChatAdapter(b,b.displayName(),sb,()->{});
+            var ac=new LiveChatAdapter(c,c.displayName(),sc,()->{})){
             ca.startListening(new NetworkConfig("127.0.0.1",port));
             cb.connect(new NetworkConfig("127.0.0.1",port)).get(8,TimeUnit.SECONDS);
+            cc.connect(new NetworkConfig("127.0.0.1",port)).get(8,TimeUnit.SECONDS);
             var frames=edt(()->{
                 ChatStyle.install();
-                var left=new MainChatFrame(aa.self(),aa);var right=new MainChatFrame(ab.self(),ab);
-                left.setLocation(10,10);right.setLocation(70,70);
-                left.setVisible(true);right.setVisible(true);return List.of(left,right);
+                var left=new MainChatFrame(aa.self(),aa);var right=new MainChatFrame(ab.self(),ab);var third=new MainChatFrame(ac.self(),ac);
+                left.setLocation(10,10);right.setLocation(70,70);third.setLocation(130,130);
+                left.setVisible(true);right.setVisible(true);third.setVisible(true);return List.of(left,right,third);
             });
-            var left=frames.get(0);var right=frames.get(1);
+            var left=frames.get(0);var right=frames.get(1);var third=frames.get(2);
             try{
                 until(()->edt(()->tool(left,ChatIcon.Kind.IMAGE).isEnabled()&&tool(right,ChatIcon.Kind.IMAGE).isEnabled()),"online media");
+                until(()->edt(()->selectGroup(left,sa.conversationId(b.deviceId()).toString())&&selectGroup(right,sb.conversationId(a.deviceId()).toString())),"Select direct chat");
                 check(edt(()->components(left,JButton.class).stream().filter(x->x.getIcon() instanceof ChatIcon i&&i.kind()==ChatIcon.Kind.MIC).count()==1),"One mic");
                 for(var sample:List.of(png,video,wav,file)){
                     ChatIcon.Kind kind=sample==png?ChatIcon.Kind.IMAGE:sample==video?ChatIcon.Kind.VIDEO:sample==wav?ChatIcon.Kind.AUDIO:ChatIcon.Kind.FILE;
                     clickChooser(left,edt(()->tool(left,kind)),sample);
-                    until(()->edt(()->button(right,x->x.getText().equals("Nhận / Chọn nơi lưu"))!=null),"Incoming "+sample);
-                    Path destination=dir.resolve("received-"+sample.getFileName());
-                    clickChooser(right,edt(()->button(right,x->x.getText().equals("Nhận / Chọn nơi lưu"))),destination);
-                    until(()->Files.exists(destination)&&edt(()->button(right,x->x.getText().equals("Nhận / Chọn nơi lưu"))==null),"Receive "+sample);
+                    Path destination=b.mediaDir().resolve(sample.getFileName());
+                    until(()->Files.isRegularFile(destination)&&edt(()->button(right,x->x.getText().equals("Mở tệp / vị trí"))!=null),"Automatic receive "+sample);
+                    check(edt(()->button(right,x->x.getText().equals("Nhận / Chọn nơi lưu"))==null),"No destination picker");
                     check(java.util.Arrays.equals(Files.readAllBytes(sample),Files.readAllBytes(destination)),"Bytes "+sample);
                     if(sample==png)until(()->edt(()->button(right,x->x.isEnabled()&&x.getIcon()!=null&&x.getAccessibleContext().getAccessibleName().startsWith("Xem ảnh"))!=null),"Rendered thumbnail");
                     if(sample==wav)until(()->edt(()->button(right,x->"Phát tin thoại".equals(x.getAccessibleContext().getAccessibleName()))!=null),"WAV player");
@@ -132,14 +149,27 @@ public class MediaGuiSmoke {
                     });timer.start();return timer;
                 });
                 try{
-                    var group=aa.createGroup("Media smoke",List.of(b.deviceId().toString())).toCompletableFuture().get(10,TimeUnit.SECONDS);
-                    until(()->edt(()->selectGroup(left,group.id())&&selectGroup(right,group.id())),"Group visible");
-                    until(()->edt(()->!tool(left,ChatIcon.Kind.MIC).isEnabled()&&!tool(right,ChatIcon.Kind.MIC).isEnabled()),"Group media disabled");
+                    var group=aa.createGroup("Media smoke",List.of(b.deviceId().toString(),c.deviceId().toString())).toCompletableFuture().get(10,TimeUnit.SECONDS);
+                    until(()->edt(()->selectGroup(left,group.id())&&selectGroup(right,group.id())&&selectGroup(third,group.id())),"Group visible");
+                    until(()->edt(()->tool(left,ChatIcon.Kind.MIC).isEnabled()&&tool(right,ChatIcon.Kind.MIC).isEnabled()&&tool(third,ChatIcon.Kind.MIC).isEnabled()),"Group media enabled");
                     check(edt(()->components(left,JButton.class).stream().filter(x->x.getIcon() instanceof ChatIcon i&&i.kind()==ChatIcon.Kind.MIC).count()==1),"Group one mic");
-                    check(edt(()->tool(left,ChatIcon.Kind.AUDIO).getToolTipText().contains("Nhóm")),"Group reason");
-                    System.out.println("PASS_GUI_GROUP_MEDIA_SCOPE");
+                    UUID gid=UUID.fromString(group.id());
+                    // Wait for all three member rosters, not just the first invite acceptance.
+                    until(()->sa.history().groups().stream().anyMatch(g->g.groupId().equals(gid)&&g.memberIds().size()==3)
+                        &&sb.history().groups().stream().anyMatch(g->g.groupId().equals(gid)&&g.memberIds().size()==3)
+                        &&sc.history().groups().stream().anyMatch(g->g.groupId().equals(gid)&&g.memberIds().size()==3),"Group roster");
+                    clickChooser(left,edt(()->tool(left,ChatIcon.Kind.IMAGE)),png);
+                    until(()->groupComplete(sa,gid,a.deviceId())&&groupComplete(sb,gid,a.deviceId())&&groupComplete(sc,gid,a.deviceId()),"Owner group media");
+                    until(()->edt(()->button(third,x->x.isEnabled()&&x.getAccessibleContext().getAccessibleName().startsWith("Xem ảnh"))!=null),"Group thumbnail");
+                    clickChooser(right,edt(()->tool(right,ChatIcon.Kind.AUDIO)),wav);
+                    until(()->groupComplete(sa,gid,b.deviceId())&&groupComplete(sb,gid,b.deviceId())&&groupComplete(sc,gid,b.deviceId()),"Member group media");
+                    until(()->edt(()->button(third,x->"Phát tin thoại".equals(x.getAccessibleContext().getAccessibleName()))!=null),"Group WAV UI");
+                    check(!sb.connectedPeers().containsKey(c.deviceId()),"Member relay, no B-C direct connection");
+                    verifyGroupRows(gid,List.of(sa,sb,sc),a.deviceId(),png);
+                    verifyGroupRows(gid,List.of(sa,sb,sc),b.deviceId(),wav);
+                    System.out.println("PASS_GUI_GROUP_OWNER_AND_MEMBER_MEDIA_AUTOSAVE");
                 }finally{edt(()->{inviteTimer.stop();return null;});}
-            }finally{edt(()->{left.dispose();right.dispose();return null;});}
+            }finally{edt(()->{left.dispose();right.dispose();third.dispose();return null;});}
         }
         System.out.println("PASS_GUI_MEDIA_END_TO_END");
     }

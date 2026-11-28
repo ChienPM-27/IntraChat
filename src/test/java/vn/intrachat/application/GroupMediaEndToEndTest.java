@@ -30,7 +30,6 @@ class GroupMediaEndToEndTest {
         Node(String name)throws Exception{
             profile=LocalProfile.loadOrCreate(temp.resolve(name));
             tcp=new LiveChatService(profile);
-            tcp.enableAutoReceive(temp.resolve("received-files"));
             groups=new GroupService(tcp,(owner,alias,title)->CompletableFuture.completedFuture(true));
             groups.addMediaListener(e->events.put(e.transfer().transferId(),e));
             tcp.addFileListener(t->{if(t.groupRef()==null)files.put(t.transferId(),t);});
@@ -49,7 +48,7 @@ class GroupMediaEndToEndTest {
         assertEquals(original.sentAt(),row.sentAt());
         assertEquals(original.conversationId(),row.conversationId());
         assertEquals(original.messageType(),row.messageType());
-        assertTrue(row.localPath().startsWith(temp.resolve("received-files").resolve(node.id().toString())));
+        assertTrue(row.localPath().startsWith(node.profile.mediaDir()));
         assertEquals(source.getFileName(),row.localPath().getFileName());
         assertArrayEquals(Files.readAllBytes(source),Files.readAllBytes(row.localPath()));
         var history=node.tcp.history().loadMessages(original.conversationId(),500,0);
@@ -81,6 +80,14 @@ class GroupMediaEndToEndTest {
                 assertEquals(2,b.events.get(member.transferId()).received());
                 assertNotEquals(c.events.get(owner.transferId()).transfer().localPath(),c.events.get(member.transferId()).transfer().localPath());
             }
+            // A member may not impersonate another origin in a group offer.
+            Path forgedSource=sourceDir.resolve("forged.bin");Files.write(forgedSource,new byte[]{7});
+            var forgedId=UUID.randomUUID();
+            var forged=b.tcp.files().offerGroup(a.id(),group,forgedSource,MessageType.FILE,
+                new FileTransferService.GroupRef(forgedId,c.id(),java.time.Instant.now()));
+            until(()->b.tcp.files().get(forged.transferId()).state()==FileTransferService.State.REJECTED);
+            assertNull(a.tcp.history().find(forgedId));
+            assertNull(c.tcp.history().find(forgedId));
             // No direct B-C connection exists; all member media must traverse A.
             assertFalse(b.tcp.connectedPeers().containsKey(c.id()));
             // Direct media also auto-saves into the same isolated root.
@@ -89,7 +96,7 @@ class GroupMediaEndToEndTest {
             until(()->a.files.containsKey(p2p.transferId())&&a.files.get(p2p.transferId()).state()==FileTransferService.State.COMPLETED
                 &&b.files.get(p2p.transferId()).state()==FileTransferService.State.COMPLETED);
             assertArrayEquals(Files.readAllBytes(direct),Files.readAllBytes(a.files.get(p2p.transferId()).localPath()));
-            assertTrue(a.files.get(p2p.transferId()).localPath().startsWith(temp.resolve("received-files")));
+            assertTrue(a.files.get(p2p.transferId()).localPath().startsWith(a.profile.mediaDir()));
             // A cannot claim all members received if C is offline.
             a.lan.disconnect(c.id());
             until(()->!a.tcp.connectedPeers().containsKey(c.id()));

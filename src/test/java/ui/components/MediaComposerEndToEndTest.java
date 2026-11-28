@@ -89,7 +89,7 @@ class MediaComposerEndToEndTest {
         var a=LocalProfile.loadOrCreate(dir.resolve("A"));
         var b=LocalProfile.loadOrCreate(dir.resolve("B"));
         int port; try (var reserve=new ServerSocket(0)) { port=reserve.getLocalPort(); }
-        try (var sa=new LiveChatService(a); var sb=new LiveChatService(b);
+        try (var sa=new LiveChatService(a,false); var sb=new LiveChatService(b,false);
              var ca=new LanCoordinator(a,i->CompletableFuture.completedFuture(true),p->{try{sa.attach(p.session(),p.name());}catch(Exception e){throw new IllegalStateException(e);}});
              var cb=new LanCoordinator(b,i->CompletableFuture.completedFuture(true),p->{try{sb.attach(p.session(),p.name());}catch(Exception e){throw new IllegalStateException(e);}});
              var aa=new LiveChatAdapter(a,a.displayName(),sa,()->{});

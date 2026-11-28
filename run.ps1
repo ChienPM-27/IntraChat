@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$JavaHome,
+    [string]$User,
     [string]$DataDir,
     [switch]$SkipBuild,
     [switch]$Diagnostics
@@ -44,6 +45,26 @@ if ($PSBoundParameters.ContainsKey('JavaHome')) {
     if ($javacCommand) {
         $candidates += Split-Path -Parent (Split-Path -Parent $javacCommand.Source)
     }
+    $javaCommand = Get-Command java.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($javaCommand) {
+        $oldPref = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $props = (& $javaCommand.Source -XshowSettings:properties -version 2>&1 | Out-String)
+            if ($props -match '(?m)^\s*java\.home\s*=\s*(.+?)\s*$') {
+                $candidates += $Matches[1].Trim()
+            }
+        } finally {
+            $ErrorActionPreference = $oldPref
+        }
+    }
+    if ($env:ProgramFiles) {
+        foreach ($vendor in @('Java', 'Eclipse Adoptium', 'Microsoft', 'Zulu', 'Amazon Corretto', 'BellSoft')) {
+            $vendorDir = Join-Path $env:ProgramFiles $vendor
+            $candidates += @(Get-ChildItem -LiteralPath $vendorDir -Directory -Filter '*21*' -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending | Select-Object -ExpandProperty FullName)
+        }
+    }
     $JavaHome = $candidates | Where-Object { Test-Jdk21 $_ } | Select-Object -First 1
     if (-not $JavaHome) {
         throw 'JDK 21 not found. Install JDK 21, set JAVA_HOME, or pass -JavaHome <path>.'
@@ -54,7 +75,11 @@ $JavaHome = (Resolve-Path -LiteralPath $JavaHome).Path
 $java = Join-Path $JavaHome 'bin\java.exe'
 $wrapper = Join-Path $repo 'mvnw.cmd'
 $jar = Join-Path $repo 'target\intrachat-0.1.0-SNAPSHOT.jar'
-$javaArgs = @("-Dintrachat.receivedDir=$(Join-Path $repo 'received-files')")
+$javaArgs = @()
+if ($User) {
+    $javaArgs += "-Dintrachat.user=$User"
+}
+
 if ($DataDir) {
     $dataPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($DataDir)
     $javaArgs += "-Dintrachat.dataDir=$dataPath"

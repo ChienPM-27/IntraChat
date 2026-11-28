@@ -34,10 +34,12 @@ public final class LiveChatService implements AutoCloseable {
     private final LinkedHashMap<UUID,List<Message>> recentTranscript=new LinkedHashMap<>();
     private final ConcurrentLinkedQueue<UUID> completedIds=new ConcurrentLinkedQueue<>();
     private final Set<UUID> completedSet=ConcurrentHashMap.newKeySet();
+    private final Object autoAcceptLock=new Object();
+    private final Set<Path> pendingMediaTargets=ConcurrentHashMap.newKeySet();
     private volatile boolean closed;
     private volatile java.util.function.BiConsumer<UUID,WireMessage> groupHandler;
     private volatile java.util.function.BiPredicate<UUID,WireMessage> groupMediaValidator;
-    private volatile Path autoReceiveRoot;
+    private final boolean autoReceiveDirect;
     private final Set<UUID> automaticReceives=ConcurrentHashMap.newKeySet();
     private static final class Peer {
         final LanSession socket;
@@ -56,7 +58,10 @@ public final class LiveChatService implements AutoCloseable {
             messages.add(message);
         }
     }
-    public LiveChatService(LocalProfile profile){
+    public LiveChatService(LocalProfile profile){this(profile,true);}
+    /** Manual direct acceptance is retained for protocol tests, never the desktop default. */
+    public LiveChatService(LocalProfile profile,boolean autoReceiveDirect){
+        this.autoReceiveDirect=autoReceiveDirect;
         local=Objects.requireNonNull(profile);
         try{history=new HistoryRepository(local.dataDir());}
         catch(IOException error){throw new IllegalStateException("Cannot open local history",error);}
@@ -67,28 +72,51 @@ public final class LiveChatService implements AutoCloseable {
                 localId(),remote,Instant.now(),payload));
         },transfer->{
             if(transfer.groupRef()==null)persistTransfer(transfer);
+            if(terminalTransfer(transfer.state())&&localId().equals(transfer.recipientId())&&transfer.localPath()!=null)
+                pendingMediaTargets.remove(transfer.localPath().toAbsolutePath().normalize());
             for(var listener:fileListeners)try{listener.accept(transfer);}catch(RuntimeException ignored){}
-            if(transfer.groupRef()==null&&autoReceiveRoot!=null&&transfer.recipientId().equals(localId())
+            if(!closed&&transfer.groupRef()==null&&autoReceiveDirect&&transfer.recipientId().equals(localId())
                 &&transfer.state()==FileTransferService.State.WAITING_ACCEPT)acceptAutomatically(transfer);
         });
+    }
+    private static boolean terminalTransfer(FileTransferService.State state){
+        return state==FileTransferService.State.COMPLETED||state==FileTransferService.State.FAILED
+            ||state==FileTransferService.State.REJECTED||state==FileTransferService.State.CANCELLED;
+    }
+    private Path resolveUniqueMediaPath(Path mediaDir,String rawName){
+        String name=FileTransferService.safeFileName(rawName);
+        int dot=name.lastIndexOf('.');
+        String stem=dot>0?name.substring(0,dot):name;
+        String ext=dot>0?name.substring(dot):"";
+        Path candidate=mediaDir.resolve(name).toAbsolutePath().normalize();
+        int index=1;
+        while(Files.exists(candidate)||pendingMediaTargets.contains(candidate))
+            candidate=mediaDir.resolve(stem+" ("+(index++)+")"+ext).toAbsolutePath().normalize();
+        return candidate;
     }
     private final CopyOnWriteArrayList<Consumer<FileTransferService.Transfer>> fileListeners=new CopyOnWriteArrayList<>();
     public void addFileListener(Consumer<FileTransferService.Transfer> listener){fileListeners.add(listener);}
     public FileTransferService files(){return fileTransfers;}
     public HistoryRepository history(){return history;}
-    public void enableAutoReceive(Path directory){autoReceiveRoot=directory.toAbsolutePath().normalize();}
     public void onGroupMediaOffer(java.util.function.BiPredicate<UUID,WireMessage> validator){groupMediaValidator=validator;}
     /** A unique directory per transfer prevents collisions and preserves the original filename. */
     public void acceptAutomatically(FileTransferService.Transfer t){
-        if(!localId().equals(t.recipientId())||!automaticReceives.add(t.transferId()))return;
+        if(closed||!localId().equals(t.recipientId())||!automaticReceives.add(t.transferId()))return;
         workers.execute(()->{
+            Path target=null;
             try{
-                Path root=autoReceiveRoot==null?local.dataDir().resolve("received-files"):autoReceiveRoot;
-                Path folder=root.resolve(localId().toString()).resolve(t.conversationId().toString()).resolve(t.transferId().toString());
-                Files.createDirectories(folder);
-                Path target=folder.resolve(FileTransferService.safeFileName(t.fileName()));
+                if(closed)return;
+                synchronized(autoAcceptLock){
+                    Path folder=local.mediaDir();
+                    // Group relay retains the original name even if multiple senders choose it.
+                    if(t.groupRef()!=null)folder=folder.resolve(t.conversationId().toString()).resolve(t.transferId().toString());
+                    Files.createDirectories(folder);
+                    target=resolveUniqueMediaPath(folder,t.fileName());
+                    pendingMediaTargets.add(target);
+                }
                 fileTransfers.accept(t.transferId(),target);
             }catch(Exception failure){
+                if(target!=null)pendingMediaTargets.remove(target);
                 var current=fileTransfers.get(t.transferId());
                 if(current!=null&&current.state()==FileTransferService.State.WAITING_ACCEPT)
                     fileTransfers.failReceive(t.transferId(),"Không thể tự lưu tệp: "+failure.getMessage());
