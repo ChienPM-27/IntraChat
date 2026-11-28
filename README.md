@@ -19,6 +19,26 @@ Kết quả backend P1–P5 trước cleanup: 95 JUnit PASS và process smoke P1
 
 Windows, JDK 21, Maven Wrapper (dependency lần đầu có thể cần Internet). Mở PowerShell ở root repository:
 
+Chạy nhanh trên Windows (build, chạy JUnit và mở ứng dụng):
+
+```powershell
+.\run.cmd
+```
+
+Script ưu tiên JDK 21 từ `JAVA_HOME`, JDK portable đã cài bằng `scripts/get-jdk21-portable.ps1`, rồi JDK trên `PATH`. Có thể chỉ định đường dẫn JDK hoặc chạy lại JAR đã build mà không build lại:
+
+```powershell
+.\run.cmd -JavaHome 'C:\Path\To\jdk-21'
+.\run.cmd -SkipBuild
+.\run.cmd -SkipBuild -Diagnostics
+.\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-A'
+.\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-B'
+```
+
+Hai lệnh cuối chạy trong hai terminal riêng để thử chat localhost. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
+
+Hoặc build và chạy thủ công:
+
 ```powershell
 $env:JAVA_HOME = 'C:\Path\To\jdk-21'
 $env:Path = "$env:JAVA_HOME\bin;$env:Path"
