@@ -18,6 +18,8 @@ public final class GroupService implements AutoCloseable {
     public interface Invitation { CompletionStage<Boolean> decide(UUID ownerId,String ownerName,String groupName); }
     private record Pending(UUID ownerId,String name) {}
     private final LiveChatService tcp;
+    private final GroupMedia media;
+    public record MediaEvent(FileTransferService.Transfer transfer,int received,int expected,int failed) {}
     private final HistoryRepository history;
     private final Set<UUID> verified=ConcurrentHashMap.newKeySet();
     private final UUID me;
@@ -46,15 +48,40 @@ public final class GroupService implements AutoCloseable {
         history=tcp.history();
         for(ChatGroup archive:history.groups())groups.put(archive.groupId(),archive);
         this.me=tcp.localId();
+        for(ChatGroup g:groups.values())if(g.ownerId().equals(me)&&g.contains(me))verified.add(g.groupId());
         memberNames.put(me,tcp.localName());
         this.invitation=Objects.requireNonNull(invitation);
+        media=new GroupMedia(tcp,groups::get,verified::contains);
         tcp.onGroupFrame(this::receive);
         tcp.addListener(event -> {
-            if(event.kind()==LiveChatService.EventKind.DISCONNECTED)
+            if(event.kind()==LiveChatService.EventKind.CONNECTED)restoreWith(event.peerId());
+            if(event.kind()==LiveChatService.EventKind.DISCONNECTED){
+                groups.values().stream().filter(g->!g.ownerId().equals(me)&&g.ownerId().equals(event.peerId()))
+                    .forEach(g->verified.remove(g.groupId()));
                 announce(null,null,null,0,0,"Thành viên mất kết nối: "+event.peerId());
+            }
         });
     }
+    public boolean ready(UUID id){
+        ChatGroup g=groups.get(id);
+        return g!=null&&verified.contains(id)&&g.contains(me)&&
+            (g.ownerId().equals(me)||tcp.connectedPeers().containsKey(g.ownerId()));
+    }
+    private void restoreWith(UUID peer){
+        for(ChatGroup g:groups.values()){
+            if(g.ownerId().equals(me)&&g.contains(peer))sendRoster(g,peer);
+            else if(g.ownerId().equals(peer)&&g.contains(me))
+                send(peer,WireMessage.Type.GROUP_SYNC,g.groupId(),Map.of()).exceptionally(error->null);
+        }
+    }
     public void addListener(Consumer<Event> listener){listeners.add(listener);}
+    public void addMediaListener(Consumer<MediaEvent> listener){
+        media.addListener(e->listener.accept(new MediaEvent(e.transfer(),e.received(),e.expected(),e.failed())));
+    }
+    public FileTransferService.Transfer sendGroupMedia(UUID id,java.nio.file.Path source,model.MessageType type)throws IOException{
+        return media.send(id,source,type);
+    }
+    public void cancelMedia(UUID id){media.cancel(id);}
     private void announce(ChatGroup group,Message message,UUID messageId,int count,int total,String notice){
         Event event=new Event(group,message,messageId,count,total,notice);
         for(var listener:listeners)try{listener.accept(event);}catch(RuntimeException ignored){}
@@ -144,8 +171,7 @@ public final class GroupService implements AutoCloseable {
         if(!unanswered.isEmpty())announce(group,null,null,0,0,
             "Hết thời gian chờ phản hồi của "+unanswered.size()+" lời mời");
     }
-    private void update(ChatGroup group){
-        history.saveGroup(group);
+    private Map<String,String> rosterPayload(ChatGroup group){
         Map<String,String> data=new HashMap<>(Map.of(
             "name",group.groupName(),"owner",group.ownerId().toString(),
             "roster",roster(group),"revision",Long.toString(group.revision())));
@@ -153,8 +179,14 @@ public final class GroupService implements AutoCloseable {
             String label=member.equals(me)?tcp.localName():tcp.connectedPeers().get(member);
             if(label!=null){memberNames.put(member,label);data.put("label."+member,label);}
         }
-        for(UUID id:group.memberIds())if(!id.equals(me))
-            send(id,WireMessage.Type.GROUP_UPDATE,group.groupId(),data).exceptionally(error->null);
+        return data;
+    }
+    private void sendRoster(ChatGroup group,UUID peer){
+        send(peer,WireMessage.Type.GROUP_UPDATE,group.groupId(),rosterPayload(group)).exceptionally(error->null);
+    }
+    private void update(ChatGroup group){
+        history.saveGroup(group);
+        for(UUID id:group.memberIds())if(!id.equals(me))sendRoster(group,id);
         announce(group,null,null,0,0,null);
     }
     public CompletionStage<Message> sendGroupText(UUID groupId,String text){
@@ -281,8 +313,16 @@ public final class GroupService implements AutoCloseable {
                     groups.put(id,changed);verified.add(id);history.saveGroup(changed);announce(changed,null,null,0,0,null);
                 }
             }
+            case GROUP_SYNC -> {
+                ChatGroup group=groups.get(id);
+                if(group!=null&&group.ownerId().equals(me)){
+                    if(group.contains(via))sendRoster(group,via);
+                    else send(via,WireMessage.Type.GROUP_REMOVE,id,Map.of()).exceptionally(error->null);
+                }
+            }
             case GROUP_TEXT -> receiveText(via,id,data);
             case GROUP_ACK -> receiveAck(via,id,data);
+            case GROUP_MEDIA_STATUS -> media.receiveStatus(via,id,data);
             case GROUP_LEAVE -> {
                 ChatGroup group=groups.get(id);
                 if(group!=null&&group.ownerId().equals(me)&&group.contains(via)){
@@ -309,7 +349,7 @@ public final class GroupService implements AutoCloseable {
     }
     private void receiveText(UUID via,UUID id,Map<String,String> data){
         ChatGroup group=groups.get(id);
-        if(group==null||!group.contains(me))return;
+        if(group==null||!verified.contains(id)||!group.contains(me))return;
         UUID origin=UUID.fromString(data.get("origin"));
         UUID mid=UUID.fromString(data.get("originalMessageId"));
         if(!group.contains(origin)||origin.equals(me))return;
@@ -346,7 +386,7 @@ public final class GroupService implements AutoCloseable {
         }
     }
     @Override public void close(){
-        closed=true;groups.clear();pending.clear();listeners.clear();
+        media.close();closed=true;groups.clear();pending.clear();listeners.clear();
         expected.clear();receipts.clear();receiptOrder.clear();invitations.clear();timelines.clear();memberNames.clear();
         creations.values().forEach(f->f.completeExceptionally(new IOException("Closed")));
         creations.clear();

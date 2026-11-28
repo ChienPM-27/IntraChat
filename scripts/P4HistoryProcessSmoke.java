@@ -143,7 +143,7 @@ public class P4HistoryProcessSmoke {
         Path dir=Path.of(args[2]);
         LocalProfile local=LocalProfile.loadOrCreate(dir);
         if(mode.equals("restore")||mode.equals("offline")||mode.equals("missing")){
-            try(LiveChatService svc=new LiveChatService(local)){
+            try(LiveChatService svc=new LiveChatService(local,false)){
                 assertLocal(local,svc.history(),args[3],!mode.equals("missing"));
                 UUID remote=svc.history().peers().keySet().iterator().next();
                 ok(svc.connectedPeers().isEmpty(),"unexpected online session");
@@ -153,7 +153,7 @@ public class P4HistoryProcessSmoke {
             return;
         }
         if(mode.equals("restore-group")){
-            try(LiveChatService svc=new LiveChatService(local);
+            try(LiveChatService svc=new LiveChatService(local,false);
                 GroupService group=new GroupService(svc,(owner,name,title)->CompletableFuture.completedFuture(false))){
                 var original=find(svc.history(),"Xin chào nhóm 👋");
                 var members=group.groups();
@@ -171,7 +171,7 @@ public class P4HistoryProcessSmoke {
         }
         boolean listener=mode.equals("listen")||mode.equals("continue-listen");
         boolean continuing=mode.startsWith("continue");
-        try(LiveChatService svc=new LiveChatService(local);
+        try(LiveChatService svc=new LiveChatService(local,false);
             LanCoordinator lan=new LanCoordinator(local,incoming->CompletableFuture.completedFuture(true),
                 peer->{try{svc.attach(peer.session(),peer.name());}catch(Exception e){throw new IllegalStateException(e);}})){
             if(listener){

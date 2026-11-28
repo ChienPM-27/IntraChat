@@ -71,6 +71,30 @@ public record LocalProfile(UUID deviceId, String displayName, Path dataDir) {
         return result;
     }
 
+    /** Reuse the last explicitly chosen profile; -User and -DataDir still override. */
+    public static String lastUser(){
+        Path root=defaultDataRoot();
+        try{
+            Path marker=root.resolve("last-user.txt");
+            if(Files.isRegularFile(marker)&&Files.size(marker)<=1024){
+                String user=Files.readString(marker).strip();
+                if(!user.isBlank()&&Files.isRegularFile(userDataDir(user).resolve("profile.json")))return user;
+            }
+        }catch(IOException|IllegalArgumentException ignored){}
+        List<String> users=listExistingUsers(root);
+        return users.size()==1?users.getFirst():null;
+    }
+    public static void rememberUser(String user){
+        try{
+            Path root=defaultDataRoot();Files.createDirectories(root);
+            Path temp=Files.createTempFile(root,"last-user-",".tmp");
+            try{
+                Files.writeString(temp,user);
+                Files.move(temp,root.resolve("last-user.txt"),StandardCopyOption.REPLACE_EXISTING);
+            }finally{Files.deleteIfExists(temp);}
+        }catch(IOException ignored){/* profile is still usable */}
+    }
+
     public static List<String> listExistingUsers(Path dataRoot) {
         if (dataRoot == null || !Files.isDirectory(dataRoot)) return List.of();
         List<String> users = new ArrayList<>();

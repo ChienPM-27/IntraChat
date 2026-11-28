@@ -98,6 +98,16 @@ public final class LiveChatAdapter implements ChatActionHandler {
             return answer;
         });
         groups.addListener(this::onGroupEvent);
+        groups.addMediaListener(event->{
+            var t=event.transfer();
+            if(event.expected()>0)groupReceiptLabels.put(t.transferId(),"Đã nhận "+event.received()+"/"+event.expected()
+                +(event.failed()>0?" · Lỗi "+event.failed():""));
+            onFileEvent(t);
+            javax.swing.SwingUtilities.invokeLater(()->{
+                ChatClientListener current=subscriber;
+                if(!closed&&current!=null)current.onGroupReceiptChanged(t.conversationId().toString(),t.transferId().toString());
+            });
+        });
     }
     public ChatUser self(){return self;}
     @Override public boolean connectionSettingsAvailable(){return connectionSettings!=null;}
@@ -230,6 +240,11 @@ public final class LiveChatAdapter implements ChatActionHandler {
         if(FileTransferService.MEDIA_TYPES.contains(content.type())){
             try{
                 UUID conversation=UUID.fromString(conversationId);
+                if(groups.group(conversation)!=null)
+                    return CompletableFuture.supplyAsync(()->{
+                        try{return fileMessage(groups.sendGroupMedia(conversation,content.attachment().path(),content.type()));}
+                        catch(IOException e){throw new CompletionException(e);}
+                    });
                 for(UUID peer:service.connectedPeers().keySet()){
                     if(conversation.equals(service.conversationId(peer))) {
                         UUID remote=peer;
@@ -243,7 +258,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
             }catch(IllegalArgumentException e){return CompletableFuture.failedFuture(e);}
         }
         if(content.type()!=MessageType.TEXT)
-            return CompletableFuture.failedFuture(new UnsupportedOperationException("Media Live thuộc P5"));
+            return CompletableFuture.failedFuture(new UnsupportedOperationException("Loại tin nhắn không được hỗ trợ"));
         UUID requested;
         try{requested=UUID.fromString(conversationId);}
         catch(IllegalArgumentException malformed){return CompletableFuture.failedFuture(malformed);}
@@ -304,6 +319,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
             t.senderId().toString(),t.sentAt(),MessageContent.media(t.messageType(),a),state);
     }
     private void onFileEvent(FileTransferService.Transfer t){
+        if(t.groupRef()!=null)return; // physical hops never become chat bubbles/history rows
         files.put(t.transferId(),t);
         javax.swing.SwingUtilities.invokeLater(()->{
             ChatClientListener current=subscriber;
@@ -311,12 +327,20 @@ public final class LiveChatAdapter implements ChatActionHandler {
         });
     }
     @Override public void acceptFile(String id,Path destination)throws IOException{
-        service.files().accept(UUID.fromString(id),destination);
+        if(destination==null){
+            var transfer=service.files().get(UUID.fromString(id));
+            if(transfer!=null)service.acceptAutomatically(transfer);
+        }else service.files().accept(UUID.fromString(id),destination);
     }
     @Override public void rejectFile(String id)throws IOException{
         service.files().reject(UUID.fromString(id));
     }
-    @Override public void cancelFile(String id){service.files().cancel(UUID.fromString(id));}
+    @Override public void cancelFile(String id){
+        UUID mid=UUID.fromString(id);
+        var transfer=files.get(mid);
+        if(transfer!=null&&groups.group(transfer.conversationId())!=null)groups.cancelMedia(mid);
+        else service.files().cancel(mid);
+    }
     @Override public CompletionStage<ChatMessage> retryMessage(String conversationId,String messageId){
         if(closed)return CompletableFuture.failedFuture(new IllegalStateException("Live closed"));
         try{
@@ -355,7 +379,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
     }
     @Override public boolean groupOwnerOnline(String id){
         try{ChatGroup g=groups.group(UUID.fromString(id));
-            return g!=null&&(g.ownerId().equals(local.deviceId())||service.connectedPeers().containsKey(g.ownerId()));
+            return g!=null&&groups.ready(g.groupId());
         }catch(RuntimeException ex){return false;}
     }
     @Override public boolean isGroupOwner(String id){

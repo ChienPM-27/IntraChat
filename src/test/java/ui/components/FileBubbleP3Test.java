@@ -19,7 +19,7 @@ class FileBubbleP3Test {
         if(root instanceof JButton b)titles.add(b.getText());
         if(root instanceof Container c)for(Component child:c.getComponents())buttons(child,titles);
     }
-    @Test void incomingOfferHasAcceptRejectCancelControls()throws Exception{
+    @Test void incomingOfferHasCancelButNoDestinationPicker()throws Exception{
         AtomicReference<List<String>> result=new AtomicReference<>();
         SwingUtilities.invokeAndWait(()->{
             UUID a=UUID.randomUUID(),b=UUID.randomUUID(),cid=UUID.randomUUID(),id=UUID.randomUUID();
@@ -35,8 +35,8 @@ class FileBubbleP3Test {
                 buttons(bubble,titles);result.set(titles);
             }
         });
-        assertTrue(result.get().contains("Nhận / Chọn nơi lưu"));
-        assertTrue(result.get().contains("Từ chối"));
+        assertFalse(result.get().contains("Nhận / Chọn nơi lưu"));
+        assertFalse(result.get().contains("Từ chối"));
         assertTrue(result.get().contains("Hủy"));
     }
     @Test void completeHasOpenControlNoReject()throws Exception {

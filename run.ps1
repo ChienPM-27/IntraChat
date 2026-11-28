@@ -79,6 +79,7 @@ $javaArgs = @()
 if ($User) {
     $javaArgs += "-Dintrachat.user=$User"
 }
+
 if ($DataDir) {
     $dataPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($DataDir)
     $javaArgs += "-Dintrachat.dataDir=$dataPath"

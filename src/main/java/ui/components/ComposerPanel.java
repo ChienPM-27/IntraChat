@@ -24,7 +24,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     private boolean mediaEnabled=true;
     private final JPanel cards = new JPanel(new CardLayout());
     private final JPanel controls = panel(new FlowLayout(FlowLayout.LEADING, 1, 0));
-    private JButton fileTool;
+    private String mediaDisabledReason = "Cần kết nối với thiết bị nhận hoặc chủ nhóm.";
     private final JButton emoji = iconButton(ChatIcon.Kind.SMILE, "Chèn emoji", BLUE);
     private final JButton send = primary("Gửi");
     private final JButton stop = primary("Dừng / Gửi");
@@ -51,8 +51,8 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
         addTool(ChatIcon.Kind.IMAGE, "Gửi ảnh", () -> choose(MessageType.IMAGE));
         addTool(ChatIcon.Kind.VIDEO, "Gửi video", () -> choose(MessageType.VIDEO));
-        fileTool=addTool(ChatIcon.Kind.FILE, "Gửi tệp", () -> choose(MessageType.FILE));
-        addTool(ChatIcon.Kind.MIC, "Chọn âm thanh", () -> choose(MessageType.SOUND));
+        addTool(ChatIcon.Kind.FILE, "Gửi tệp", () -> choose(MessageType.FILE));
+        addTool(ChatIcon.Kind.AUDIO, "Chọn âm thanh", () -> choose(MessageType.SOUND));
         addTool(ChatIcon.Kind.MIC, "Ghi âm WAV", this::record);
         add(controls, BorderLayout.WEST);
 
@@ -118,13 +118,21 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
     }
 
     public void setMediaEnabled(boolean enabled){
+        setMediaEnabled(enabled, "Cần kết nối với thiết bị nhận hoặc chủ nhóm.");
+    }
+    public void setMediaEnabled(boolean enabled, String reason){
         mediaEnabled=enabled;
+        mediaDisabledReason=reason;
         refresh();
     }
     public void refresh() {
         boolean active = !closed && currentChat.get() != null && recorder == null;
         for (Component tool : controls.getComponents()) {
             tool.setEnabled(active && !preparing && mediaEnabled);
+            if (tool instanceof JButton button) {
+                String name = button.getAccessibleContext().getAccessibleName();
+                button.setToolTipText(mediaEnabled ? name : name + " — " + mediaDisabledReason);
+            }
         }
         input.setEnabled(active);
         emoji.setEnabled(active);
@@ -192,7 +200,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     private void choose(MessageType type) {
         String chat = currentChat.get();
-        if (chat == null) {
+        if (chat == null || !mediaEnabled || preparing || recorder != null || closed) {
             return;
         }
         JFileChooser chooser = new JFileChooser();
@@ -213,7 +221,12 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
-        Path path = chooser.getSelectedFile().toPath();
+        prepareMedia(chat, chooser.getSelectedFile().toPath(), type);
+    }
+
+    // Shared by the file chooser and component-level end-to-end tests.
+    void prepareMedia(String chat, Path path, MessageType type) {
+        if (closed || preparing || recorder != null || !mediaEnabled || !java.util.Objects.equals(chat, currentChat.get())) return;
         preparing = true;
         refresh();
         status.accept("Đang kiểm tra tệp…");
@@ -230,6 +243,10 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
             preparing = false;
             refresh();
             if (failure == null) {
+                if (java.util.Objects.equals(chat, currentChat.get()) && !mediaEnabled) {
+                    status.accept(mediaDisabledReason);
+                    return;
+                }
                 outgoing.accept(chat, MessageContent.media(type, attachment));
             } else {
                 status.accept(error(failure, "Không đọc được tệp đã chọn."));
@@ -239,7 +256,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     private void record() {
         String chat = currentChat.get();
-        if (chat == null || recorder != null) {
+        if (chat == null || !mediaEnabled || preparing || recorder != null || closed) {
             return;
         }
         VoiceRecorder session = new VoiceRecorder();

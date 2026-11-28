@@ -66,6 +66,28 @@ class AutoSaveMediaTest {
         }
     }
 
+    @Test
+    void destinationCreationFailureNotifiesSenderWithoutWaitingForTimeout() throws Exception {
+        LocalProfile a=LocalProfile.loadOrCreate(temp.resolve("blocked-A"));
+        LocalProfile b=LocalProfile.loadOrCreate(temp.resolve("blocked-B"));
+        Files.write(b.mediaDir(),new byte[]{1}); // the media directory cannot be created
+        int port;try(ServerSocket reserve=new ServerSocket(0)){port=reserve.getLocalPort();}
+        try(var sa=new LiveChatService(a);var sb=new LiveChatService(b);
+            var ca=new LanCoordinator(a,r->CompletableFuture.completedFuture(true),p->{try{sa.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}});
+            var cb=new LanCoordinator(b,r->CompletableFuture.completedFuture(true),p->{try{sb.attach(p.session(),p.name());}catch(Exception e){throw new RuntimeException(e);}})){
+            ca.startListening(new NetworkConfig("127.0.0.1",port));
+            cb.connect(new NetworkConfig("127.0.0.1",port)).get(8,TimeUnit.SECONDS);
+            Path source=temp.resolve("blocked.bin");Files.write(source,new byte[]{1,2});
+            var sent=sa.files().offer(b.deviceId(),sa.conversationId(b.deviceId()),source,MessageType.FILE);
+            long deadline=System.currentTimeMillis()+5000;
+            while(System.currentTimeMillis()<deadline&&sa.files().get(sent.transferId()).state()!=FileTransferService.State.FAILED)Thread.sleep(20);
+            assertEquals(FileTransferService.State.FAILED,sa.files().get(sent.transferId()).state());
+            assertEquals(FileTransferService.State.FAILED,sb.files().get(sent.transferId()).state());
+            assertTrue(sb.files().get(sent.transferId()).error().contains("Không thể tự lưu"));
+            assertArrayEquals(new byte[]{1},Files.readAllBytes(b.mediaDir()));
+        }
+    }
+
     private static void awaitCompleted(FileTransferService files, UUID id) throws Exception {
         long deadline = System.currentTimeMillis() + 5_000;
         while (System.currentTimeMillis() < deadline) {

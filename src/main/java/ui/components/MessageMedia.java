@@ -39,7 +39,8 @@ public final class MessageMedia implements AutoCloseable {
             case IMAGE -> thumbnail(attachment, ink);
             case VIDEO -> video(attachment);
             case FILE -> file(attachment, ink);
-            case SOUND -> new VoicePlayer(attachment, ink);
+            case SOUND -> attachment.fileName().toLowerCase(java.util.Locale.ROOT).endsWith(".wav")
+                ? new VoicePlayer(attachment, ink) : externalAudio(attachment, ink);
             default -> throw new IllegalArgumentException();
         };
     }
@@ -125,6 +126,21 @@ public final class MessageMedia implements AutoCloseable {
             return true;
         }, result -> status.accept(""), "Không thể mở video. Hãy kiểm tra trình phát mặc định."));
         return play;
+    }
+
+    private JComponent externalAudio(Attachment attachment, Color ink) {
+        JButton open = new JButton("Mở âm thanh: " + shortName(attachment.fileName(), 25));
+        open.setIcon(new ChatIcon(ChatIcon.Kind.AUDIO, ink, 19));
+        open.setToolTipText("MP3/M4A: mở bằng trình phát mặc định");
+        open.addActionListener(event -> run(() -> {
+            if (!java.nio.file.Files.isRegularFile(attachment.path()))
+                throw new IOException("File không còn tồn tại");
+            if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN))
+                throw new IOException("Không có ứng dụng mặc định");
+            Desktop.getDesktop().open(attachment.path().toFile());
+            return true;
+        }, result -> {}, "Không mở được âm thanh bằng ứng dụng mặc định."));
+        return open;
     }
 
     private JComponent file(Attachment attachment, Color ink) {
@@ -232,11 +248,13 @@ public final class MessageMedia implements AutoCloseable {
         private final JLabel time;
         private final Color ink;
         private final Attachment attachment;
+        private long durationMillis;
         private final Timer timer = new Timer(85, event -> tick());
 
         VoicePlayer(Attachment attachment, Color ink) {
             super(new BorderLayout(8, 0));
             this.attachment = attachment;
+            this.durationMillis = attachment.durationMillis();
             this.ink = ink;
             setOpaque(false);
             play = iconButton(ChatIcon.Kind.PLAY, "Phát tin thoại", ink);
@@ -249,7 +267,12 @@ public final class MessageMedia implements AutoCloseable {
             progress.setBackground(ink.equals(Color.WHITE) ? new Color(0x529FFF) : new Color(0xC2C7D0));
             progress.getAccessibleContext().setAccessibleName("Tiến trình tin thoại");
             track.add(progress);
-            time = label(MediaFiles.duration(attachment.durationMillis()), 12, Font.PLAIN, ink);
+            time = label(MediaFiles.duration(durationMillis), 12, Font.PLAIN, ink);
+            if (durationMillis == 0) {
+                run(() -> MediaFiles.inspect(attachment.path(), MessageType.SOUND).durationMillis(),
+                    duration -> { durationMillis = duration; if (activeButton != play) time.setText(MediaFiles.duration(duration)); },
+                    "Không đọc được thời lượng WAV.");
+            }
             add(play, BorderLayout.WEST);
             add(track);
             add(time, BorderLayout.EAST);
@@ -325,7 +348,7 @@ public final class MessageMedia implements AutoCloseable {
         private void tick() {
             if (activeButton != play || active == null) {
                 progress.setValue(0);
-                time.setText(MediaFiles.duration(attachment.durationMillis()));
+                time.setText(MediaFiles.duration(durationMillis));
                 updateIcon(false);
                 timer.stop();
                 return;

@@ -38,7 +38,7 @@ public class P3FileProcessSmoke {
         AtomicReference<UUID> remoteId=new AtomicReference<>();
         ConcurrentHashMap<String,FileTransferService.Transfer> current=new ConcurrentHashMap<>();
         AtomicBoolean senderCancel=new AtomicBoolean(),receiverCancel=new AtomicBoolean(),disconnect=new AtomicBoolean();
-        try(LiveChatService tcp=new LiveChatService(profile);
+        try(LiveChatService tcp=new LiveChatService(profile,false);
             LanCoordinator lan=new LanCoordinator(profile,i->CompletableFuture.completedFuture(true),
                 peer->{try{tcp.attach(peer.session(),peer.name());}
                     catch(IOException ex){throw new IllegalStateException(ex);}})){

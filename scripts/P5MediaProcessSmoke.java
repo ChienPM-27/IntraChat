@@ -33,7 +33,7 @@ public class P5MediaProcessSmoke {
  static void peer(String role,int port,Path dir)throws Exception{
   LocalProfile profile=LocalProfile.loadOrCreate(dir);
   ConcurrentHashMap<String,FileTransferService.Transfer> transfers=new ConcurrentHashMap<>();
-  try(LiveChatService tcp=new LiveChatService(profile);
+  try(LiveChatService tcp=new LiveChatService(profile,false);
       LanCoordinator lan=new LanCoordinator(profile,info->CompletableFuture.completedFuture(true),
         peer->{try{tcp.attach(peer.session(),peer.name());}catch(IOException e){throw new IllegalStateException(e);}})){
    tcp.addFileListener(t->{
