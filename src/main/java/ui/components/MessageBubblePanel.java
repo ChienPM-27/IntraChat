@@ -149,8 +149,8 @@ public final class MessageBubblePanel extends JPanel {
         if(t.state()==FileTransferService.State.WAITING_ACCEPT||t.state()==FileTransferService.State.TRANSFERRING)
             addFileButton(buttons,"Hủy",()->action.accept("cancel",t.transferId().toString()));
         if(t.state()==FileTransferService.State.COMPLETED&&t.localPath()!=null) {
-            if (action != null)
-                addFileButton(buttons,t.messageType()==MessageType.VIDEO ? "Phát video" : "Mở tệp / vị trí",()->action.accept("open",t.transferId().toString()));
+            if (action != null && t.messageType()!=MessageType.VIDEO)
+                addFileButton(buttons,"Mở tệp / vị trí",()->action.accept("open",t.transferId().toString()));
             buttons.add(media.saveButton(new model.Attachment(t.localPath(), t.fileName(), t.fileSize(), 0, 0, 0)));
         }
         fileArea.add(buttons);

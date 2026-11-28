@@ -17,23 +17,28 @@ import java.util.function.Consumer;
 import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
 
 /** Local-file video playback inside Swing. Decode and audio output stay off the EDT. */
-final class VideoPlayerDialog extends JDialog {
+final class VideoPlayerPanel extends JPanel {
     private final Attachment attachment;
     private final Consumer<String> notice;
+    private final Consumer<VideoPlayerPanel> activate;
     private final AtomicReference<BufferedImage> nextImage = new AtomicReference<>();
     private final JPanel screen = new JPanel() {
         @Override protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             BufferedImage image = visibleImage;
-            if (image == null) return;
+            if (image == null) {
+                graphics.setColor(Color.WHITE);
+                new ChatIcon(ChatIcon.Kind.PLAY, Color.WHITE, 36).paintIcon(this, graphics, (getWidth()-36)/2, (getHeight()-36)/2);
+                return;
+            }
             double scale = Math.min(getWidth() / (double) image.getWidth(), getHeight() / (double) image.getHeight());
             int w = Math.max(1, (int) (image.getWidth() * scale)), h = Math.max(1, (int) (image.getHeight() * scale));
             graphics.drawImage(image, (getWidth() - w) / 2, (getHeight() - h) / 2, w, h, null);
         }
     };
-    private final JButton play = new JButton("Tạm dừng");
+    private final JButton play = new JButton("Phát video");
     private final JButton stop = new JButton("Dừng");
-    private final JLabel clock = new JLabel("Đang mở video…");
+    private final JLabel clock = new JLabel("00:00");
     private final JProgressBar progress = new JProgressBar(0, 1000);
     private final Timer refresh = new Timer(35, e -> refreshFrame());
     private final Object pauseLock = new Object();
@@ -42,50 +47,59 @@ final class VideoPlayerDialog extends JDialog {
     private volatile Thread decoder;
     private BufferedImage visibleImage;
 
-    VideoPlayerDialog(Window owner, Attachment attachment, Consumer<String> notice) {
-        super(owner, attachment.fileName(), ModalityType.MODELESS);
+    VideoPlayerPanel(Attachment attachment, Consumer<String> notice, Consumer<VideoPlayerPanel> activate) {
+        super(new BorderLayout(0, 4));
         this.attachment = attachment;
         this.notice = notice;
+        this.activate = activate;
         setName("messenger-video-player");
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setOpaque(false);
         screen.setBackground(Color.BLACK);
-        screen.setPreferredSize(new Dimension(640, 360));
+        screen.setPreferredSize(new Dimension(300, 169));
         screen.getAccessibleContext().setAccessibleName("Khung phát video");
+        screen.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        screen.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { if (play.isEnabled()) play.doClick(); }
+        });
         play.setName("video-play-pause");
         stop.setName("video-stop");
         play.addActionListener(e -> {
-            if (decoder == null) begin();
+            if (decoder == null) activate.accept(this);
             else {
                 paused = !paused;
                 play.setText(paused ? "Tiếp tục" : "Tạm dừng");
                 synchronized (pauseLock) { pauseLock.notifyAll(); }
             }
         });
+        stop.setEnabled(false);
         stop.addActionListener(e -> stopDecoding());
         progress.getAccessibleContext().setAccessibleName("Tiến trình video");
         JPanel controls = new JPanel(new BorderLayout(8, 4));
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEADING, 4, 2));
-        buttons.add(play); buttons.add(stop); buttons.add(clock);
+        play.setFont(play.getFont().deriveFont(11f));
+        stop.setFont(stop.getFont().deriveFont(11f));
+        clock.setFont(clock.getFont().deriveFont(10f));
+        buttons.add(play); buttons.add(stop);
+        controls.add(clock, BorderLayout.SOUTH);
         controls.add(progress, BorderLayout.NORTH);
         controls.add(buttons, BorderLayout.CENTER);
+        JLabel title = new JLabel(attachment.fileName());
+        title.putClientProperty("html.disable", true);
+        title.setForeground(ChatStyle.INK);
+        title.setToolTipText(attachment.fileName());
+        title.setPreferredSize(new Dimension(300, 18));
+        title.setOpaque(true);
+        title.setBackground(ChatStyle.FIELD);
+        add(title, BorderLayout.NORTH);
         add(screen, BorderLayout.CENTER);
         add(controls, BorderLayout.SOUTH);
-        pack();
-        setLocationRelativeTo(owner);
-        addWindowListener(new WindowAdapter() {
-            @Override public void windowClosed(WindowEvent e) { stopDecoding(); refresh.stop(); }
-        });
-    }
-
-    void open() {
-        setVisible(true);
-        begin();
     }
 
     void begin() {
         if (decoder != null) return;
         cancelled = false; paused = false; positionUs = 0; durationUs = 0;
         visibleImage = null; nextImage.set(null);
+        progress.setValue(0); screen.repaint();
         play.setText("Tạm dừng"); stop.setEnabled(true);
         clock.setText("Đang mở video…");
         refresh.start();
@@ -105,12 +119,12 @@ final class VideoPlayerDialog extends JDialog {
             clock.setText(MediaFiles.duration(pos / 1000) + " / " + MediaFiles.duration(duration / 1000));
     }
 
-    private void stopDecoding() {
+    void stopDecoding() {
         cancelled = true;
         paused = false;
         synchronized (pauseLock) { pauseLock.notifyAll(); }
         Thread worker = decoder;
-        if (worker != null) worker.interrupt();
+        if (worker != null) { worker.interrupt(); play.setEnabled(false); }
         play.setText("Phát lại");
         stop.setEnabled(false);
     }
@@ -213,20 +227,21 @@ final class VideoPlayerDialog extends JDialog {
             String error = failure;
             SwingUtilities.invokeLater(() -> {
                 decoder = null;
+                play.setEnabled(true);
                 refreshFrame();
                 refresh.stop();
                 stop.setEnabled(false);
                 play.setText("Phát lại");
-                if (error != null && isDisplayable()) { clock.setText("Không thể phát"); notice.accept(error); }
+                if (error != null) { clock.setText("Không thể phát"); notice.accept(error); }
                 else if (!cancelled) { progress.setValue(1000); clock.setText("Đã phát xong"); }
                 else { progress.setValue(0); clock.setText("Đã dừng"); }
             });
         }
     }
 
-    @Override public void dispose() {
+    @Override public void removeNotify() {
         stopDecoding();
         refresh.stop();
-        super.dispose();
+        super.removeNotify();
     }
 }

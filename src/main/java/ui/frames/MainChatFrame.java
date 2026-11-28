@@ -562,10 +562,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
                 case "cancel" -> work.submit(()->actions.cancelFile(id));
                 case "open" -> {
                     Path path=t.localPath();
-                    if(t.messageType()==MessageType.VIDEO && path!=null) {
-                        media.openVideo(new model.Attachment(path,t.fileName(),t.fileSize(),0,0,0));
-                        break;
-                    }
+                    if(t.messageType()==MessageType.VIDEO) break;
                     if(path!=null&&Files.isRegularFile(path))work.submit(()->{
                         try{
                             if(java.awt.Desktop.isDesktopSupported())

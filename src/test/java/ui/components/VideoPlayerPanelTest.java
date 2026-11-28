@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.*;
 import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_MPEG4;
 
-class VideoPlayerDialogTest {
+class VideoPlayerPanelTest {
     @TempDir Path folder;
 
     @Test void embeddedPlayerDecodesLocalMp4WithoutExternalApplication() throws Exception {
@@ -35,10 +35,19 @@ class VideoPlayerDialogTest {
         }
         var attachment = MediaFiles.inspect(path, MessageType.VIDEO);
         var notices = new CopyOnWriteArrayList<String>();
-        var dialog = new AtomicReference<VideoPlayerDialog>();
+        var dialog = new AtomicReference<VideoPlayerPanel>();
         SwingUtilities.invokeAndWait(() -> {
-            dialog.set(new VideoPlayerDialog(null, attachment, notices::add));
-            dialog.get().begin();
+            var media = new MessageMedia(Runnable::run, new JPanel(), notices::add);
+            var message = new model.ChatMessage("video", "chat", "sender", java.time.Instant.now(),
+                model.MessageContent.media(MessageType.VIDEO, attachment), model.DeliveryState.DELIVERED);
+            var bubble = new MessageBubblePanel(message, false, false, "Sender", media);
+            dialog.set(find(bubble, VideoPlayerPanel.class));
+            assertNotNull(dialog.get());
+            JPanel chat = new JPanel();
+            chat.add(bubble);
+            assertTrue(SwingUtilities.isDescendingFrom(dialog.get(), bubble));
+            assertNull(SwingUtilities.getWindowAncestor(dialog.get()));
+            find(dialog.get(), JButton.class).doClick(0);
         });
         try {
             long end = System.nanoTime() + 10_000_000_000L;
@@ -55,7 +64,15 @@ class VideoPlayerDialogTest {
             assertFalse(result[1], "Playback must finish");
             assertTrue(notices.isEmpty(), notices.toString());
         } finally {
-            SwingUtilities.invokeAndWait(dialog.get()::dispose);
+            SwingUtilities.invokeAndWait(dialog.get()::stopDecoding);
         }
+    }
+    private static <T extends Component> T find(Component root, Class<T> type) {
+        if (type.isInstance(root)) return type.cast(root);
+        if (root instanceof Container container) for (Component child : container.getComponents()) {
+            T found = find(child, type);
+            if (found != null) return found;
+        }
+        return null;
     }
 }

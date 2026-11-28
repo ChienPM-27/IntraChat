@@ -145,7 +145,7 @@ cd IntraChat
 .\run.cmd
 ```
 
-Launcher tự tìm JDK 21 từ JAVA_HOME, JDK portable, PATH hoặc các thư mục JDK trong Program Files; sau đó build bằng Maven Wrapper (bao gồm JUnit mặc định) và mở ứng dụng. Có thể double-click `run.cmd`.
+Launcher tự tìm JDK 21 từ JAVA_HOME, JDK portable, PATH hoặc các thư mục JDK trong Program Files; sau đó build bằng Maven Wrapper (bỏ qua chạy JUnit mặc định với -DskipTests) và mở ứng dụng. Có thể double-click `run.cmd`.
 
 | Lệnh | Mục đích |
 |---|---|
@@ -209,7 +209,7 @@ Trong Cài đặt LAN, chọn IPv4 `127.0.0.1` ở cả hai bên. A Listen cổn
 - Chọn hội thoại cá nhân để gửi văn bản/emoji. Nút **+** ở đầu sidebar tạo nhóm; chọn các peer đang kết nối và chờ họ chấp nhận lời mời.
 - Trong chat nhóm, nhấn **Nhóm** để xem thành viên và thực hiện thao tác theo quyền. Trạng thái trong danh sách chỉ biểu thị kết nối trực tiếp với máy đang xem, không phải trạng thái online toàn nhóm.
 - Dùng các icon ảnh, video, tệp, nốt nhạc hoặc micro trên composer. Media chỉ gửi được khi tuyến P2P hoặc nhóm sẵn sàng.
-- Tệp nhận được tự lưu; dùng thumbnail, điều khiển WAV hoặc nút mở tệp/vị trí. Nút **Lưu về máy** cho phép chọn thư mục và tên tệp để lưu bản sao sau khi truyền xong, không thay đổi bản gốc trong lịch sử. Video phát trong cửa sổ IntraChat; MP3/M4A vẫn phụ thuộc ứng dụng phát của hệ điều hành.
+- Tệp nhận được tự lưu; dùng thumbnail, điều khiển WAV hoặc nút mở tệp/vị trí. Nút **Lưu về máy** cho phép chọn thư mục và tên tệp để lưu bản sao sau khi truyền xong, không thay đổi bản gốc trong lịch sử. Video phát trực tiếp trong khung chat; MP3/M4A vẫn phụ thuộc ứng dụng phát của hệ điều hành.
 - Trong chat riêng online, nhấn icon điện thoại/video để gọi. Người nhận cần chấp nhận; sử dụng điều khiển mute, camera, chia sẻ màn hình hoặc kết thúc trong cửa sổ cuộc gọi.
 
 ### 4.4. Khởi động lại

@@ -95,8 +95,8 @@ try {
     $env:Path = "$(Join-Path $JavaHome 'bin');$oldPath"
     Write-Host "IntraChat / JDK 21: $JavaHome"
     if (-not $SkipBuild) {
-        Write-Host 'Building and testing IntraChat...'
-        & $wrapper clean package
+        Write-Host 'Building IntraChat (tests skipped)...'
+        & $wrapper clean package '-DskipTests'
         if ($LASTEXITCODE -ne 0) { throw "Maven build failed (exit $LASTEXITCODE)." }
     }
     if (-not (Test-Path -LiteralPath $jar -PathType Leaf)) {

@@ -24,7 +24,7 @@ public final class MessageMedia implements AutoCloseable {
     private final Component owner;
     private final Consumer<String> status;
     private final Function<Attachment, Path> saveDestination;
-    private VideoPlayerDialog videoPlayer;
+    private VideoPlayerPanel videoPlayer;
     private Clip active;
     private JButton activeButton;
     private boolean closed;
@@ -114,27 +114,14 @@ public final class MessageMedia implements AutoCloseable {
     }
 
     private JComponent video(Attachment attachment) {
-        JButton play = new JButton();
-        play.putClientProperty("html.disable", true);
-        play.putClientProperty("FlatLaf.style", "arc: 16; borderWidth: 0");
-        play.setIcon(new ChatIcon(ChatIcon.Kind.PLAY, Color.WHITE, 30));
-        play.setVerticalTextPosition(SwingConstants.BOTTOM);
-        play.setHorizontalTextPosition(SwingConstants.CENTER);
-        play.setBackground(new Color(0x202733));
-        play.setForeground(Color.WHITE);
-        play.setPreferredSize(new Dimension(240, 140));
-        play.setText(shortName(attachment.fileName(), 27));
-        play.setToolTipText("Phát video trong IntraChat: " + attachment.fileName());
-        play.getAccessibleContext().setAccessibleName("Mở video " + attachment.fileName());
-        play.addActionListener(event -> openVideo(attachment));
-        return play;
+        return new VideoPlayerPanel(attachment, status, this::playVideo);
     }
 
-    public void openVideo(Attachment attachment) {
+    private void playVideo(VideoPlayerPanel player) {
         if (closed) return;
-        stopPlayback();
-        videoPlayer = new VideoPlayerDialog(SwingUtilities.getWindowAncestor(owner), attachment, status);
-        videoPlayer.open();
+        if (videoPlayer != player) stopPlayback();
+        videoPlayer = player;
+        player.begin();
     }
 
     private JComponent externalAudio(Attachment attachment, Color ink) {
@@ -246,7 +233,7 @@ public final class MessageMedia implements AutoCloseable {
 
     public void stopPlayback() {
         if (videoPlayer != null) {
-            videoPlayer.dispose();
+            videoPlayer.stopDecoding();
             videoPlayer = null;
         }
         JButton previous = activeButton;

@@ -36,7 +36,7 @@ Segoe UI; avatar chữ cái; sidebar 300 px; cửa sổ mặc định 1100×720,
 - Sidebar: tạo nhóm mới (+), tìm kiếm, danh sách hội thoại; Profile ở cuối. Bánh răng nằm ngoài cùng bên phải Profile, tooltip/tên truy cập **Cài đặt kết nối LAN**, mở dialog LAN đang có. Không còn nút chữ Kết nối LAN trên header.
 - Header: chat riêng không có nút Nhóm; chat nhóm có quản lý thành viên/rời nhóm tùy vai trò. Không có hội thoại thì ẩn nút.
 - Composer: ảnh, video, file, nốt nhạc chọn WAV/MP3/M4A, một micro ghi WAV, emoji màu Twemoji và gửi. Media chỉ khả dụng khi kết nối P2P hoặc nhóm sẵn sàng relay. Draft gắn với hội thoại; đổi hội thoại dừng ghi âm/playback.
-- Bubble: text, ảnh thumbnail/preview, WAV controls, video phát trong dialog IntraChat (phát/tạm dừng/dừng/phát lại), MP3/M4A mở ứng dụng mặc định, file mở đường dẫn. Media nhận tự lưu; sau khi truyền xong có nút Lưu về máy để chọn vị trí và tên bản sao, không di chuyển bản gốc. Cancel và trạng thái tiến trình/lỗi theo transfer; nhóm hiển thị số thành viên đã nhận/lỗi.
+- Bubble: text, ảnh thumbnail/preview, WAV controls, video phát trực tiếp trong bong bóng chat (phát/tạm dừng/dừng/phát lại), MP3/M4A mở ứng dụng mặc định, file mở đường dẫn. Media nhận tự lưu; sau khi truyền xong có nút Lưu về máy để chọn vị trí và tên bản sao, không di chuyển bản gốc. Cancel và trạng thái tiến trình/lỗi theo transfer; nhóm hiển thị số thành viên đã nhận/lỗi.
 - Profile cũ mở thẳng Messenger, history offline; Listen và reconnect ngầm. Profile mới mở dialog kết nối trước. Cài đặt LAN cho phép chọn IPv4/port, Connect/Accept/Reject và Disconnect; Disconnect tạm dừng reconnect trong phiên. Không tự gửi lại tin.
 
 ## Kiểm chứng thiết kế
