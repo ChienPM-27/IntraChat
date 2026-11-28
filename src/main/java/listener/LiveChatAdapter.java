@@ -382,6 +382,10 @@ public final class LiveChatAdapter implements ChatActionHandler {
             return g!=null&&groups.ready(g.groupId());
         }catch(RuntimeException ex){return false;}
     }
+    @Override public String groupOwnerId(String id){
+        try{ChatGroup g=groups.group(UUID.fromString(id));return g==null?null:g.ownerId().toString();}
+        catch(RuntimeException ex){return null;}
+    }
     @Override public boolean isGroupOwner(String id){
         try{ChatGroup g=groups.group(UUID.fromString(id));return g!=null&&g.ownerId().equals(local.deviceId());}
         catch(RuntimeException ex){return false;}

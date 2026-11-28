@@ -185,6 +185,46 @@ public class MediaGuiSmoke {
                     verifyGroupRows(gid,List.of(sa,sb,sc),a.deviceId(),png);
                     verifyGroupRows(gid,List.of(sa,sb,sc),b.deviceId(),wav);
                     System.out.println("PASS_GUI_GROUP_OWNER_AND_MEMBER_MEDIA_AUTOSAVE");
+                    // Open the real roster from both owner and member frames; verify role permissions and safe confirmation.
+                    for(var target:List.of(left,right)){
+                        boolean owner=target==left;
+                        var verified=new java.util.concurrent.atomic.AtomicBoolean();
+                        var failure=new java.util.concurrent.atomic.AtomicReference<Throwable>();
+                        edt(()->{
+                            var timer=new javax.swing.Timer(100,null);
+                            timer.addActionListener(e->{
+                                for(Window w:Window.getWindows()){
+                                    if(!w.isShowing()||!(w instanceof ui.dialogs.GroupMembersDialog d)||d.getOwner()!=target)continue;
+                                    timer.stop();
+                                    try{
+                                        check(components(d,JPanel.class).stream().filter(x->x.getName()!=null&&x.getName().startsWith("group-member-")&&!x.getName().equals("group-member-roster")).count()==3,"Three member rows");
+                                        check(components(d,JLabel.class).stream().anyMatch(x->x.getText()!=null&&x.getText().startsWith("Chủ nhóm")),"Owner label");
+                                        check(components(d,JButton.class).stream().filter(x->x.getName()!=null&&x.getName().startsWith("group-remove-")).count()==(owner?2:0),"Owner-only remove controls");
+                                        check((button(d,x->"group-leave".equals(x.getName()))!=null)==!owner,"Member-only leave");
+                                        var action=button(d,x->owner?("group-remove-"+c.deviceId()).equals(x.getName()):"group-leave".equals(x.getName()));
+                                        var cancelTimer=new javax.swing.Timer(100,null);
+                                        cancelTimer.addActionListener(ev->{
+                                            for(Window confirm:Window.getWindows())if(confirm.isShowing()&&confirm instanceof JDialog q&&q.getOwner()==d){
+                                                var cancel=button(q,x->"group-confirm-cancel".equals(x.getName()));
+                                                if(cancel!=null){cancelTimer.stop();cancel.doClick();break;}
+                                            }
+                                        });
+                                        cancelTimer.start();try{action.doClick();}finally{cancelTimer.stop();}
+                                        check(d.isShowing(),"Cancel preserves roster");
+                                        verified.set(true);
+                                    }catch(Throwable ex){failure.set(ex);}
+                                    finally{d.dispose();}
+                                }
+                            });
+                            timer.start();
+                            try{button(target,x->"group-manage".equals(x.getName())).doClick();}finally{timer.stop();}
+                            return null;
+                        });
+                        if(failure.get()!=null)throw new AssertionError("Roster smoke",failure.get());
+                        check(verified.get(),"Roster verified");
+                    }
+                    check(sa.history().groups().stream().anyMatch(g->g.groupId().equals(gid)&&g.memberIds().size()==3),"Cancel did not mutate roster");
+                    System.out.println("PASS_GUI_GROUP_MEMBER_ROSTER_AND_CANCEL");
                     until(()->edt(()->selectGroup(left,sa.conversationId(b.deviceId()).toString())),"Return to direct chat");
                     until(()->edt(()->!button(left,x->"group-manage".equals(x.getName())).isShowing()),"Hide group management again");
                     System.out.println("PASS_GUI_CONTEXTUAL_GROUP_AND_PROFILE_SETTINGS");

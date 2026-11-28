@@ -33,6 +33,7 @@ public interface ChatActionHandler extends AutoCloseable {
     default CompletionStage<Void> leaveGroup(String id){return CompletableFuture.failedFuture(new UnsupportedOperationException("Leave unavailable"));}
     default CompletionStage<Void> removeGroupMember(String id,String member){return CompletableFuture.failedFuture(new UnsupportedOperationException("Remove unavailable"));}
     default boolean isGroupOwner(String id){return false;}
+    default String groupOwnerId(String id){return null;}
     default boolean groupOwnerOnline(String id){return true;}
     /** Evidence for each recipient of a group message; null for direct messages. */
     default String groupReceiptLabel(String conversationId,String messageId){return null;}

@@ -12,6 +12,7 @@ import java.io.IOException;
 import ui.components.*;
 import ui.dialogs.CallDialog;
 import ui.dialogs.CreateGroupDialog;
+import ui.dialogs.GroupMembersDialog;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -334,29 +335,14 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private void manageGroup(){
         Conversation group=conversations.get(activeId);
         if(group==null||!group.group())return;
-        StringBuilder summary=new StringBuilder("Thành viên nhóm:\n");
-        for(String id:group.memberIds()){
-            ChatUser u=users.get(id);
-            summary.append(u==null?id:u.displayName()).append(" [").append(id).append("]\n");
-        }
-        boolean owner=actions.isGroupOwner(group.id());
-        Object[] options=owner?new Object[]{"Loại thành viên","Đóng"}:new Object[]{"Rời nhóm","Đóng"};
-        int choice=JOptionPane.showOptionDialog(this,summary.toString(),group.title(),
-            JOptionPane.DEFAULT_OPTION,JOptionPane.PLAIN_MESSAGE,null,options,options[1]);
-        if(choice!=0)return;
-        if(owner){
-            java.util.List<String> others=group.memberIds().stream().filter(id->!id.equals(self.id())).toList();
-            if(others.isEmpty())return;
-            String selected=(String)JOptionPane.showInputDialog(this,"Chọn UUID thành viên cần loại",
-                "Loại thành viên",JOptionPane.PLAIN_MESSAGE,null,others.toArray(),others.get(0));
-            if(selected!=null)actions.removeGroupMember(group.id(),selected).whenComplete((ok,error)->onEdt(()->{
+        String ownerId=actions.groupOwnerId(group.id());
+        new GroupMembersDialog(this,group,self,Map.copyOf(users),ownerId,actions.groupOwnerOnline(group.id()),
+            member->actions.removeGroupMember(group.id(),member).whenComplete((ok,error)->onEdt(()->{
                 if(error!=null)showNotice("Không thể loại: "+error(error,"Lỗi kết nối"));
-            }));
-        }else{
-            actions.leaveGroup(group.id()).whenComplete((ok,error)->onEdt(()->{
+            })),
+            ()->actions.leaveGroup(group.id()).whenComplete((ok,error)->onEdt(()->{
                 if(error!=null)showNotice("Không thể rời nhóm: "+error(error,"Lỗi kết nối"));
-            }));
-        }
+            }))).setVisible(true);
     }
 
     private void createGroup() {
