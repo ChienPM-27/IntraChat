@@ -356,7 +356,8 @@ public final class CallService implements AutoCloseable {
                 terminateCall(call.callId, "Không thể tham gia cuộc gọi nhóm: " + ex.getMessage(), false, WireMessage.Type.GROUP_CALL_LEAVE);
                 throw ex;
             }
-            startGroupMedia(call, false);
+            // Thành viên đã tham gia: bật thu và phát audio/video.
+            startGroupMedia(call, true);
             emitState(call.snapshot());
         }
     }
@@ -725,7 +726,8 @@ public final class CallService implements AutoCloseable {
             }
         }
         if (becameConnected) {
-            startGroupMedia(call, false);
+            // Thành viên khởi tạo đã nhận cổng UDP của owner: bắt đầu media.
+            startGroupMedia(call, true);
         }
         for (UUID id : camOffIds) emitParticipantVideo(id, null);
         emitState(call.snapshot());
