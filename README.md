@@ -31,11 +31,12 @@ Script ưu tiên JDK 21 từ `JAVA_HOME`, JDK portable đã cài bằng `scripts
 .\run.cmd -JavaHome 'C:\Path\To\jdk-21'
 .\run.cmd -SkipBuild
 .\run.cmd -SkipBuild -Diagnostics
+.\run.cmd -SkipBuild -User Alice
+.\run.cmd -SkipBuild -User Bob
 .\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-A'
-.\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-B'
 ```
 
-Hai lệnh cuối chạy trong hai terminal riêng để thử chat localhost. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
+Khi chạy `.\run.cmd` không truyền `-User` hoặc `-DataDir`, ứng dụng sẽ hỏi tên người dùng (hoặc chọn user đã có) để lưu hồ sơ, lịch sử và media riêng vào `data/<tên user>/` trong thư mục project. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
 
 Hoặc build và chạy thủ công:
 
@@ -71,11 +72,11 @@ Trên máy A mở IntraChat, ghi nhận IPv4 và port trong trạng thái **Đan
 
 ## File, Image, Video, Sound
 
-Ở hội thoại P2P Live, chọn tệp/media qua composer, gửi **OFFER**; người nhận **Accept/Reject**, chọn nơi lưu; xem progress hoặc Cancel. Truyền theo CHUNK **32 KiB**, có CRC32/kiểm tra kích thước; không overwrite file có sẵn, không resume; file lỗi/cancel cần cleanup. File thường và video tối đa **128 MiB**. Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview. Video MP4/AVI/MKV tối đa **128 MiB**, mở bằng ứng dụng OS qua `Desktop.open`. Sound WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop, MP3/M4A mở player mặc định. Gửi/nhận bytes **không** chứng minh playback thực: MP4/codec và thiết bị âm thanh NOT RUN.
+Ở hội thoại P2P Live, chọn tệp/media qua composer, gửi **OFFER**; phía người nhận **tự động chấp nhận và lưu** vào thư mục `data/<tên user>/media/` trong project (không hiện hộp thoại hỏi nơi lưu; nếu trùng tên tệp sẽ tự đổi thành `tên (1).ext`). Truyền theo CHUNK **32 KiB**, có CRC32/kiểm tra kích thước; không overwrite file có sẵn, không resume; file lỗi/cancel cần cleanup. File thường và video tối đa **128 MiB**. Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview. Video MP4/AVI/MKV tối đa **128 MiB**, mở bằng ứng dụng OS qua `Desktop.open`. Sound WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop, MP3/M4A mở player mặc định. Gửi/nhận bytes **không** chứng minh playback thực: MP4/codec và thiết bị âm thanh NOT RUN.
 
 ## History và dữ liệu
 
-`LocalProfile` lưu UUID/displayName, `HistoryRepository` lưu transcript, sender/time/state, group và metadata file/media trong JSONL riêng từng profile. Mặc định trong `%LOCALAPPDATA%\IntraChat\data`; override bằng JVM property `-Dintrachat.dataDir=<thư mục>`. Gửi vài tin, đóng ứng dụng và chạy lại **cùng dataDir**, mở hội thoại để xem History được khôi phục, kể cả khi peer offline. Không có cloud sync; JSONL không mã hóa, không nên dùng nội dung nhạy cảm; file/media đã nhận phải còn tồn tại để mở lại.
+`LocalProfile` lưu UUID/displayName, `HistoryRepository` lưu transcript, sender/time/state, group và metadata file/media trong JSONL riêng từng user. Mặc định lưu theo tên user trong `data/<tên user>/` ngay tại thư mục project (gồm `profile.json`, `history/`, `media/`) để tránh lẫn dữ liệu và media giữa các user; có thể chọn user qua `-Dintrachat.user=<tên>` (hoặc `.\run.cmd -User <tên>`), hoặc override toàn bộ đường dẫn bằng `-Dintrachat.dataDir=<thư mục>`. Gửi vài tin, đóng ứng dụng và chạy lại **cùng user / dataDir**, mở hội thoại để xem History và media được khôi phục, kể cả khi peer offline. Không có cloud sync; JSONL không mã hóa, không nên dùng nội dung nhạy cảm; file/media đã nhận phải còn tồn tại để mở lại.
 
 ## Kiểm chứng
 

@@ -5,6 +5,7 @@ import vn.intrachat.protocol.*;
 import vn.intrachat.transport.*;
 import vn.intrachat.persistence.HistoryRepository;
 import java.io.IOException;
+import java.nio.file.*;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -33,6 +34,8 @@ public final class LiveChatService implements AutoCloseable {
     private final LinkedHashMap<UUID,List<Message>> recentTranscript=new LinkedHashMap<>();
     private final ConcurrentLinkedQueue<UUID> completedIds=new ConcurrentLinkedQueue<>();
     private final Set<UUID> completedSet=ConcurrentHashMap.newKeySet();
+    private final Object autoAcceptLock=new Object();
+    private final Set<Path> pendingMediaTargets=ConcurrentHashMap.newKeySet();
     private volatile boolean closed;
     private volatile java.util.function.BiConsumer<UUID,WireMessage> groupHandler;
     private static final class Peer {
@@ -61,7 +64,52 @@ public final class LiveChatService implements AutoCloseable {
             if(peer==null||!peer.socket.isOpen())throw new IOException("Peer offline");
             peer.socket.send(new WireMessage(type,UUID.randomUUID(),conversation,
                 localId(),remote,Instant.now(),payload));
-        },transfer->{persistTransfer(transfer);for(var listener:fileListeners)try{listener.accept(transfer);}catch(RuntimeException ignored){}});
+        },transfer->{
+            persistTransfer(transfer);
+            if(isTerminalTransfer(transfer.state())&&transfer.localPath()!=null){
+                pendingMediaTargets.remove(transfer.localPath().toAbsolutePath().normalize());
+            }
+            for(var listener:fileListeners)try{listener.accept(transfer);}catch(RuntimeException ignored){}
+            if(!closed&&transfer.state()==FileTransferService.State.WAITING_ACCEPT
+                &&localId().equals(transfer.recipientId())){
+                autoAcceptTransfer(transfer);
+            }
+        });
+    }
+    private static boolean isTerminalTransfer(FileTransferService.State state){
+        return state==FileTransferService.State.COMPLETED||state==FileTransferService.State.REJECTED
+            ||state==FileTransferService.State.CANCELLED||state==FileTransferService.State.FAILED;
+    }
+    private void autoAcceptTransfer(FileTransferService.Transfer transfer){
+        workers.submit(()->{
+            if(closed)return;
+            Path target=null;
+            try{
+                synchronized(autoAcceptLock){
+                    if(closed)return;
+                    Path mediaDir=local.mediaDir();
+                    Files.createDirectories(mediaDir);
+                    target=resolveUniqueMediaPath(mediaDir,transfer.fileName());
+                    pendingMediaTargets.add(target);
+                }
+                fileTransfers.accept(transfer.transferId(),target);
+            }catch(Exception ignored){
+                if(target!=null)pendingMediaTargets.remove(target);
+            }
+        });
+    }
+    private Path resolveUniqueMediaPath(Path mediaDir,String rawName){
+        String safeName=FileTransferService.safeFileName(rawName);
+        int dot=safeName.lastIndexOf('.');
+        String stem=dot>0?safeName.substring(0,dot):safeName;
+        String ext=dot>0?safeName.substring(dot):"";
+        Path candidate=mediaDir.resolve(safeName).toAbsolutePath().normalize();
+        int index=1;
+        while(Files.exists(candidate)||pendingMediaTargets.contains(candidate)){
+            candidate=mediaDir.resolve(stem+" ("+index+")"+ext).toAbsolutePath().normalize();
+            index++;
+        }
+        return candidate;
     }
     private final CopyOnWriteArrayList<Consumer<FileTransferService.Transfer>> fileListeners=new CopyOnWriteArrayList<>();
     public void addFileListener(Consumer<FileTransferService.Transfer> listener){fileListeners.add(listener);}

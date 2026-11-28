@@ -24,4 +24,16 @@ class LocalProfileP1Test {
         assertThrows(java.io.IOException.class,()->LocalProfile.loadOrCreate(dir));
         assertEquals("{broken",Files.readString(dir.resolve("profile.json")));
     }
+    @Test void isolatesUsersByNameAndProvidesMediaDir()throws Exception{
+        Path root=temp.resolve("data");
+        LocalProfile alice=LocalProfile.loadOrCreate(root.resolve(LocalProfile.safeFolderName("Alice")),"Alice");
+        LocalProfile bob=LocalProfile.loadOrCreate(root.resolve(LocalProfile.safeFolderName("Bob")),"Bob");
+        assertEquals("Alice",alice.displayName());
+        assertEquals("Bob",bob.displayName());
+        assertNotEquals(alice.mediaDir(),bob.mediaDir());
+        assertEquals(alice.dataDir().resolve("media"),alice.mediaDir());
+        assertEquals(List.of("Alice","Bob"),LocalProfile.listExistingUsers(root));
+        assertEquals("a_b_c",LocalProfile.safeFolderName("a/b:c"));
+        assertTrue(LocalProfile.safeFolderName("CON").startsWith("user-"));
+    }
 }
