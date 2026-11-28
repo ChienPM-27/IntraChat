@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static ui.components.ChatStyle.*;
 
@@ -22,14 +23,22 @@ public final class MessageMedia implements AutoCloseable {
     private final Executor executor;
     private final Component owner;
     private final Consumer<String> status;
+    private final Function<Attachment, Path> saveDestination;
+    private VideoPlayerDialog videoPlayer;
     private Clip active;
     private JButton activeButton;
     private boolean closed;
 
     public MessageMedia(Executor executor, Component owner, Consumer<String> status) {
+        this(executor, owner, status, null);
+    }
+
+    MessageMedia(Executor executor, Component owner, Consumer<String> status,
+                 Function<Attachment, Path> saveDestination) {
         this.executor = executor;
         this.owner = owner;
         this.status = status;
+        this.saveDestination = saveDestination == null ? this::chooseSaveDestination : saveDestination;
     }
 
     JComponent render(MessageContent content, boolean mine) {
@@ -115,17 +124,17 @@ public final class MessageMedia implements AutoCloseable {
         play.setForeground(Color.WHITE);
         play.setPreferredSize(new Dimension(240, 140));
         play.setText(shortName(attachment.fileName(), 27));
-        play.setToolTipText("Mở video: " + attachment.fileName());
+        play.setToolTipText("Phát video trong IntraChat: " + attachment.fileName());
         play.getAccessibleContext().setAccessibleName("Mở video " + attachment.fileName());
-        play.addActionListener(event -> run(() -> {
-            MediaFiles.inspect(attachment.path(), MessageType.VIDEO);
-            if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
-                throw new IllegalArgumentException("Hệ điều hành không hỗ trợ mở video từ ứng dụng.");
-            }
-            Desktop.getDesktop().open(attachment.path().toFile());
-            return true;
-        }, result -> status.accept(""), "Không thể mở video. Hãy kiểm tra trình phát mặc định."));
+        play.addActionListener(event -> openVideo(attachment));
         return play;
+    }
+
+    public void openVideo(Attachment attachment) {
+        if (closed) return;
+        stopPlayback();
+        videoPlayer = new VideoPlayerDialog(SwingUtilities.getWindowAncestor(owner), attachment, status);
+        videoPlayer.open();
     }
 
     private JComponent externalAudio(Attachment attachment, Color ink) {
@@ -154,28 +163,53 @@ public final class MessageMedia implements AutoCloseable {
         details.add(name);
         details.add(label(MediaFiles.size(attachment.sizeBytes()), 12, Font.PLAIN, ink));
         card.add(details);
-        JButton save = iconButton(ChatIcon.Kind.DOWNLOAD, "Lưu tệp", ink);
-        save.setContentAreaFilled(false);
+        card.add(saveButton(attachment), BorderLayout.EAST);
+        return card;
+    }
+
+    /** Export a copy; never move the managed attachment referenced by chat history. */
+    JButton saveButton(Attachment attachment) {
+        JButton save = new JButton("Lưu về máy", new ChatIcon(ChatIcon.Kind.DOWNLOAD, MUTED, 15));
+        save.setName("media-save-as");
+        save.setFont(save.getFont().deriveFont(11f));
+        save.setToolTipText("Chọn thư mục và tên tệp để lưu bản sao");
+        save.getAccessibleContext().setAccessibleName("Lưu về máy");
         save.addActionListener(event -> {
-            JFileChooser chooser = new JFileChooser();
-            chooser.setDialogTitle("Lưu tệp đính kèm");
+            if (closed) return;
+            Path target;
             try {
-                chooser.setSelectedFile(new java.io.File(MediaFiles.safeName(attachment.fileName())));
-            } catch (IllegalArgumentException failure) {
-                status.accept(failure.getMessage());
+                target = saveDestination.apply(attachment);
+            } catch (RuntimeException failure) {
+                status.accept(error(failure, "Không thể chọn nơi lưu tệp."));
                 return;
             }
-            if (chooser.showSaveDialog(owner) == JFileChooser.APPROVE_OPTION) {
-                Path target = chooser.getSelectedFile().toPath();
-                status.accept("Đang lưu tệp…");
-                run(() -> {
+            if (target == null) return;
+            save.setEnabled(false);
+            status.accept("Đang lưu tệp…");
+            CompletableFuture.supplyAsync(() -> {
+                try {
                     MediaFiles.save(attachment, target);
-                    return true;
-                }, result -> status.accept("Đã lưu tệp."), "Không thể lưu tệp.");
-            }
+                    return target.toAbsolutePath().normalize();
+                } catch (IOException failure) {
+                    throw new CompletionException(failure);
+                }
+            }, executor).whenComplete((destination, failure) -> SwingUtilities.invokeLater(() -> {
+                save.setEnabled(true);
+                if (closed) return;
+                if (failure == null) status.accept("Đã lưu tệp: " + destination);
+                else status.accept(error(failure, "Không thể lưu tệp."));
+            }));
         });
-        card.add(save, BorderLayout.EAST);
-        return card;
+        return save;
+    }
+
+    private Path chooseSaveDestination(Attachment attachment) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Lưu tệp về máy");
+        chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        chooser.setSelectedFile(new java.io.File(MediaFiles.safeName(attachment.fileName())));
+        return chooser.showSaveDialog(owner) == JFileChooser.APPROVE_OPTION
+            ? chooser.getSelectedFile().toPath() : null;
     }
 
     private static String shortName(String name, int limit) {
@@ -211,6 +245,10 @@ public final class MessageMedia implements AutoCloseable {
     }
 
     public void stopPlayback() {
+        if (videoPlayer != null) {
+            videoPlayer.dispose();
+            videoPlayer = null;
+        }
         JButton previous = activeButton;
         if (active != null) {
             active.close();

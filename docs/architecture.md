@@ -53,7 +53,7 @@ History JSONL lưu thêm LOCAL_LISTEN, PEER_ADDRESS và PEER_ENDPOINT. HELLO/WEL
 
 ## F06–F08 — Media
 
-Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview GUI. Video MP4/AVI/MKV tối đa **128 MiB** dùng `Desktop.open` qua ứng dụng hệ điều hành. Sound WAV/MP3/M4A tối đa **8 MiB**, WAV PCM có Java Sound Play/Stop, định dạng còn lại dùng ứng dụng ngoài/fallback. Media dùng chung `FileTransferService` và lưu metadata vào history. Backend byte/type/restart đã PASS; GUI localhost đã gửi/nhận media tự động, kiểm tra thumbnail PNG và WAV controls. Video player/codec và playback âm thanh trên thiết bị thực NOT RUN.
+Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview GUI. Video MP4/AVI/MKV tối đa **128 MiB** phát trong `VideoPlayerDialog` với JavaCV/FFmpeg (Windows x64), giải mã trên worker và cập nhật Swing trên EDT. Sound WAV/MP3/M4A tối đa **8 MiB**, WAV PCM có Java Sound Play/Stop, định dạng còn lại dùng ứng dụng ngoài/fallback. Media dùng chung `FileTransferService` và lưu metadata vào history. Backend byte/type/restart đã PASS; GUI localhost đã gửi/nhận media tự động, kiểm tra thumbnail PNG và WAV controls. VideoPlayerDialogTest kiểm tra giải mã MP4 mẫu trong Swing; AVI/MKV, âm thanh và playback thực tế trên thiết bị người dùng chưa được nghiệm thu.
 
 ## GUI, giới hạn và bằng chứng
 

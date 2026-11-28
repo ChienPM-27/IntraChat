@@ -7,10 +7,10 @@ Backend PASS là kiểm thử JVM/socket. GUI PASS (smoke) chỉ áp dụng cho 
 | F01 | P2P Chat | PASS — text hai JVM, ACK/READ, reconnect | PASS smoke — hai chiều, startup/reconnect | NOT RUN | History JSONL; 4 active sessions; TCP plaintext |
 | F02 | Group Chat | PASS — owner relay, roster sync, text/media, partial failure | PASS smoke — tạo nhóm, owner/member media, nút Nhóm theo ngữ cảnh | NOT RUN | 5 thành viên; owner offline không relay |
 | F03 | File Transfer | PASS — OFFER/ACCEPT/REJECT, CRC/chunk/cancel; tự lưu, tên trùng, lỗi folder | PASS smoke — gửi/nhận không hỏi nơi lưu, P2P/nhóm | NOT RUN | 128 MiB; 1 transfer/peer; không resume |
-| F04 | Emoji | PASS — Unicode TEXT | PASS smoke C6 | NOT RUN | JSONL text |
+| F04 | Emoji | PASS — Unicode TEXT | PASS smoke C6; EmojiTextPaneTest kiểm tra emoji màu | NOT RUN | JSONL Unicode |
 | F05 | History | PASS — restart JSONL, metadata, profile, endpoint | PARTIAL — startup profile cũ, offline, reconnect; chưa full media-history GUI restore | NOT RUN | Local-only; 10.000 message entries RAM, 500/view; disk full/crash NOT RUN |
 | F06 | Image | PASS — PNG/JPEG validation, bytes/type/restore, group relay | PASS smoke — PNG thumbnail | NOT RUN | 16 MiB / 32 MP |
-| F07 | Video | PASS — bytes/type/restore, group relay | PARTIAL — mẫu MP4 signature được gửi/nhận | NOT RUN | 128 MiB; Desktop.open/codec playback NOT RUN |
+| F07 | Video | PASS — bytes/type/restore, group relay | PARTIAL — mẫu MP4 signature được gửi/nhận | NOT RUN | 128 MiB; FFmpeg nội bộ, MP4 mẫu PASS; AVI/MKV và playback âm thanh thực NOT RUN |
 | F08 | Sound | PASS — WAV/MP3/M4A transfer, group relay | PARTIAL — WAV controls, một micro và nốt nhạc | NOT RUN | 8 MiB; ghi âm 120 giây; capture/playback NOT RUN |
 | F09 | State | PASS — TEXT ACK/READ, file FILE_RESULT, group per-recipient outcome | PARTIAL — delivered/seen C6, media completion | NOT RUN | Không đồng nghĩa đọc bằng mắt; không tự resend |
 | F10 | Time | PASS — UTC timestamp, group originalSentAt | PARTIAL — hiển thị giờ | NOT RUN | Timestamp JSONL |

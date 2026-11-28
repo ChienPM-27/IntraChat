@@ -18,9 +18,7 @@ import java.util.function.Supplier;
 import static ui.components.ChatStyle.*;
 
 public final class ComposerPanel extends JPanel implements AutoCloseable {
-    private static final String[] EMOJIS = ("😀 😃 😄 😁 😂 🤣 😊 🙂 🙃 😉 😍 🥰 😘 😎 🤔 😅 😢 😭 "
-            + "😮 😴 😡 🙌 👏 👍 👎 🙏 💙 ❤️ ✨ 🎉").split(" ");
-    private final JTextArea input = new JTextArea(2, 20);
+    private final EmojiTextPane input = new EmojiTextPane(INK, true);
     private boolean mediaEnabled=true;
     private final JPanel cards = new JPanel(new CardLayout());
     private final JPanel controls = panel(new FlowLayout(FlowLayout.LEADING, 1, 0));
@@ -56,9 +54,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         addTool(ChatIcon.Kind.MIC, "Ghi âm WAV", this::record);
         add(controls, BorderLayout.WEST);
 
-        input.setLineWrap(true);
-        input.setWrapStyleWord(true);
-        input.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        input.setFont(new Font(Font.DIALOG, Font.PLAIN, 14));
         input.setBorder(new EmptyBorder(7, 10, 7, 10));
         input.setToolTipText("Enter: gửi · Shift+Enter: xuống dòng · Bản nháp chỉ lưu trong RAM");
         input.getAccessibleContext().setAccessibleName("Nhập tin nhắn");
@@ -141,7 +137,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     private void sendText() {
         String chat = currentChat.get();
-        JTextArea editor=input;
+        JTextPane editor=input;
         String text = editor.getText();
         if (chat == null || text.isBlank()) {
             return;
@@ -167,7 +163,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     public void restoreText(String destination, String active, String text) {
         if (destination.equals(active)) {
-            JTextArea editor=input;
+            JTextPane editor=input;
             editor.setText(editor.getText().isBlank() ? text : text + "\n" + editor.getText());
         } else {
             drafts.merge(destination, text, (draft, failed) -> draft.isBlank() ? failed : failed + "\n" + draft);
@@ -176,11 +172,14 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
 
     private void showEmojis() {
         JPopupMenu popup = new JPopupMenu();
-        JPanel grid = panel(new GridLayout(5, 6, 2, 2));
+        JPanel grid = panel(new GridLayout(0, 8, 2, 2));
         grid.setBorder(new EmptyBorder(6, 6, 6, 6));
         Font font = new Font("Segoe UI Emoji", Font.PLAIN, 22);
-        for (String glyph : EMOJIS) {
-            JButton option = new JButton(glyph);
+        for (String glyph : EmojiTextPane.PICKER) {
+            JButton option = new JButton(EmojiTextPane.icon(glyph, 25));
+            option.setToolTipText(glyph);
+            option.getAccessibleContext().setAccessibleName(glyph);
+            if (option.getIcon() == null) option.setText(glyph);
             option.setFont(font.canDisplayUpTo(glyph) < 0 ? font : new Font(Font.DIALOG, Font.PLAIN, 22));
             option.putClientProperty("FlatLaf.style", "arc: 8; margin: 0,0,0,0; borderWidth: 0");
             option.setBackground(Color.WHITE);
@@ -193,6 +192,9 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
             grid.add(option);
         }
         popup.add(grid);
+        JLabel attribution = new JLabel("Twemoji · CC BY 4.0", SwingConstants.CENTER);
+        attribution.setFont(attribution.getFont().deriveFont(10f));
+        popup.add(attribution);
         Dimension size = popup.getPreferredSize();
         popup.show(emoji, emoji.getWidth() - size.width, -size.height - 5);
         grid.getComponent(0).requestFocusInWindow();

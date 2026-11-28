@@ -8,12 +8,6 @@ import java.util.function.BiConsumer;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
-import javax.swing.text.StyledEditorKit;
-import javax.swing.text.LabelView;
-import javax.swing.text.View;
-import javax.swing.text.ViewFactory;
 import java.awt.*;
 import java.util.function.Consumer;
 
@@ -23,6 +17,7 @@ public final class MessageBubblePanel extends JPanel {
     private final JLabel receipt = label("", 11, Font.PLAIN, MUTED);
     private JButton manualRetry;
     private JPanel fileArea;
+    private final MessageMedia media;
 
     public MessageBubblePanel(ChatMessage message, boolean mine, boolean group, String sender, MessageMedia media) {
         this(message,mine,group,sender,media,null,null,null);
@@ -37,6 +32,7 @@ public final class MessageBubblePanel extends JPanel {
             MessageMedia media, Consumer<String> onManualRetry,
             FileTransferService.Transfer transfer, BiConsumer<String,String> fileAction) {
         super(new FlowLayout(mine ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
+        this.media = media;
         setOpaque(false);
         setBorder(new EmptyBorder(4, 18, 4, 18));
         JPanel stack = new JPanel();
@@ -79,6 +75,12 @@ public final class MessageBubblePanel extends JPanel {
             fileArea.setAlignmentX(alignment);
             stack.add(fileArea);
             showFileTransfer(transfer,fileAction);
+        } else if (message.content().type() != MessageType.TEXT && message.content().type() != MessageType.FILE
+                && message.state() == DeliveryState.DELIVERED) {
+            // History may have no live transfer object, but its local media is still exportable.
+            JButton save = media.saveButton(message.content().attachment());
+            save.setAlignmentX(alignment);
+            stack.add(save);
         }
 
         JLabel timestamp = label(time, 11, Font.PLAIN, MUTED);
@@ -146,8 +148,11 @@ public final class MessageBubblePanel extends JPanel {
         // Cancel remains available while the transfer is active.
         if(t.state()==FileTransferService.State.WAITING_ACCEPT||t.state()==FileTransferService.State.TRANSFERRING)
             addFileButton(buttons,"Hủy",()->action.accept("cancel",t.transferId().toString()));
-        if(t.state()==FileTransferService.State.COMPLETED&&t.localPath()!=null)
-            addFileButton(buttons,"Mở tệp / vị trí",()->action.accept("open",t.transferId().toString()));
+        if(t.state()==FileTransferService.State.COMPLETED&&t.localPath()!=null) {
+            if (action != null)
+                addFileButton(buttons,t.messageType()==MessageType.VIDEO ? "Phát video" : "Mở tệp / vị trí",()->action.accept("open",t.transferId().toString()));
+            buttons.add(media.saveButton(new model.Attachment(t.localPath(), t.fileName(), t.fileSize(), 0, 0, 0)));
+        }
         fileArea.add(buttons);
         fileArea.revalidate();fileArea.repaint();
     }
@@ -179,59 +184,12 @@ public final class MessageBubblePanel extends JPanel {
     }
 
     private static JTextPane text(String value, Color ink) {
-        JTextPane pane = new JTextPane();
-        pane.setEditorKit(new StyledEditorKit() {
-            @Override
-            public ViewFactory getViewFactory() {
-                ViewFactory standard = super.getViewFactory();
-                return element -> {
-                    View view = standard.create(element);
-                    return view instanceof LabelView ? new LabelView(element) {
-                        @Override
-                        public float getMinimumSpan(int axis) {
-                            return axis == View.X_AXIS ? 0 : super.getMinimumSpan(axis);
-                        }
-                    } : view;
-                };
-            }
-        });
-        pane.setEditable(false);
+        EmojiTextPane pane = new EmojiTextPane(ink, false);
         pane.setOpaque(false);
         pane.setBorder(null);
         pane.setMargin(new Insets(0, 0, 0, 0));
-        pane.setForeground(ink);
         pane.setText(value);
-        Font regular = new Font("Segoe UI", Font.PLAIN, 14);
-        Font emoji = new Font("Segoe UI Emoji", Font.PLAIN, 14);
-        SimpleAttributeSet regularStyle = new SimpleAttributeSet();
-        StyleConstants.setFontFamily(regularStyle, regular.getFamily());
-        StyleConstants.setFontSize(regularStyle, 14);
-        StyleConstants.setForeground(regularStyle, ink);
-        SimpleAttributeSet emojiStyle = new SimpleAttributeSet(regularStyle);
-        StyleConstants.setFontFamily(emojiStyle, emoji.getFamily());
-        SimpleAttributeSet fallbackStyle = new SimpleAttributeSet(regularStyle);
-        StyleConstants.setFontFamily(fallbackStyle, Font.DIALOG);
-        pane.getStyledDocument().setCharacterAttributes(0, value.length(), regularStyle, true);
-        for (int start = 0; start < value.length();) {
-            int codePoint = value.codePointAt(start);
-            int end = start + Character.charCount(codePoint);
-            var style = codePoint >= 0x1F000 || codePoint == 0x2764 || codePoint == 0x2728
-                    || codePoint == 0xFE0F || codePoint == 0x200D
-                    ? (emoji.canDisplay(codePoint) ? emojiStyle : fallbackStyle)
-                    : regular.canDisplay(codePoint) ? regularStyle : fallbackStyle;
-            while (end < value.length()) {
-                int next = value.codePointAt(end);
-                if (next != 0xFE0F && next != 0x200D && (next < 0x1F3FB || next > 0x1F3FF)
-                        && value.codePointBefore(end) != 0x200D) {
-                    break;
-                }
-                end += Character.charCount(next);
-            }
-            if (style != regularStyle) {
-                pane.getStyledDocument().setCharacterAttributes(start, end - start, style, true);
-            }
-            start = end;
-        }
+        pane.styleEmoji();
         int width = Math.min(340, Math.max(16, pane.getPreferredSize().width + 2));
         var view = pane.getUI().getRootView(pane);
         view.setSize(width, Integer.MAX_VALUE);

@@ -40,7 +40,7 @@ class LiveComposerTest {
         try{
             edt(()->{
                 ComposerPanel composer=holder.get();
-                JTextArea input=find(composer,JTextArea.class,"Nhập tin nhắn");
+                JTextPane input=find(composer,JTextPane.class,"Nhập tin nhắn");
                 assertNotNull(input,"Composer must support multiline user text");
                 input.setText("Xin chào 👩🏽‍💻");
                 Action enter=input.getActionMap().get("live-send-enter");
@@ -48,7 +48,8 @@ class LiveComposerTest {
                 assertNotNull(enter);
                 assertNotNull(shift);
                 shift.actionPerformed(new ActionEvent(input,ActionEvent.ACTION_PERFORMED,""));
-                input.append("dòng thứ hai 🇻🇳");
+                input.setCaretPosition(input.getDocument().getLength());
+                input.replaceSelection("dòng thứ hai 🇻🇳");
                 assertEquals("Xin chào 👩🏽‍💻\ndòng thứ hai 🇻🇳",input.getText());
                 enter.actionPerformed(new ActionEvent(input,ActionEvent.ACTION_PERFORMED,""));
                 enter.actionPerformed(new ActionEvent(input,ActionEvent.ACTION_PERFORMED,""));
@@ -69,7 +70,7 @@ class LiveComposerTest {
         try{
             edt(()->{
                 ComposerPanel composer=holder.get();
-                JTextArea input=find(composer,JTextArea.class,"Nhập tin nhắn");
+                JTextPane input=find(composer,JTextPane.class,"Nhập tin nhắn");
                 assertNotNull(input);
                 input.setText("\uD83D"); // isolated high surrogate, never encode with replacement
                 input.getActionMap().get("live-send-enter").actionPerformed(
@@ -94,7 +95,7 @@ class LiveComposerTest {
         try{
             edt(()->{
                 ComposerPanel composer=holder.get();
-                JTextArea input=find(composer,JTextArea.class,"Nhập tin nhắn");
+                JTextPane input=find(composer,JTextPane.class,"Nhập tin nhắn");
                 assertNotNull(input);
                 input.setText("Bản nháp A\nkhông gửi");
                 current.set("chat-B");

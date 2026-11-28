@@ -1,0 +1,1 @@
+Twemoji graphics v15.1.0, by Twitter, Inc. and other contributors; maintained by jdecked. Graphics licensed under CC BY 4.0. Source: https://github.com/jdecked/twemoji/tree/v15.1.0/assets/72x72. Images are unmodified and displayed at different sizes.

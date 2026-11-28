@@ -107,10 +107,10 @@ IntraChat/
 | F01 | Chat riêng | Gửi/nhận văn bản trực tiếp qua TCP |
 | F02 | Chat nhóm | Tạo nhóm, mời thành viên, owner relay, quản lý danh sách và rời nhóm |
 | F03 | Truyền tệp | Gửi tệp riêng/nhóm, tiến trình, hủy và kiểm tra toàn vẹn |
-| F04 | Emoji | Gửi emoji Unicode cùng nội dung tin nhắn |
+| F04 | Emoji | Emoji màu Twemoji, gửi Unicode cùng nội dung tin nhắn |
 | F05 | Lịch sử | Lưu và khôi phục hội thoại, nhóm, metadata media và endpoint |
 | F06 | Hình ảnh | Gửi PNG/JPEG, thumbnail và xem trước |
-| F07 | Video | Gửi MP4/AVI/MKV, mở bằng trình phát mặc định |
+| F07 | Video | Gửi MP4/AVI/MKV, phát trong IntraChat qua FFmpeg |
 | F08 | Âm thanh | Gửi WAV/MP3/M4A, ghi âm WAV, phát WAV PCM |
 | F09 | Trạng thái | SENT, DELIVERED (ACK), SEEN (READ); kết quả media theo thành viên |
 | F10 | Thời gian | Timestamp UTC trong giao thức, hiển thị giờ tin nhắn |
@@ -209,7 +209,7 @@ Trong Cài đặt LAN, chọn IPv4 `127.0.0.1` ở cả hai bên. A Listen cổn
 - Chọn hội thoại cá nhân để gửi văn bản/emoji. Nút **+** ở đầu sidebar tạo nhóm; chọn các peer đang kết nối và chờ họ chấp nhận lời mời.
 - Trong chat nhóm, nhấn **Nhóm** để xem thành viên và thực hiện thao tác theo quyền. Trạng thái trong danh sách chỉ biểu thị kết nối trực tiếp với máy đang xem, không phải trạng thái online toàn nhóm.
 - Dùng các icon ảnh, video, tệp, nốt nhạc hoặc micro trên composer. Media chỉ gửi được khi tuyến P2P hoặc nhóm sẵn sàng.
-- Tệp nhận được tự lưu; dùng thumbnail, điều khiển WAV hoặc nút mở tệp/vị trí. Video và MP3/M4A phụ thuộc ứng dụng phát của hệ điều hành.
+- Tệp nhận được tự lưu; dùng thumbnail, điều khiển WAV hoặc nút mở tệp/vị trí. Nút **Lưu về máy** cho phép chọn thư mục và tên tệp để lưu bản sao sau khi truyền xong, không thay đổi bản gốc trong lịch sử. Video phát trong cửa sổ IntraChat; MP3/M4A vẫn phụ thuộc ứng dụng phát của hệ điều hành.
 - Trong chat riêng online, nhấn icon điện thoại/video để gọi. Người nhận cần chấp nhận; sử dụng điều khiển mute, camera, chia sẻ màn hình hoặc kết thúc trong cửa sổ cuộc gọi.
 
 ### 4.4. Khởi động lại
@@ -264,7 +264,7 @@ Không có offline delivery queue, resume truyền tệp hoặc tự resend khi 
 | Port bị chiếm | Dừng lắng nghe, chọn cổng khác rồi Bắt đầu |
 | Không tự reconnect | Kiểm tra endpoint cũ; dùng Settings kết nối thủ công khi IP/cổng đổi |
 | Không gửi được media nhóm | Kiểm tra chủ nhóm, roster, peer offline/bận và giới hạn tệp |
-| Không phát được video/âm thanh | Kiểm tra tệp còn tồn tại, ứng dụng mặc định, codec và thiết bị |
+| Không phát được video/âm thanh | Kiểm tra tệp còn tồn tại, codec FFmpeg, thiết bị âm thanh và ứng dụng mặc định cho MP3/M4A |
 | Không gọi được | Kiểm tra chat riêng online, quyền microphone/camera, firewall UDP và cuộc gọi đang hoạt động |
 
 ## 8. Kiểm thử và tài liệu

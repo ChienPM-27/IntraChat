@@ -139,7 +139,7 @@ class MediaComposerEndToEndTest {
                         bubble.set(new MessageBubblePanel(pending,false,false,"A",media.get(),null,complete,(action,uuid)->{}));
                     });
                     SwingUtilities.invokeAndWait(()->{
-                        assertTrue(buttons(bubble.get()).stream().anyMatch(x->x.getText().equals("Mở tệp / vị trí")));
+                        assertTrue(buttons(bubble.get()).stream().anyMatch(x->x.getText().equals(sample.getKey()==MessageType.VIDEO ? "Phát video" : "Mở tệp / vị trí")));
                         assertFalse(buttons(bubble.get()).stream().anyMatch(x->x.getText().equals("Nhận / Chọn nơi lưu")));
                         if(sample.getKey()==MessageType.IMAGE) {
                             assertTrue(buttons(bubble.get()).stream().anyMatch(x->x.getIcon()!=null && x.isEnabled() &&
