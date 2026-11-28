@@ -21,6 +21,7 @@ public final class LiveChatService implements AutoCloseable {
     private final LocalProfile local;
     private final HistoryRepository history;
     private final FileTransferService fileTransfers;
+    private final CallService callService;
     private final ExecutorService workers=Executors.newVirtualThreadPerTaskExecutor();
     private final ScheduledExecutorService deadlines=Executors.newSingleThreadScheduledExecutor(r->{
         Thread t=new Thread(r,"intrachat-ack-timeouts");t.setDaemon(true);return t;
@@ -75,6 +76,18 @@ public final class LiveChatService implements AutoCloseable {
                 autoAcceptTransfer(transfer);
             }
         });
+        callService=new CallService(local.deviceId(),(remote,type,conversation,payload)->{
+            Peer peer=peers.get(remote);
+            if(peer==null||!peer.socket.isOpen())throw new IOException("Peer offline");
+            peer.socket.send(new WireMessage(type,UUID.randomUUID(),conversation,
+                localId(),remote,Instant.now(),payload));
+        });
+    }
+    public CallService calls(){return callService;}
+    public CallService.CallSession startCall(UUID peerId,CallService.Mode mode)throws IOException{
+        Peer peer=peers.get(peerId);
+        if(peer==null||!peer.socket.isOpen())throw new IOException("Đối phương đang ngoại tuyến");
+        return callService.startCall(peerId,peer.conversation,peer.name,mode,peer.socket.remoteAddress());
     }
     private static boolean isTerminalTransfer(FileTransferService.State state){
         return state==FileTransferService.State.COMPLETED||state==FileTransferService.State.REJECTED
@@ -177,6 +190,7 @@ public final class LiveChatService implements AutoCloseable {
             }
         }
         fileTransfers.disconnected(id);
+        callService.disconnected(id);
         peer.socket.close();
         publish(EventKind.DISCONNECTED,id,null,null,"DISCONNECTED");
     }
@@ -310,6 +324,12 @@ public final class LiveChatService implements AutoCloseable {
             fileTransfers.handleIncoming(id,frame);
             return;
         }
+        if(frame.type().name().startsWith("CALL_")){
+            if(!peer.conversation.equals(frame.conversationId()))
+                throw new IllegalArgumentException("Call conversation mismatch");
+            callService.handleIncoming(id,peer.name,peer.socket.remoteAddress(),frame);
+            return;
+        }
         if(frame.type().name().startsWith("GROUP_")){
             var handler=groupHandler;
             if(handler!=null)handler.accept(id,frame);
@@ -384,6 +404,7 @@ public final class LiveChatService implements AutoCloseable {
     @Override public void close(){
         closed=true;
         for(UUID id:List.copyOf(peers.keySet()))disconnect(id);
+        callService.close();
         fileTransfers.close();deadlines.shutdownNow();workers.shutdownNow();listeners.clear();
         history.close();
         synchronized(this){recentTranscript.clear();}

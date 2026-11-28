@@ -7,6 +7,7 @@ import vn.intrachat.domain.MessageAttempt;
 import vn.intrachat.application.LocalProfile;
 import vn.intrachat.application.GroupService;
 import vn.intrachat.application.FileTransferService;
+import vn.intrachat.application.CallService;
 import java.nio.file.Path;
 import java.io.IOException;
 import vn.intrachat.domain.ChatGroup;
@@ -70,6 +71,22 @@ public final class LiveChatAdapter implements ChatActionHandler {
         this.closeNetwork=Objects.requireNonNull(closeNetwork);
         service.addListener(this::onEvent);
         service.addFileListener(this::onFileEvent);
+        service.calls().addStateListener(session -> javax.swing.SwingUtilities.invokeLater(() -> {
+            ChatClientListener current = subscriber;
+            if (!closed && current != null) current.onCallStateChanged(session);
+        }));
+        service.calls().addLocalVideoListener(frame -> javax.swing.SwingUtilities.invokeLater(() -> {
+            ChatClientListener current = subscriber;
+            if (!closed && current != null) current.onLocalVideoFrame(frame);
+        }));
+        service.calls().addRemoteVideoListener(frame -> javax.swing.SwingUtilities.invokeLater(() -> {
+            ChatClientListener current = subscriber;
+            if (!closed && current != null) current.onRemoteVideoFrame(frame);
+        }));
+        service.calls().addNoticeListener(msg -> javax.swing.SwingUtilities.invokeLater(() -> {
+            ChatClientListener current = subscriber;
+            if (!closed && current != null) current.onConnectionError(msg);
+        }));
         groups=new GroupService(service,(owner,label,name)->{
             CompletableFuture<Boolean> answer=new CompletableFuture<>();
             javax.swing.SwingUtilities.invokeLater(()->{
@@ -85,6 +102,32 @@ public final class LiveChatAdapter implements ChatActionHandler {
     public ChatUser self(){return self;}
     @Override public boolean connectionSettingsAvailable(){return connectionSettings!=null;}
     @Override public void openConnectionSettings(){if(connectionSettings!=null)connectionSettings.run();}
+    @Override public boolean callAvailable(){return true;}
+    @Override public void startCall(String conversationId,CallService.Mode mode)throws IOException{
+        if(closed)throw new IOException("Phiên Live đã đóng");
+        UUID requested;
+        try{requested=UUID.fromString(conversationId);}
+        catch(IllegalArgumentException ex){throw new IOException("Hội thoại không hợp lệ",ex);}
+        for(UUID remote:service.connectedPeers().keySet()){
+            if(requested.equals(service.conversationId(remote))){
+                service.startCall(remote,mode);
+                return;
+            }
+        }
+        throw new IOException("Chỉ gọi P2P khi đối phương đang trực tuyến.");
+    }
+    @Override public void acceptCall(String callId)throws IOException{
+        service.calls().acceptCall(UUID.fromString(callId));
+    }
+    @Override public void rejectCall(String callId){
+        service.calls().rejectCall(UUID.fromString(callId),"Đã từ chối cuộc gọi");
+    }
+    @Override public void endCall(String callId){
+        service.calls().endCall(UUID.fromString(callId),"Cuộc gọi đã kết thúc");
+    }
+    @Override public void setCallMuted(boolean muted){service.calls().setMuted(muted);}
+    @Override public void setCallCameraOn(boolean on){service.calls().setCameraOn(on);}
+    @Override public void setCallScreenShare(boolean enabled){service.calls().setScreenShare(enabled);}
     @Override public void connect(ChatClientListener listener){
         subscriber=Objects.requireNonNull(listener);
         Runnable initial=()->{
