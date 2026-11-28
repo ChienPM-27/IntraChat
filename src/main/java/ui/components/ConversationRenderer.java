@@ -35,11 +35,16 @@ public final class ConversationRenderer implements ListCellRenderer<Conversation
         summaries.add(label(row.title(), 14, Font.BOLD, INK));
         JPanel latest = new JPanel(new BorderLayout(5, 0));
         latest.setOpaque(false);
-        JLabel preview = label(row.preview(), 12, Font.PLAIN, MUTED);
+        int emojiSize = 16;
+        EmojiTextPane preview = new EmojiTextPane(MUTED, false, 12, emojiSize);
+        preview.setOpaque(false);
+        preview.setBorder(null);
+        preview.setMargin(new Insets(0, 0, 0, 0));
         JLabel timestamp = label(row.time(), 11, Font.PLAIN, MUTED);
         int available = Math.max(0, list.getFixedCellWidth() - 14 - 18 - 45 - 10 - 5
                 - timestamp.getPreferredSize().width);
-        preview.setText(ellipsize(row.preview(), preview.getFontMetrics(preview.getFont()), available));
+        preview.setText(ellipsize(row.preview(), preview.getFontMetrics(preview.getFont()), available, emojiSize));
+        preview.styleEmoji();
         latest.add(preview);
         latest.add(timestamp, BorderLayout.EAST);
         summaries.add(latest);
@@ -49,17 +54,18 @@ public final class ConversationRenderer implements ListCellRenderer<Conversation
         return outer;
     }
 
-    private static String ellipsize(String text, FontMetrics font, int width) {
+    private static String ellipsize(String text, FontMetrics font, int width, int emojiSize) {
         StringBuilder displayed = new StringBuilder();
         int measured = 0;
-        for (int index = 0; index < text.length();) {
-            int point = text.codePointAt(index);
-            measured += font.charWidth(point);
+        var graphemes = EmojiTextPane.GRAPHEME.matcher(text);
+        while (graphemes.find()) {
+            String glyph = graphemes.group();
+            Icon icon = glyph.codePoints().allMatch(c -> c < 128) ? null : EmojiTextPane.icon(glyph, emojiSize);
+            measured += icon == null ? font.stringWidth(glyph) : icon.getIconWidth();
             if (measured + font.charWidth('…') > width) {
                 return displayed + "…";
             }
-            displayed.appendCodePoint(point);
-            index += Character.charCount(point);
+            displayed.append(glyph);
         }
         return displayed.toString();
     }

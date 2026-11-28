@@ -17,7 +17,8 @@ final class EmojiTextPane extends JTextPane {
         + "😎 🤩 🥳 🤔 🤫 😴 😮 😱 😢 😭 😡 😤 🙌 👏 👍 👎 🙏 🤝 "
         + "💪 👋 🤟 👌 ❤️ 💙 💚 💛 💜 💔 ✨ 🎉 🔥 💯 🎂 🎁 "
         + "🌈 🌸 🌻 🐱 🐶 ☕ 🍕 🍀 🚀 ⭐ 🇻🇳 👩🏽‍💻").split(" ");
-    private static final Pattern GRAPHEME = Pattern.compile("\\X");
+    static final int DISPLAY_EMOJI_SIZE = 25;
+    static final Pattern GRAPHEME = Pattern.compile("\\X");
     private static final Object EMOJI_SPAN = new Object();
     private static final Map<String, byte[]> IMAGES = loadImages();
     private static final Map<String, Icon> ICONS = new LinkedHashMap<>(128, .75f, true) {
@@ -25,8 +26,14 @@ final class EmojiTextPane extends JTextPane {
     };
     private final SimpleAttributeSet regular = new SimpleAttributeSet();
     private boolean queued;
+    private final int emojiSize;
 
     EmojiTextPane(Color ink, boolean editable) {
+        this(ink, editable, 14, editable ? 18 : DISPLAY_EMOJI_SIZE);
+    }
+
+    EmojiTextPane(Color ink, boolean editable, int fontSize, int emojiSize) {
+        this.emojiSize = emojiSize;
         setEditorKit(new StyledEditorKit() {
             @Override public ViewFactory getViewFactory() {
                 ViewFactory base = super.getViewFactory();
@@ -41,15 +48,15 @@ final class EmojiTextPane extends JTextPane {
                 };
             }
         });
-        setFont(new Font(Font.DIALOG, Font.PLAIN, 14));
+        setFont(new Font(Font.DIALOG, Font.PLAIN, fontSize));
         setForeground(ink);
         setEditable(editable);
         StyleConstants.setFontFamily(regular, Font.DIALOG);
-        StyleConstants.setFontSize(regular, 14);
+        StyleConstants.setFontSize(regular, fontSize);
         StyleConstants.setForeground(regular, ink);
         getStyledDocument().addDocumentListener(new DocumentListener() {
-            public void insertUpdate(DocumentEvent e) { schedule(); }
-            public void removeUpdate(DocumentEvent e) { schedule(); }
+            public void insertUpdate(DocumentEvent e) { if (editable) schedule(); }
+            public void removeUpdate(DocumentEvent e) { if (editable) schedule(); }
             public void changedUpdate(DocumentEvent e) { }
         });
         if (editable) {
@@ -127,7 +134,7 @@ final class EmojiTextPane extends JTextPane {
         while (matcher.find()) {
             String glyph = matcher.group();
             if (glyph.codePoints().allMatch(c -> c < 128)) continue;
-            Icon image = icon(glyph, 18);
+            Icon image = icon(glyph, emojiSize);
             if (image == null) continue;
             SimpleAttributeSet attr = new SimpleAttributeSet(regular);
             StyleConstants.setIcon(attr, image);

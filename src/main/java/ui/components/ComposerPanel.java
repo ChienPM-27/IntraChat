@@ -176,7 +176,7 @@ public final class ComposerPanel extends JPanel implements AutoCloseable {
         grid.setBorder(new EmptyBorder(6, 6, 6, 6));
         Font font = new Font("Segoe UI Emoji", Font.PLAIN, 22);
         for (String glyph : EmojiTextPane.PICKER) {
-            JButton option = new JButton(EmojiTextPane.icon(glyph, 25));
+            JButton option = new JButton(EmojiTextPane.icon(glyph, EmojiTextPane.DISPLAY_EMOJI_SIZE));
             option.setToolTipText(glyph);
             option.getAccessibleContext().setAccessibleName(glyph);
             if (option.getIcon() == null) option.setText(glyph);
