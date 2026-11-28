@@ -73,6 +73,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     public MainChatFrame(ChatUser self, ChatActionHandler actions) {
         super("IntraChat — Live LAN TCP");
         this.self = self;
+        if (Boolean.getBoolean("intrachat.testBot")) setTitle("IntraChat — Live LAN TCP — " + self.displayName());
         this.actions = actions;
         this.visibleMessages = new LiveMessageVisibilityObserver(System::nanoTime,
             (conversationId,messageId) -> this.actions.onMessageVisible(conversationId,messageId));
@@ -562,7 +563,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
                 case "cancel" -> work.submit(()->actions.cancelFile(id));
                 case "open" -> {
                     Path path=t.localPath();
-                    if(t.messageType()==MessageType.VIDEO) break;
+                    if(t.messageType()!=MessageType.FILE) break;
                     if(path!=null&&Files.isRegularFile(path))work.submit(()->{
                         try{
                             if(java.awt.Desktop.isDesktopSupported())
@@ -580,8 +581,11 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             FileTransferService.Transfer previous=fileTransfers.put(id,t);
             MessageBubblePanel bubble=rows.get(id);
             // Rebuild when the file becomes readable (or an offer arrives after history).
-            if (previous==null || (previous.state()!=FileTransferService.State.COMPLETED
-                    && t.state()==FileTransferService.State.COMPLETED)) {
+            boolean ownMedia = self.id().equals(t.senderId().toString())
+                && t.messageType()!=MessageType.FILE && t.localPath()!=null;
+            if (previous==null || (ownMedia ? !Objects.equals(previous.localPath(), t.localPath())
+                    : previous.state()!=FileTransferService.State.COMPLETED
+                        && t.state()==FileTransferService.State.COMPLETED)) {
                 rows.remove(id);
             } else if(bubble!=null) {
                 bubble.showFileTransfer(t,this::fileAction);

@@ -9,6 +9,7 @@
   <name>IntraChat</name>
   <description>Java Swing LAN messenger using plain TCP</description>
   <properties>
+    <intrachat.buildDir>${project.basedir}/target</intrachat.buildDir>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <maven.compiler.release>21</maven.compiler.release>
@@ -73,6 +74,7 @@
     </dependency>
   </dependencies>
   <build>
+    <directory>${intrachat.buildDir}</directory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

@@ -19,6 +19,7 @@ import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
 /** Local-file video playback inside Swing. Decode and audio output stay off the EDT. */
 final class VideoPlayerPanel extends JPanel {
     private final Attachment attachment;
+    private final MessageType type;
     private final Consumer<String> notice;
     private final Consumer<VideoPlayerPanel> activate;
     private final AtomicReference<BufferedImage> nextImage = new AtomicReference<>();
@@ -48,11 +49,18 @@ final class VideoPlayerPanel extends JPanel {
     private BufferedImage visibleImage;
 
     VideoPlayerPanel(Attachment attachment, Consumer<String> notice, Consumer<VideoPlayerPanel> activate) {
+        this(attachment, notice, activate, MessageType.VIDEO);
+    }
+
+    VideoPlayerPanel(Attachment attachment, Consumer<String> notice, Consumer<VideoPlayerPanel> activate, MessageType type) {
         super(new BorderLayout(0, 4));
         this.attachment = attachment;
+        this.type = type;
+        boolean audioOnly = type == MessageType.SOUND;
+        if (audioOnly) play.setText("Phát âm thanh");
         this.notice = notice;
         this.activate = activate;
-        setName("messenger-video-player");
+        setName(audioOnly ? "messenger-audio-player" : "messenger-video-player");
         setOpaque(false);
         screen.setBackground(Color.BLACK);
         screen.setPreferredSize(new Dimension(300, 169));
@@ -61,8 +69,8 @@ final class VideoPlayerPanel extends JPanel {
         screen.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { if (play.isEnabled()) play.doClick(); }
         });
-        play.setName("video-play-pause");
-        stop.setName("video-stop");
+        play.setName(audioOnly ? "audio-play-pause" : "video-play-pause");
+        stop.setName(audioOnly ? "audio-stop" : "video-stop");
         play.addActionListener(e -> {
             if (decoder == null) activate.accept(this);
             else {
@@ -91,7 +99,7 @@ final class VideoPlayerPanel extends JPanel {
         title.setOpaque(true);
         title.setBackground(ChatStyle.FIELD);
         add(title, BorderLayout.NORTH);
-        add(screen, BorderLayout.CENTER);
+        if (!audioOnly) add(screen, BorderLayout.CENTER);
         add(controls, BorderLayout.SOUTH);
     }
 
@@ -101,7 +109,7 @@ final class VideoPlayerPanel extends JPanel {
         visibleImage = null; nextImage.set(null);
         progress.setValue(0); screen.repaint();
         play.setText("Tạm dừng"); stop.setEnabled(true);
-        clock.setText("Đang mở video…");
+        clock.setText(type == MessageType.SOUND ? "Đang mở âm thanh…" : "Đang mở video…");
         refresh.start();
         decoder = Thread.ofVirtual().name("intrachat-video-player").unstarted(this::decode);
         decoder.start();
@@ -153,7 +161,7 @@ final class VideoPlayerPanel extends JPanel {
         boolean audioUnavailable = false;
         String failure = null;
         try {
-            MediaFiles.inspect(attachment.path(), MessageType.VIDEO);
+            MediaFiles.inspect(attachment.path(), type);
             try (var grabber = new FFmpegFrameGrabber(attachment.path().toFile());
                  var converter = new Java2DFrameConverter()) {
                 // Only local files may be opened, including any nested FFmpeg references.
@@ -162,17 +170,21 @@ final class VideoPlayerPanel extends JPanel {
                 grabber.setAudioChannels(2);
                 grabber.setSampleRate(44100);
                 grabber.start();
-                if (grabber.getImageWidth() <= 0 || grabber.getImageHeight() <= 0
-                        || (long) grabber.getImageWidth() * grabber.getImageHeight() > 16_000_000)
-                    throw new IllegalArgumentException("Video không có hình ảnh hợp lệ hoặc độ phân giải quá lớn.");
-                double scale = Math.min(1, 640.0 / Math.max(grabber.getImageWidth(), grabber.getImageHeight()));
-                int width = grabber.getImageWidth(), height = grabber.getImageHeight();
-                grabber.setImageWidth(Math.max(1, (int) (width * scale)));
-                grabber.setImageHeight(Math.max(1, (int) (height * scale)));
+                if (type == MessageType.SOUND) {
+                    if (!grabber.hasAudio()) throw new IllegalArgumentException("Tệp không có âm thanh hợp lệ.");
+                } else {
+                    if (grabber.getImageWidth() <= 0 || grabber.getImageHeight() <= 0
+                            || (long) grabber.getImageWidth() * grabber.getImageHeight() > 16_000_000)
+                        throw new IllegalArgumentException("Video không có hình ảnh hợp lệ hoặc độ phân giải quá lớn.");
+                    double scale = Math.min(1, 640.0 / Math.max(grabber.getImageWidth(), grabber.getImageHeight()));
+                    int width = grabber.getImageWidth(), height = grabber.getImageHeight();
+                    grabber.setImageWidth(Math.max(1, (int) (width * scale)));
+                    grabber.setImageHeight(Math.max(1, (int) (height * scale)));
+                }
                 durationUs = Math.max(0, grabber.getLengthInTime());
                 long firstUs = Long.MIN_VALUE, startNanos = System.nanoTime();
                 org.bytedeco.javacv.Frame frame;
-                while (!cancelled && (frame = grabber.grab()) != null) {
+                while (!cancelled && (frame = (type == MessageType.SOUND ? grabber.grabSamples() : grabber.grab())) != null) {
                     if (firstUs == Long.MIN_VALUE) firstUs = frame.timestamp;
                     long timestamp = Math.max(0, frame.timestamp - firstUs);
                     startNanos = waitUntil(startNanos, timestamp, audio);
@@ -196,6 +208,7 @@ final class VideoPlayerPanel extends JPanel {
                                 audio.start();
                             } catch (Exception ex) {
                                 if (audio != null) { audio.close(); audio = null; }
+                                if (type == MessageType.SOUND) throw ex;
                                 audioUnavailable = true;
                                 SwingUtilities.invokeLater(() -> notice.accept("Không mở được loa; video vẫn phát hình ảnh."));
                             }
@@ -218,10 +231,12 @@ final class VideoPlayerPanel extends JPanel {
                         }
                     }
                 }
+                if (!cancelled && type == MessageType.SOUND && audio == null)
+                    throw new IllegalArgumentException("Không đọc được mẫu âm thanh.");
                 if (!cancelled && audio != null) audio.drain();
             }
         } catch (Exception | LinkageError ex) {
-            if (!cancelled) failure = "Không thể phát video: " + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage());
+            if (!cancelled) failure = (type == MessageType.SOUND ? "Không thể phát âm thanh: " : "Không thể phát video: ") + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage());
         } finally {
             if (audio != null) { audio.stop(); audio.flush(); audio.close(); }
             String error = failure;

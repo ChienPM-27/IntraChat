@@ -63,9 +63,9 @@ public final class MessageBubblePanel extends JPanel {
         bubble.setBorder(visualMedia ? new EmptyBorder(5, 5, 5, 5) : new EmptyBorder(7, 11, 7, 11));
         bubble.setAlignmentX(alignment);
         bubble.add(message.content().type() == MessageType.TEXT ? text(message.content().text(), ink)
-                : transfer!=null && (transfer.state()!=FileTransferService.State.COMPLETED ||
-                        message.content().type()==MessageType.FILE)
-                    ? fileLabel(transfer,ink) : media.render(completedContent(message, transfer), mine));
+                : transfer!=null && (message.content().type()==MessageType.FILE ||
+                        transfer.localPath()==null || (!mine && transfer.state()!=FileTransferService.State.COMPLETED))
+                    ? fileLabel(transfer,ink) : media.render(localContent(message, transfer), mine));
         bubble.setToolTipText(sender + " · " + time);
         bubble.getAccessibleContext().setAccessibleName(sender + " · " + time);
         stack.add(bubble);
@@ -109,8 +109,8 @@ public final class MessageBubblePanel extends JPanel {
         add(stack);
     }
 
-    private static model.MessageContent completedContent(ChatMessage message, FileTransferService.Transfer transfer) {
-        if (transfer == null || transfer.state() != FileTransferService.State.COMPLETED || transfer.localPath() == null)
+    private static model.MessageContent localContent(ChatMessage message, FileTransferService.Transfer transfer) {
+        if (transfer == null || transfer.localPath() == null)
             return message.content();
         return model.MessageContent.media(message.content().type(), new model.Attachment(
             transfer.localPath(), transfer.fileName(), transfer.fileSize(), 0, 0, 0));
@@ -146,10 +146,10 @@ public final class MessageBubblePanel extends JPanel {
         JPanel buttons=new JPanel(new FlowLayout(FlowLayout.LEFT,4,0));buttons.setOpaque(false);
         // Incoming transfers are accepted automatically into the managed received-files directory.
         // Cancel remains available while the transfer is active.
-        if(t.state()==FileTransferService.State.WAITING_ACCEPT||t.state()==FileTransferService.State.TRANSFERRING)
+        if(action!=null && (t.state()==FileTransferService.State.WAITING_ACCEPT||t.state()==FileTransferService.State.TRANSFERRING))
             addFileButton(buttons,"Hủy",()->action.accept("cancel",t.transferId().toString()));
         if(t.state()==FileTransferService.State.COMPLETED&&t.localPath()!=null) {
-            if (action != null && t.messageType()!=MessageType.VIDEO)
+            if (action != null && t.messageType()==MessageType.FILE)
                 addFileButton(buttons,"Mở tệp / vị trí",()->action.accept("open",t.transferId().toString()));
             buttons.add(media.saveButton(new model.Attachment(t.localPath(), t.fileName(), t.fileSize(), 0, 0, 0)));
         }

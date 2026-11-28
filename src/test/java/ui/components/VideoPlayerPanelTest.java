@@ -38,9 +38,16 @@ class VideoPlayerPanelTest {
         var dialog = new AtomicReference<VideoPlayerPanel>();
         SwingUtilities.invokeAndWait(() -> {
             var media = new MessageMedia(Runnable::run, new JPanel(), notices::add);
-            var message = new model.ChatMessage("video", "chat", "sender", java.time.Instant.now(),
-                model.MessageContent.media(MessageType.VIDEO, attachment), model.DeliveryState.DELIVERED);
-            var bubble = new MessageBubblePanel(message, false, false, "Sender", media);
+            var id = java.util.UUID.randomUUID();
+            var chatId = java.util.UUID.randomUUID();
+            var sender = java.util.UUID.randomUUID();
+            var now = java.time.Instant.now();
+            var transfer = new vn.intrachat.application.FileTransferService.Transfer(id, chatId, sender,
+                java.util.UUID.randomUUID(), attachment.fileName(), attachment.sizeBytes(), 0,
+                vn.intrachat.application.FileTransferService.State.TRANSFERRING, path, null, now, MessageType.VIDEO);
+            var message = new model.ChatMessage(id.toString(), chatId.toString(), sender.toString(), now,
+                model.MessageContent.media(MessageType.VIDEO, attachment), model.DeliveryState.SENDING);
+            var bubble = new MessageBubblePanel(message, true, false, "Sender", media, null, transfer, (a,b)->{});
             dialog.set(find(bubble, VideoPlayerPanel.class));
             assertNotNull(dialog.get());
             JPanel chat = new JPanel();
@@ -67,6 +74,22 @@ class VideoPlayerPanelTest {
             SwingUtilities.invokeAndWait(dialog.get()::stopDecoding);
         }
     }
+    @Test void compressedAudioUsesEmbeddedControlsForBothSides() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            try (var media = new MessageMedia(Runnable::run, new JPanel(), s -> {})) {
+                for (String extension : new String[]{"mp3", "m4a"}) {
+                    var attachment = new model.Attachment(folder.resolve("sample." + extension),
+                        "sample." + extension, 1, 0, 0, 0);
+                    for (boolean mine : new boolean[]{true, false}) {
+                        var panel = media.render(model.MessageContent.media(MessageType.SOUND, attachment), mine);
+                        assertEquals("messenger-audio-player", panel.getName());
+                        assertEquals("audio-play-pause", find(panel, JButton.class).getName());
+                    }
+                }
+            }
+        });
+    }
+
     private static <T extends Component> T find(Component root, Class<T> type) {
         if (type.isInstance(root)) return type.cast(root);
         if (root instanceof Container container) for (Component child : container.getComponents()) {

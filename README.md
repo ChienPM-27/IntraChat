@@ -158,6 +158,17 @@ Launcher tự tìm JDK 21 từ JAVA_HOME, JDK portable, PATH hoặc các thư m�
 
 Chỉ dùng `-SkipBuild` nếu JAR đã được build từ phiên bản mong muốn.
 
+#### Bot GUI kiểm thử nhóm trên một máy
+
+```powershell
+.\run-bots.ps1 -Count 3
+.\run-bots.ps1 -Count 4 -SkipBuild
+.\stop-bots.ps1
+```
+
+Mỗi bot là một JVM chạy giao diện Swing thật, UUID và profile riêng tại `data/_gui-bots/<session>/Bot-XX`. Launcher build một lần vào thư mục runtime riêng (không khóa JAR của người dùng chính), bỏ qua test mặc định; với -SkipBuild dùng bản JAR target có sẵn; mỗi bot tự Listen trên cổng TCP loopback còn trống, in IP/cổng và PID ra terminal. Mở bánh răng Cài đặt kết nối LAN ở người dùng chính (hoặc bot), kết nối tới `127.0.0.1:<port>`, xác nhận handshake ở bot và tạo nhóm như bình thường. Không tự scan LAN, không tự chấp nhận lời mời, không tự phát tin nhắn. Giới hạn 1–4 bot mỗi lần phù hợp giới hạn 4 phiên TCP trực tiếp của mỗi thiết bị. Đóng từng cửa sổ hoặc chạy stop-bots.ps1 để dừng các JVM bot đã tạo, không xóa hồ sơ/log và không dừng người dùng chính. Có thể chỉ dừng một phiên bằng `-Session <tên-thư-mục-session>`. Camera/mic vẫn dùng thiết bị thật, chưa giả lập riêng cho bot.
+
+
 ### 3.3. Build thủ công
 
 ```powershell

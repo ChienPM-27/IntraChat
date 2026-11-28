@@ -112,6 +112,27 @@ class MediaComposerEndToEndTest {
                     until(()->send.get()!=null);
                     ChatMessage offered=send.get().get(8,TimeUnit.SECONDS);
                     UUID id=UUID.fromString(offered.id());
+                    if(sample.getKey()!=MessageType.FILE) {
+                        var outgoing = left.transfers.get(id);
+                        if(outgoing == null) {
+                            until(()->left.transfers.containsKey(id));
+                            outgoing = left.transfers.get(id);
+                        }
+                        var local = outgoing;
+                        SwingUtilities.invokeAndWait(()->{
+                            try(var media=new MessageMedia(Runnable::run,new JPanel(),n->{})){
+                                var senderBubble=new MessageBubblePanel(offered,true,false,"Bạn",media,null,local,(action,uuid)->{});
+                                var controls=buttons(senderBubble);
+                                assertTrue(controls.stream().anyMatch(x->switch(sample.getKey()){
+                                    case IMAGE -> x.getAccessibleContext().getAccessibleName().startsWith("Xem ảnh");
+                                    case SOUND -> "Phát tin thoại".equals(x.getAccessibleContext().getAccessibleName());
+                                    case VIDEO -> "video-play-pause".equals(x.getName());
+                                    default -> false;
+                                }));
+                                assertFalse(controls.stream().anyMatch(x->Set.of("Mở tệp / vị trí","Mở ngoài").contains(x.getText())));
+                            }
+                        });
+                    }
                     until(()->right.transfers.containsKey(id)&&right.messages.containsKey(offered.id()));
                     var incoming=right.transfers.get(id);
                     assertEquals(FileTransferService.State.WAITING_ACCEPT,incoming.state());
@@ -139,7 +160,10 @@ class MediaComposerEndToEndTest {
                         bubble.set(new MessageBubblePanel(pending,false,false,"A",media.get(),null,complete,(action,uuid)->{}));
                     });
                     SwingUtilities.invokeAndWait(()->{
-                        assertTrue(buttons(bubble.get()).stream().anyMatch(x->x.getText().equals(sample.getKey()==MessageType.VIDEO ? "Phát video" : "Mở tệp / vị trí")));
+                        assertEquals(sample.getKey()==MessageType.FILE,
+                            buttons(bubble.get()).stream().anyMatch(x->x.getText().equals("Mở tệp / vị trí")));
+                        if(sample.getKey()==MessageType.VIDEO)
+                            assertTrue(buttons(bubble.get()).stream().anyMatch(x->x.getText().equals("Phát video")));
                         assertFalse(buttons(bubble.get()).stream().anyMatch(x->x.getText().equals("Nhận / Chọn nơi lưu")));
                         if(sample.getKey()==MessageType.IMAGE) {
                             assertTrue(buttons(bubble.get()).stream().anyMatch(x->x.getIcon()!=null && x.isEnabled() &&

@@ -49,7 +49,7 @@ public final class MessageMedia implements AutoCloseable {
             case VIDEO -> video(attachment);
             case FILE -> file(attachment, ink);
             case SOUND -> attachment.fileName().toLowerCase(java.util.Locale.ROOT).endsWith(".wav")
-                ? new VoicePlayer(attachment, ink) : externalAudio(attachment, ink);
+                ? new VoicePlayer(attachment, ink) : new VideoPlayerPanel(attachment, status, this::playVideo, MessageType.SOUND);
             default -> throw new IllegalArgumentException();
         };
     }
@@ -122,21 +122,6 @@ public final class MessageMedia implements AutoCloseable {
         if (videoPlayer != player) stopPlayback();
         videoPlayer = player;
         player.begin();
-    }
-
-    private JComponent externalAudio(Attachment attachment, Color ink) {
-        JButton open = new JButton("Mở âm thanh: " + shortName(attachment.fileName(), 25));
-        open.setIcon(new ChatIcon(ChatIcon.Kind.AUDIO, ink, 19));
-        open.setToolTipText("MP3/M4A: mở bằng trình phát mặc định");
-        open.addActionListener(event -> run(() -> {
-            if (!java.nio.file.Files.isRegularFile(attachment.path()))
-                throw new IOException("File không còn tồn tại");
-            if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN))
-                throw new IOException("Không có ứng dụng mặc định");
-            Desktop.getDesktop().open(attachment.path().toFile());
-            return true;
-        }, result -> {}, "Không mở được âm thanh bằng ứng dụng mặc định."));
-        return open;
     }
 
     private JComponent file(Attachment attachment, Color ink) {
@@ -301,22 +286,11 @@ public final class MessageMedia implements AutoCloseable {
             add(play, BorderLayout.WEST);
             add(track);
             add(time, BorderLayout.EAST);
-            JButton external=new JButton("Mở ngoài");
-            external.setToolTipText("Mở bằng ứng dụng mặc định nếu không thể phát nội bộ");
-            external.addActionListener(event -> run(() -> {
-                if(!java.nio.file.Files.isRegularFile(attachment.path()))
-                    throw new IOException("File không còn tồn tại");
-                if(!Desktop.isDesktopSupported()||!Desktop.getDesktop().isSupported(Desktop.Action.OPEN))
-                    throw new IOException("Không có ứng dụng mặc định");
-                Desktop.getDesktop().open(attachment.path().toFile());
-                return true;
-            }, result -> {}, "Không mở được âm thanh bằng ứng dụng mặc định."));
             JPanel actions=new JPanel(new FlowLayout(FlowLayout.LEFT,2,0));
             actions.setOpaque(false);
             JButton stop=new JButton("Dừng");
             stop.addActionListener(event -> stopPlayback());
             actions.add(stop);
-            actions.add(external);
             add(actions,BorderLayout.SOUTH);
         }
 

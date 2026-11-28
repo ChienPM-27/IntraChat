@@ -4,7 +4,8 @@ param(
     [string]$User,
     [string]$DataDir,
     [switch]$SkipBuild,
-    [switch]$Diagnostics
+    [switch]$Diagnostics,
+    [ValidateRange(0,4)][int]$BotCount = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -96,11 +97,22 @@ try {
     Write-Host "IntraChat / JDK 21: $JavaHome"
     if (-not $SkipBuild) {
         Write-Host 'Building IntraChat (tests skipped)...'
-        & $wrapper clean package '-DskipTests'
+        if ($BotCount -gt 0) {
+            # A running normal GUI locks its JAR on Windows. Build bots elsewhere.
+            $botBuild = Join-Path $repo ('runtime\gui-bot-build\' + [guid]::NewGuid().ToString('N'))
+            & $wrapper clean package '-DskipTests' "-Dintrachat.buildDir=$botBuild"
+            $jar = Join-Path $botBuild 'intrachat-0.1.0-SNAPSHOT.jar'
+        } else {
+            & $wrapper clean package '-DskipTests'
+        }
         if ($LASTEXITCODE -ne 0) { throw "Maven build failed (exit $LASTEXITCODE)." }
     }
     if (-not (Test-Path -LiteralPath $jar -PathType Leaf)) {
         throw "Executable JAR missing: $jar. Run without -SkipBuild first."
+    }
+    if ($BotCount -gt 0) {
+        & (Join-Path $repo 'scripts\Start-GuiBots.ps1') -Java $java -Jar $jar -Count $BotCount
+        return
     }
     Write-Host 'Starting IntraChat...'
     & $java @javaArgs
