@@ -245,6 +245,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown conversation"));
         }catch(IllegalArgumentException failure){return CompletableFuture.failedFuture(failure);}
     }
+    // Cầu nối từ giao diện đến nghiệp vụ gửi text, nhóm hoặc media.
     @Override public CompletionStage<ChatMessage> sendMessage(String conversationId,MessageContent content){
         if(closed)return CompletableFuture.failedFuture(new IllegalStateException("Live closed"));
         if(FileTransferService.MEDIA_TYPES.contains(content.type())){
@@ -285,6 +286,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
         }
         for(var remote:service.connectedPeers().keySet()){
             if(requested.equals(service.conversationId(remote)))
+                // Gửi text P2P đến peer tương ứng với hội thoại.
                 return service.sendText(remote,content.text()).thenApply(this::map);
         }
         return CompletableFuture.failedFuture(new IllegalStateException("Disconnected peer"));
@@ -472,6 +474,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
             presented.conversationId().toString(),presented.senderId().toString(),
             presented.utcInstant(),MessageContent.text(presented.text()),shown);
     }
+    // Chuyển sự kiện mạng về Swing EDT trước khi cập nhật UI.
     private void onEvent(LiveChatService.Event event) {
         if(closed)return;
         if(!javax.swing.SwingUtilities.isEventDispatchThread()){
@@ -482,6 +485,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
         if(current==null)return;
         switch(event.kind()){
             case CONNECTED -> current.onDirectoryChanged(snapshot());
+            // Chuyển tin nhắn nhận được sang mô hình giao diện.
             case RECEIVED -> {
                 current.onDirectoryChanged(snapshot());
                 current.onMessageReceived(map(event.message()));

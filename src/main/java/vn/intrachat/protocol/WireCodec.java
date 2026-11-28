@@ -9,6 +9,7 @@ import java.util.*;
 public final class WireCodec {
     public static final int MAX_FRAME=1_048_576;
     private static final ObjectMapper JSON=new ObjectMapper();
+    // Chuyển WireMessage thành JSON UTF-8.
     public byte[] encode(WireMessage msg)throws IOException{
         var n=JSON.createObjectNode();
         n.put("type",msg.type().name());
@@ -26,6 +27,7 @@ public final class WireCodec {
         JsonNode v=node.get(key);
         return v==null||v.isNull()?null:UUID.fromString(v.asText());
     }
+    // Kiểm tra và giải mã JSON thành WireMessage.
     public WireMessage decode(byte[] bytes)throws IOException{
         if(bytes==null||bytes.length==0||bytes.length>MAX_FRAME)
             throw new IOException("Invalid wire length");

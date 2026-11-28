@@ -184,6 +184,7 @@ public final class LiveChatService implements AutoCloseable {
         peers.put(session.remoteId(),peer);
         history.savePeer(session.remoteId(),name);
         try {
+            // Sau handshake, bắt đầu luồng nhận tin của phiên.
             session.start(frame->receive(session.remoteId(),peer,frame),
                 failure->detach(session.remoteId(),peer));
         } catch(RuntimeException problem){peers.remove(session.remoteId(),peer);session.close();throw problem;}
@@ -278,12 +279,14 @@ public final class LiveChatService implements AutoCloseable {
     private WireMessage wire(WireMessage.Type type,Peer peer,UUID id,Map<String,String> payload){
         return new WireMessage(type,id,peer.conversation,localId(),peer.socket.remoteId(),Instant.now(),payload);
     }
+    // Gửi tin nhắn văn bản trên worker nền.
     public CompletableFuture<Message> sendText(UUID id,String text){
         return CompletableFuture.supplyAsync(()->{
             Peer peer=peers.get(id);
             if(peer==null||!peer.socket.isOpen())throw new CompletionException(new IOException("Peer is offline"));
             ChatText content=new ChatText(text);
             if(!pending.tryAcquire())throw new CompletionException(new IOException("Pending message limit"));
+            // ID riêng để đối chiếu ACK/READ và chống trùng tin.
             UUID messageId=UUID.randomUUID();
             pendingIds.add(messageId);
             MessageAttempt attempt=new MessageAttempt(messageId);
@@ -298,10 +301,13 @@ public final class LiveChatService implements AutoCloseable {
                 history.appendMessage(new HistoryRepository.Entry(messageId,peer.conversation,"DIRECT",
                     localId(),id,message.sentAt(),"TEXT",message.text(),"SENDING",null,"",0,"",""));
                 registered=true;
+                // Đóng gói TEXT cùng ID, thời gian và nội dung để gửi qua TCP.
                 peer.socket.send(new WireMessage(WireMessage.Type.TEXT,messageId,peer.conversation,
                     localId(),id,message.sentAt(),Map.of("text",content.text())));
+                // Ghi socket thành công chưa có nghĩa peer đã nhận.
                 attempt.localWriteCompleted();
                 publish(EventKind.SENT,id,message,attempt.status(),null);
+                // Sau 30 giây chưa có ACK, đánh dấu chưa rõ kết quả gửi.
                 deadlines.schedule(()->{
                     if(attempt.status()==MessageAttempt.Status.LOCAL_SENT){
                         attempt.markUncertain();
@@ -335,6 +341,7 @@ public final class LiveChatService implements AutoCloseable {
             }catch(IOException ex){throw new CompletionException(ex);}
         },workers);
     }
+    // Phân loại gói nhận: file, gọi, nhóm hoặc chat riêng.
     private void receive(UUID id,Peer peer,WireMessage frame){
         if(frame.type().name().startsWith("FILE_")){
             boolean direct=peer.conversation.equals(frame.conversationId());
@@ -376,6 +383,7 @@ public final class LiveChatService implements AutoCloseable {
             case TEXT -> {
                 String text=frame.payload().get("text");
                 ChatText content=new ChatText(text);
+                // Kiểm tra ID để không lưu hoặc hiển thị tin trùng.
                 Message existing=peer.inbound.get(frame.messageId());
                 var persisted=history.find(frame.messageId());
                 if(existing==null&&persisted!=null){
@@ -402,11 +410,13 @@ public final class LiveChatService implements AutoCloseable {
                         id,localId(),msg.sentAt(),"TEXT",msg.text(),"DELIVERED",null,"",0,"",""));
                 }catch(IOException e){throw new CompletionException(e);}
                 peer.inbound.put(msg.messageId(),msg);
+                // Báo tin mới cho giao diện sau khi lưu lịch sử, rồi gửi ACK.
                 publish(EventKind.RECEIVED,id,msg,null,null);
                 try{peer.socket.send(wire(WireMessage.Type.ACK,peer,UUID.randomUUID(),
                     Map.of("originalMessageId",msg.messageId().toString())));}
                 catch(IOException e){throw new CompletionException(e);}
             }
+            // Đối chiếu ID tin gốc để cập nhật đã nhận hoặc đã xem.
             case ACK,READ -> {
                 UUID original=UUID.fromString(frame.payload().get("originalMessageId"));
                 Message msg=outbound.get(original);MessageAttempt attempt=attempts.get(original);
@@ -425,6 +435,7 @@ public final class LiveChatService implements AutoCloseable {
             default -> throw new IllegalArgumentException("Unsupported live message type");
         }
     }
+    // Chỉ gửi READ khi giao diện báo tin đã được xem.
     public boolean markViewed(UUID id,UUID messageId,UUID conversation){
         Peer peer=peers.get(id);
         if(peer==null||!peer.socket.isOpen()||!peer.conversation.equals(conversation)

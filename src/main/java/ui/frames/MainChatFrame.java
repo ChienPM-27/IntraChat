@@ -367,6 +367,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         });
     }
 
+    // Xử lý thao tác gửi của người dùng, không chặn giao diện.
     private void send(String destination, MessageContent content) {
         showNotice("Đang gửi…");
         actions.sendMessage(destination, content).whenComplete((message, failure) -> onEdt(() -> {
@@ -382,6 +383,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         }));
     }
 
+    // Gộp tin nhắn và làm mới hội thoại đang hiển thị.
     private void receive(ChatMessage message) {
         if (merge(message)) {
             refreshDirectory();

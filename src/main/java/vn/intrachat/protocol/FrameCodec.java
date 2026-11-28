@@ -16,6 +16,7 @@ public final class FrameCodec {
     public static byte[] readFrame(InputStream input, int maxBytes) throws IOException {
         Objects.requireNonNull(input, "input");
         validateCap(maxBytes);
+        // Đọc 4 byte đầu để biết độ dài phần thân frame.
         byte[] prefix = input.readNBytes(4);
         if (prefix.length < 4) throw new EOFException("FRAME_TRUNCATED: incomplete 4-byte length");
         long length = ((long) (prefix[0] & 0xff) << 24)
@@ -25,6 +26,7 @@ public final class FrameCodec {
         if (length == 0 || length > maxBytes) {
             throw new ProtocolException("FRAME_INVALID_LENGTH", "Frame length is outside allowed bound");
         }
+        // Đọc đúng số byte đã khai báo.
         byte[] data = input.readNBytes((int) length);
         if (data.length != (int) length) {
             throw new EOFException("FRAME_TRUNCATED: peer closed before full body");
@@ -39,6 +41,7 @@ public final class FrameCodec {
         if (data.length == 0 || data.length > maxBytes) {
             throw new ProtocolException("FRAME_INVALID_LENGTH", "Frame length is outside allowed bound");
         }
+        // Ghi độ dài 4 byte big-endian trước nội dung frame.
         int n = data.length;
         output.write((n >>> 24) & 0xff);
         output.write((n >>> 16) & 0xff);

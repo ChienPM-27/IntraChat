@@ -30,6 +30,7 @@ public final class LanCoordinator implements AutoCloseable {
         this.approval=Objects.requireNonNull(approval);
         this.connected=Objects.requireNonNull(connected);
     }
+    // Mở cổng TCP và chờ peer kết nối đến.
     public synchronized void startListening(NetworkConfig config) throws IOException {
         if(closed) throw new IOException("Coordinator closed");
         if(listener != null) throw new IOException("Already listening");
@@ -44,6 +45,7 @@ public final class LanCoordinator implements AutoCloseable {
         workers.submit(() -> {
             while (!server.isClosed() && !closed) {
                 try {
+                    // Nhận kết nối và chuyển sang worker riêng.
                     Socket socket=server.accept();
                     if(!candidateSlots.tryAcquire()){socket.close();continue;}
                     candidates.add(socket);
@@ -56,6 +58,7 @@ public final class LanCoordinator implements AutoCloseable {
         boolean handedOff=false;
         try {
             socket.setSoTimeout(NetworkConfig.HELLO_TIMEOUT_MS);
+            // Đọc HELLO chứa thông tin thiết bị gửi yêu cầu.
             WireMessage hello=codec.read(socket.getInputStream());
             if(hello.type()!=WireMessage.Type.HELLO || hello.senderId().equals(local.deviceId()))
                 throw new IOException("Invalid HELLO");
@@ -65,15 +68,18 @@ public final class LanCoordinator implements AutoCloseable {
             if(reconnect&&!local.deviceId().equals(hello.recipientId()))throw new IOException("Reconnect target UUID mismatch");
             String ip=socket.getInetAddress().getHostAddress();
             NetworkConfig endpoint=advertisedEndpoint(ip,hello,null);
+            // Chờ quyết định chấp nhận hoặc từ chối kết nối.
             boolean ok=approval.decide(new Incoming(hello.senderId(),name,
                 String.valueOf(socket.getRemoteSocketAddress()),ip,reconnect))
                 .toCompletableFuture().get(NetworkConfig.APPROVAL_TIMEOUT_MS,TimeUnit.MILLISECONDS);
             pruneClosed();
+            // Gửi REJECT nếu bị từ chối, trùng peer hoặc quá giới hạn.
             if(!ok || peers.containsKey(hello.senderId()) || peers.size()>=NetworkConfig.MAX_ACTIVE_SESSIONS){
                 codec.write(socket.getOutputStream(), new WireMessage(WireMessage.Type.REJECT,null,null,
                     local.deviceId(),hello.senderId(),null,Map.of()));
                 return;
             }
+            // Chấp nhận kết nối bằng WELCOME.
             establish(socket,hello.senderId(),name,new WireMessage(WireMessage.Type.WELCOME,null,null,
                 local.deviceId(),hello.senderId(),null,greetingPayload()),endpoint);
             handedOff=true;
@@ -91,10 +97,13 @@ public final class LanCoordinator implements AutoCloseable {
                 Socket socket=new Socket();candidates.add(socket);
                 try {
                     if(closed)throw new IOException("Coordinator closed");
+                    // Thiết lập TCP trước khi bắt tay ở tầng ứng dụng.
                     socket.connect(target.socketAddress(),NetworkConfig.CONNECT_TIMEOUT_MS);
                     socket.setSoTimeout(NetworkConfig.APPROVAL_TIMEOUT_MS + NetworkConfig.HELLO_TIMEOUT_MS);
+                    // Gửi HELLO để giới thiệu thiết bị với peer.
                     codec.write(socket.getOutputStream(),new WireMessage(WireMessage.Type.HELLO,null,null,
                         local.deviceId(),expectedPeer,null,greetingPayload()));
+                    // Chờ WELCOME hoặc REJECT từ máy nhận.
                     WireMessage welcome=codec.read(socket.getInputStream());
                     if(welcome.type()==WireMessage.Type.REJECT) throw new IOException("Connection rejected");
                     if(welcome.type()!=WireMessage.Type.WELCOME || welcome.senderId().equals(local.deviceId())
@@ -127,6 +136,7 @@ public final class LanCoordinator implements AutoCloseable {
         pruneClosed();
         if(peers.size()>=NetworkConfig.MAX_ACTIVE_SESSIONS || peers.containsKey(remoteId))
             throw new IOException("Duplicate peer or connection limit");
+        // Giữ socket đã kết nối để gửi và nhận hai chiều.
         LanSession session=new LanSession(socket,local.deviceId(),remoteId);
         Peer peer=new Peer(session,name,endpoint,socket.getInetAddress().getHostAddress());
         if(peers.putIfAbsent(remoteId,peer)!=null) throw new IOException("Duplicate peer");

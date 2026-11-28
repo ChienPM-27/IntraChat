@@ -31,9 +31,11 @@ public final class LanSession implements AutoCloseable {
     public InetAddress remoteAddress() { return socket.getInetAddress(); }
     public InetAddress localAddress() { return socket.getLocalAddress(); }
     public boolean isOpen() { return !closed.get() && !socket.isClosed(); }
+    // Gửi một gói tin qua socket của phiên hiện tại.
     public void send(WireMessage message) throws IOException {
         if (!localId.equals(message.senderId()) || !remoteId.equals(message.recipientId()))
             throw new IOException("Message endpoints mismatch session");
+        // Khóa ghi để các frame từ nhiều thread không bị xen lẫn.
         synchronized (writeLock) {
             if (!isOpen()) throw new IOException("Session closed");
             try { codec.write(socket.getOutputStream(), message); }
@@ -42,14 +44,17 @@ public final class LanSession implements AutoCloseable {
     }
     public synchronized void start(Consumer<WireMessage> onMessage, Consumer<Throwable> onDisconnect) {
         if (reader != null) throw new IllegalStateException("Session reader already running");
+        // Virtual thread riêng đọc socket liên tục, không chặn giao diện.
         reader = Thread.ofVirtual().name("intrachat-tcp-" + remoteId).start(() -> {
             Throwable cause = null;
             try {
                 while (isOpen()) {
                     try {
+                        // Đọc đủ một frame và giải mã thành WireMessage.
                         WireMessage incoming = codec.read(socket.getInputStream());
                         if (!remoteId.equals(incoming.senderId()) || !localId.equals(incoming.recipientId()))
                             throw new IOException("Frame sender/recipient differs from session");
+                        // Chuyển gói hợp lệ cho tầng xử lý nghiệp vụ.
                         onMessage.accept(incoming);
                     } catch (SocketTimeoutException idle) { /* idle, poll closed state */ }
                 }
