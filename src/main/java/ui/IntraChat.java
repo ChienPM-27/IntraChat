@@ -36,7 +36,8 @@ public final class IntraChat {
             String chosenUser = null;
             if ((explicitDataDir == null || explicitDataDir.isBlank())
                     && (explicitUser == null || explicitUser.isBlank())) {
-                chosenUser = promptUserName();
+                chosenUser = LocalProfile.lastUser();
+                if(chosenUser==null)chosenUser = promptUserName();
                 if (chosenUser == null) {
                     return;
                 }
@@ -48,17 +49,20 @@ public final class IntraChat {
             Thread.ofVirtual().start(() -> {
                 LiveChatService live = null;
                 try {
+                    java.nio.file.Path profileDir=(explicitDataDir!=null&&!explicitDataDir.isBlank())
+                        ? LocalProfile.defaultDataDir():LocalProfile.userDataDir(userName);
+                    boolean returning=java.nio.file.Files.isRegularFile(profileDir.resolve("profile.json"));
                     LocalProfile profile = (explicitDataDir != null && !explicitDataDir.isBlank())
                         ? LocalProfile.loadOrCreate()
                         : LocalProfile.loadOrCreate(LocalProfile.userDataDir(userName), userName);
+                    if(explicitDataDir==null||explicitDataDir.isBlank())LocalProfile.rememberUser(profile.displayName());
                     live = new LiveChatService(profile);
                     LiveChatService initialized = live;
                     var localAddresses = LocalIpv4.detect();
                     SwingUtilities.invokeLater(() -> {
                         try {
                             LanConnectionDialog dialog = new LanConnectionDialog(profile, initialized, localAddresses);
-                            dialog.setVisible(true);
-                            dialog.startListening();
+                            dialog.start(returning);
                         } catch (RuntimeException failure) {
                             initialized.close();
                             JOptionPane.showMessageDialog(null, "Không thể mở Messenger Live: " + failure.getMessage(),

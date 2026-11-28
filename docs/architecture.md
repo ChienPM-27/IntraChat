@@ -20,7 +20,7 @@ ui.IntraChat
                  TCP LAN plaintext
 ```
 
-Sơ đồ là luồng chức năng, không khẳng định mọi cạnh là dependency trực tiếp. Các service Live sử dụng những session do coordinator quản lý; adapter đồng bộ model/UI. C4 đã loại bỏ MockChatService và LoginFrame. Dialog kết nối là cửa sổ đầu tiên; sau kết nối thành công mở MainChatFrame. Nút Kết nối LAN mở lại dialog đang có, không tạo Messenger thứ hai.
+Sơ đồ là luồng chức năng, không khẳng định mọi cạnh là dependency trực tiếp. Các service Live sử dụng những session do coordinator quản lý; adapter đồng bộ model/UI. C4 đã loại bỏ MockChatService và LoginFrame. Profile mới mở dialog kết nối trước; profile cũ mở MainChatFrame ngay cả khi offline. LanConnectionDialog quản lý Listen/reconnect và mở lại khi người dùng chọn Kết nối LAN. Nút Kết nối LAN mở lại dialog đang có, không tạo Messenger thứ hai.
 
 ## Profile và dữ liệu cục bộ
 
@@ -29,6 +29,10 @@ Sơ đồ là luồng chức năng, không khẳng định mọi cạnh là depe
 ## Kết nối TCP và giao thức
 
 `LanCoordinator` nhận kết nối Listen/Connect, yêu cầu Accept/Reject và quản lý session. `LanSession` sử dụng TCP socket, vòng đọc và ghi được phối hợp, timeout và cleanup khi ngắt. `FrameCodec` dùng độ dài int32, giới hạn frame **1 MiB**; `WireCodec` mã hóa envelope JSON/UTF-8 của `WireMessage` với messageId, conversationId, senderId, recipientId, timestamp và payload. Không dùng Java object deserialization, TLS, certificate, fingerprint, SAS, DPAPI hoặc signed group protocol. Dữ liệu **TCP và JSONL plaintext, không mã hóa**, chỉ dùng mạng LAN tin cậy và dữ liệu thử; không đưa cổng ra Internet.
+
+## Tự kết nối lại
+
+History JSONL lưu thêm LOCAL_LISTEN, PEER_ADDRESS và PEER_ENDPOINT. HELLO/WELCOME quảng bá cổng Listen; lấy IP từ socket đã kết nối, không lấy source port làm cổng đích. PeerReconnect retry nền có giới hạn session, tối đa 32 endpoint private/loopback, kiểm tra UUID đích trong handshake; phía nhận đối chiếu UUID và IP đã lưu. Peer mới vẫn cần phê duyệt thủ công; không scan mạng hay xác thực mật mã. Profile cũ thiếu endpoint cần kết nối một lần. Disconnect thủ công tạm dừng retry; không resend tin/file. GROUP_SYNC giúp đồng bộ membership với chủ nhóm sau reconnect, loại bỏ membership đã bị owner hủy trong lúc offline.
 
 ## F01/F04/F09/F10/F11 — P2P và metadata
 

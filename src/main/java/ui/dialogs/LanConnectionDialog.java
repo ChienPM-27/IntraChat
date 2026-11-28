@@ -17,6 +17,8 @@ public final class LanConnectionDialog extends JDialog {
     private final LocalProfile profile;
     private final LiveChatService live;
     private final LanCoordinator coordinator;
+    private final PeerReconnect reconnect;
+    private final LiveChatAdapter adapter;
     private final ExecutorService workers=Executors.newVirtualThreadPerTaskExecutor();
     private final JComboBox<String> listenIp=new JComboBox<>();
     private final JTextField listenPort=new JTextField(String.valueOf(NetworkConfig.DEFAULT_PORT),6);
@@ -27,17 +29,22 @@ public final class LanConnectionDialog extends JDialog {
     private final JButton start=new JButton("Listen"), stop=new JButton("Stop");
     private final JButton connect=new JButton("Connect"), disconnect=new JButton("Disconnect");
     private MainChatFrame frame;
-    private boolean closed;
+    private volatile boolean closed;
 
     public LanConnectionDialog(LocalProfile profile,LiveChatService service,java.util.List<String> localAddresses){
         super((Frame)null,"IntraChat — Kết nối LAN",ModalityType.MODELESS);
         this.profile=Objects.requireNonNull(profile);
         this.live=Objects.requireNonNull(service);
         this.coordinator=new LanCoordinator(profile,this::approveIncoming,this::onConnected);
+        this.reconnect=new PeerReconnect(profile.deviceId(),live.history(),coordinator,this::report);
+        this.adapter=new LiveChatAdapter(profile,profile.displayName(),live,
+            ()->{reconnect.close();coordinator.close();workers.shutdownNow();SwingUtilities.invokeLater(this::dispose);},
+            ()->SwingUtilities.invokeLater(()->{if(!closed){setVisible(true);toFront();}}));
         live.addListener(event->{
             if(event.kind()==LiveChatService.EventKind.DISCONNECTED){
                 coordinator.disconnect(event.peerId());
                 report("Đã ngắt kết nối: "+event.peerId());
+                SwingUtilities.invokeLater(()->disconnect.setEnabled(true));
             }
         });
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -57,6 +64,13 @@ public final class LanConnectionDialog extends JDialog {
         listenIp.setPrototypeDisplayValue("255.255.255.255");
         for(String address:localAddresses)listenIp.addItem(address);
         if(listenIp.getItemCount()==0)listenIp.addItem("127.0.0.1");
+        NetworkConfig previous=live.history().localListen();
+        if(previous!=null){
+            listenPort.setText(Integer.toString(previous.port()));
+            if(localAddresses.contains(previous.ipv4()))listenIp.setSelectedItem(previous.ipv4());
+        }
+        var known=live.history().peerEndpoints().values().stream().reduce((first,last)->last).orElse(null);
+        if(known!=null){connectIp.setText(known.ipv4());connectPort.setText(Integer.toString(known.port()));}
         hosting.add(new JLabel("IPv4 của bạn"));hosting.add(listenIp);
         hosting.add(new JLabel("Port"));hosting.add(listenPort);
         hosting.add(start);hosting.add(stop);
@@ -75,18 +89,19 @@ public final class LanConnectionDialog extends JDialog {
         footer.add(states,BorderLayout.SOUTH);
         root.add(footer,BorderLayout.SOUTH);
         stop.setEnabled(false);
-        disconnect.setEnabled(false);
+        disconnect.setEnabled(!live.history().peerEndpoints().isEmpty());
         start.addActionListener(e->startListening());
         stop.addActionListener(e->{coordinator.stopListening();stop.setEnabled(false);
             start.setEnabled(true);listenIp.setEnabled(true);listenPort.setEnabled(true);
             listenStatus.setText("Đã dừng Listen.");});
         connect.addActionListener(e->connect());
         disconnect.addActionListener(e->{
+            reconnect.pause();
             for(UUID peer:live.connectedPeers().keySet()){
                 live.disconnect(peer);coordinator.disconnect(peer);
             }
             disconnect.setEnabled(false);
-            report("Đã ngắt kết nối.");
+            report("Đã ngắt kết nối; tạm dừng tự kết nối lại. Nhấn Connect để tiếp tục.");
         });
         addWindowListener(new WindowAdapter(){
             @Override public void windowClosing(WindowEvent e){
@@ -95,10 +110,19 @@ public final class LanConnectionDialog extends JDialog {
             @Override public void windowClosed(WindowEvent e){
                 if(closed)return;
                 closed=true;
-                coordinator.close();live.close();workers.shutdownNow();
+                reconnect.close();coordinator.close();adapter.close();workers.shutdownNow();
                 if(frame!=null&&frame.isDisplayable())frame.dispose();
             }
         });
+    }
+    public void start(boolean returning){
+        if(returning)showMessenger();else setVisible(true);
+        startListening();
+        reconnect.start();
+        if(returning&&live.history().peerEndpoints().isEmpty()&&!live.history().peers().isEmpty()){
+            String notice="Lịch sử cũ chưa lưu IP/port. Mở Kết nối LAN và kết nối một lần để ghi nhớ.";
+            report(notice);frame.onConnectionError(notice);
+        }
     }
     public void startListening(){
         if(closed||!start.isEnabled())return;
@@ -110,6 +134,7 @@ public final class LanConnectionDialog extends JDialog {
         workers.submit(()->{
             try{
                 coordinator.startListening(cfg);
+                live.history().saveLocalListen(cfg);
                 SwingUtilities.invokeLater(()->{
                     if(closed)return;
                     listenStatus.setText("Đang Listen trên "+cfg.ipv4()+":"+cfg.port()+
@@ -129,6 +154,7 @@ public final class LanConnectionDialog extends JDialog {
         final NetworkConfig cfg;
         try{cfg=new NetworkConfig(connectIp.getText().trim(),Integer.parseInt(connectPort.getText().trim()));}
         catch(RuntimeException ex){report("IPv4/port không hợp lệ: "+ex.getMessage());return;}
+        reconnect.resume();
         connect.setEnabled(false);
         report("Đang chờ phía nhận chấp nhận kết nối...");
         coordinator.connect(cfg).whenComplete((peer,error)->SwingUtilities.invokeLater(()->{
@@ -139,10 +165,11 @@ public final class LanConnectionDialog extends JDialog {
         }));
     }
     private CompletionStage<Boolean> approveIncoming(LanCoordinator.Incoming incoming){
+        if(incoming.reconnect())return CompletableFuture.completedFuture(reconnect.approveKnown(incoming));
         CompletableFuture<Boolean> decision=new CompletableFuture<>();
         decision.completeOnTimeout(false,30,TimeUnit.SECONDS);
         SwingUtilities.invokeLater(()->{
-            if(closed){decision.complete(false);return;}
+            if(closed||decision.isDone()){decision.complete(false);return;}
             Window owner=frame!=null&&frame.isShowing()?frame:this;
             JDialog dialog=new JDialog(owner,"Chấp nhận kết nối TCP?",ModalityType.MODELESS);
             JPanel box=new JPanel(new BorderLayout(10,12));
@@ -170,6 +197,7 @@ public final class LanConnectionDialog extends JDialog {
     private void onConnected(LanCoordinator.Peer peer){
         try {
             live.attach(peer.session(),peer.name());
+            reconnect.connected(peer);
             report("Chat TCP đã kết nối: "+peer.name()+" ("+peer.session().remoteId()+")");
             SwingUtilities.invokeLater(this::showMessenger);
         }catch(Exception error){
@@ -181,14 +209,11 @@ public final class LanConnectionDialog extends JDialog {
     private void showMessenger(){
         if(closed)return;
         if(frame==null||!frame.isDisplayable()){
-            LiveChatAdapter adapter=new LiveChatAdapter(profile,profile.displayName(),live,
-                ()->{coordinator.close();SwingUtilities.invokeLater(this::dispose);},
-                ()->SwingUtilities.invokeLater(()->{if(!closed){setVisible(true);toFront();}}));
             frame=new MainChatFrame(adapter.self(),adapter);
             frame.setVisible(true);
             setVisible(false);
-        }else{frame.toFront();frame.requestFocus();}
-        disconnect.setEnabled(!live.connectedPeers().isEmpty());
+        }
+        disconnect.setEnabled(!live.connectedPeers().isEmpty()||!live.history().peerEndpoints().isEmpty());
     }
     private void report(String message){SwingUtilities.invokeLater(()->{
         if(!closed)status.setText(message);

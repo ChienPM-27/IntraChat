@@ -262,7 +262,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         ChatUser other = chat == null ? null : peer(chat);
         boolean enabled = chat != null && (chat.group()?actions.groupOwnerOnline(chat.id()):other != null && other.online());
         composer.setMediaEnabled(enabled, chat != null && chat.group()
-            ? "Chủ nhóm cần online để chuyển tiếp media."
+            ? "Chủ nhóm cần online và đồng bộ nhóm để chuyển tiếp media."
             : "Cần kết nối với thiết bị nhận trước khi gửi media.");
     }
 
@@ -278,7 +278,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         headerTitle.setText(row.title());
         headerAvatar.setIcon(new AvatarIcon(row.title(), row.avatarId(), 40, row.online(), chat.group()));
         headerState.setText(chat.group() ? chat.memberIds().size() + " thành viên" +
-                (!actions.groupOwnerOnline(chat.id()) ? " · Chủ nhóm offline — không thể gửi" : "")
+                (!actions.groupOwnerOnline(chat.id()) ? " · Chưa kết nối / đồng bộ chủ nhóm" : "")
                 + " · Media tự lưu"
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
     }

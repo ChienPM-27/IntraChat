@@ -336,7 +336,7 @@ public final class LiveChatAdapter implements ChatActionHandler {
     }
     @Override public boolean groupOwnerOnline(String id){
         try{ChatGroup g=groups.group(UUID.fromString(id));
-            return g!=null&&(g.ownerId().equals(local.deviceId())||service.connectedPeers().containsKey(g.ownerId()));
+            return g!=null&&groups.ready(g.groupId());
         }catch(RuntimeException ex){return false;}
     }
     @Override public boolean isGroupOwner(String id){

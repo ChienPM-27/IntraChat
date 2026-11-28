@@ -31,3 +31,9 @@ Across F01–F11 existing P1–P5 automated backend regression remains PASS (97 
 - MediaGuiSmoke: ba cửa sổ Messenger thật trên localhost; gửi/nhận tự động PNG, WAV, mẫu MP4 (signature), tệp thường; ảnh từ chủ nhóm, WAV từ thành viên qua chủ nhóm; thumbnail, WAV controls, một micro. Không mở hộp thoại lưu. GUI smoke PASS, không đồng nghĩa tất cả scenario GUI đã nghiệm thu.
 - F05: profile mặc định `data/<user>`, media trong `media/` của profile; người dùng có thể chọn lại user hoặc -DataDir. Không tự di chuyển dữ liệu profile cũ.
 - Vẫn NOT RUN: LAN vật lý, microphone capture, playback codec/thiết bị, stress disk full/crash. Giới hạn: owner online, 5 thành viên, 1 transfer/peer, không resume/offline queue, tổng timeout group 10 phút, hủy best-effort. Mọi máy cần cùng phiên bản.
+
+## Reconnect delta (28/11/2026)
+
+- F01/F05/F09: mở Messenger trực tiếp với profile đã có; giữ history offline, nhớ IP/cổng Listen thành công, tự nối lại peer cũ và giữ UUID. PeerReconnectTest kiểm thử restart, peer bật muộn, từ chối UUID sai/peer chưa biết, pause. Không tự resend.
+- F02/F03/F06–F08: đồng bộ roster nhóm với owner khi reconnect; test gửi group text và file sau restart.
+- Không scan LAN; IP thay đổi hoặc lịch sử cũ thiếu endpoint phải kết nối thủ công để cập nhật. LAN vật lý và playback vẫn NOT RUN.

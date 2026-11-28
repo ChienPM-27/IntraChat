@@ -3,6 +3,7 @@ package vn.intrachat.persistence;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import vn.intrachat.domain.ChatGroup;
+import vn.intrachat.transport.NetworkConfig;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -26,6 +27,9 @@ public final class HistoryRepository implements AutoCloseable {
     private final LinkedHashMap<UUID,Entry> entries=new LinkedHashMap<>();
     private final Map<UUID,ChatGroup> groups=new HashMap<>();
     private final Map<UUID,String> peers=new HashMap<>();
+    private final LinkedHashMap<UUID,NetworkConfig> endpoints=new LinkedHashMap<>();
+    private NetworkConfig localListen;
+    private final LinkedHashMap<UUID,String> peerAddresses=new LinkedHashMap<>();
     private volatile IOException writeFailure;
     private volatile boolean closed;
 
@@ -98,6 +102,19 @@ public final class HistoryRepository implements AutoCloseable {
                         case "PEER" -> {
                             UUID id=uuid(n,"peerId");String alias=str(n,"alias");
                             if(!alias.isBlank()&&alias.length()<=80)peers.put(id,alias);
+                        }
+                        case "LOCAL_LISTEN" -> {
+                            NetworkConfig config=new NetworkConfig(str(n,"ipv4"),n.path("port").asInt());
+                            if(isReconnectAddress(config))localListen=config;
+                        }
+                        case "PEER_ADDRESS" -> {
+                            UUID id=uuid(n,"peerId");String ip=str(n,"ipv4");
+                            if(isReconnectAddress(new NetworkConfig(ip,NetworkConfig.DEFAULT_PORT)))rememberAddress(id,ip);
+                        }
+                        case "PEER_ENDPOINT" -> {
+                            UUID id=uuid(n,"peerId");
+                            NetworkConfig config=new NetworkConfig(str(n,"ipv4"),n.path("port").asInt());
+                            if(isReconnectAddress(config)){rememberEndpoint(id,config);rememberAddress(id,config.ipv4());}
                         }
                         default -> LOG.warning("Unknown history event at row "+row);
                     }
@@ -196,6 +213,38 @@ public final class HistoryRepository implements AutoCloseable {
         queue(data);peers.put(id,alias);
     }
     public synchronized Map<UUID,String> peers(){return Map.copyOf(peers);}
+    public static boolean isReconnectAddress(NetworkConfig config){
+        var ip=NetworkConfig.parseIpv4(config.ipv4());
+        return ip.isSiteLocalAddress()||ip.isLoopbackAddress();
+    }
+    private void rememberAddress(UUID id,String ip){
+        peerAddresses.remove(id);peerAddresses.put(id,ip);
+        while(peerAddresses.size()>32)peerAddresses.remove(peerAddresses.keySet().iterator().next());
+    }
+    public synchronized void savePeerAddress(UUID id,String ip){
+        if(!peers.containsKey(id)||!isReconnectAddress(new NetworkConfig(ip,NetworkConfig.DEFAULT_PORT))
+            ||ip.equals(peerAddresses.get(id)))return;
+        Map<String,Object> data=event("PEER_ADDRESS");data.put("peerId",id);data.put("ipv4",ip);
+        queue(data);rememberAddress(id,ip);
+    }
+    public synchronized String peerAddress(UUID id){return peerAddresses.get(id);}
+    private void rememberEndpoint(UUID id,NetworkConfig config){
+        endpoints.remove(id);endpoints.put(id,config);
+        while(endpoints.size()>32)endpoints.remove(endpoints.keySet().iterator().next());
+    }
+    public synchronized void savePeerEndpoint(UUID id,NetworkConfig config){
+        if(!peers.containsKey(id)||!isReconnectAddress(config)||config.equals(endpoints.get(id)))return;
+        Map<String,Object> data=event("PEER_ENDPOINT");data.put("peerId",id);
+        data.put("ipv4",config.ipv4());data.put("port",config.port());
+        queue(data);rememberEndpoint(id,config);rememberAddress(id,config.ipv4());
+    }
+    public synchronized NetworkConfig localListen(){return localListen;}
+    public synchronized void saveLocalListen(NetworkConfig config){
+        if(!isReconnectAddress(config)||config.equals(localListen))return;
+        Map<String,Object> data=event("LOCAL_LISTEN");data.put("ipv4",config.ipv4());data.put("port",config.port());
+        queue(data);localListen=config;
+    }
+    public synchronized Map<UUID,NetworkConfig> peerEndpoints(){return Collections.unmodifiableMap(new LinkedHashMap<>(endpoints));}
     public synchronized List<ChatGroup> groups(){return List.copyOf(groups.values());}
     public synchronized Entry find(UUID id){return entries.get(id);}
     public synchronized List<Entry> loadMessages(UUID conversation,int limit,int offset){

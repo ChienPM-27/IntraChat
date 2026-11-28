@@ -10,9 +10,9 @@ import java.util.function.Consumer;
 
 /** Human-approved plaintext TCP connections. UUID values are self-declared, not verified identities. */
 public final class LanCoordinator implements AutoCloseable {
-    public record Incoming(UUID deviceId, String displayName, String endpoint) {}
+    public record Incoming(UUID deviceId, String displayName, String endpoint, String ipv4, boolean reconnect) {}
     public interface Approval { CompletionStage<Boolean> decide(Incoming incoming); }
-    public record Peer(LanSession session, String name) {}
+    public record Peer(LanSession session, String name, NetworkConfig reconnectEndpoint, String ipv4) {}
     private final LocalProfile local;
     private final Approval approval;
     private final Consumer<Peer> connected;
@@ -21,6 +21,8 @@ public final class LanCoordinator implements AutoCloseable {
     private final WireCodec codec = new WireCodec();
     private final Semaphore candidateSlots = new Semaphore(NetworkConfig.MAX_PENDING_APPROVALS);
     private volatile ServerSocket listener;
+    private volatile int listeningPort;
+    private final Set<Socket> candidates=ConcurrentHashMap.newKeySet();
     private volatile boolean closed;
 
     public LanCoordinator(LocalProfile local, Approval approval, Consumer<Peer> connected) {
@@ -38,13 +40,14 @@ public final class LanCoordinator implements AutoCloseable {
             try { server.close(); } catch (IOException cleanup) { failure.addSuppressed(cleanup); }
             throw failure;
         }
-        listener=server;
+        listener=server;listeningPort=config.port();
         workers.submit(() -> {
             while (!server.isClosed() && !closed) {
                 try {
                     Socket socket=server.accept();
                     if(!candidateSlots.tryAcquire()){socket.close();continue;}
-                    workers.submit(() -> {try{accept(socket);}finally{candidateSlots.release();}});
+                    candidates.add(socket);
+                    workers.submit(() -> {try{accept(socket);}finally{candidates.remove(socket);candidateSlots.release();}});
                 } catch (IOException ex) { if (!server.isClosed()) stopListening(); break; }
             }
         });
@@ -58,8 +61,12 @@ public final class LanCoordinator implements AutoCloseable {
                 throw new IOException("Invalid HELLO");
             String name=hello.payload().get("displayName");
             if(name==null || name.isBlank() || name.length()>80) throw new IOException("Invalid displayName");
+            boolean reconnect=hello.recipientId()!=null;
+            if(reconnect&&!local.deviceId().equals(hello.recipientId()))throw new IOException("Reconnect target UUID mismatch");
+            String ip=socket.getInetAddress().getHostAddress();
+            NetworkConfig endpoint=advertisedEndpoint(ip,hello,null);
             boolean ok=approval.decide(new Incoming(hello.senderId(),name,
-                String.valueOf(socket.getRemoteSocketAddress())))
+                String.valueOf(socket.getRemoteSocketAddress()),ip,reconnect))
                 .toCompletableFuture().get(NetworkConfig.APPROVAL_TIMEOUT_MS,TimeUnit.MILLISECONDS);
             pruneClosed();
             if(!ok || peers.containsKey(hello.senderId()) || peers.size()>=NetworkConfig.MAX_ACTIVE_SESSIONS){
@@ -68,40 +75,60 @@ public final class LanCoordinator implements AutoCloseable {
                 return;
             }
             establish(socket,hello.senderId(),name,new WireMessage(WireMessage.Type.WELCOME,null,null,
-                local.deviceId(),hello.senderId(),null,Map.of("displayName",local.displayName())));
+                local.deviceId(),hello.senderId(),null,greetingPayload()),endpoint);
             handedOff=true;
         } catch (Exception ignored) { /* invalid or denied candidate */ }
         finally {if(!handedOff)try{socket.close();}catch(IOException ignored){}}
     }
-    public CompletableFuture<Peer> connect(NetworkConfig target) {
+    public CompletableFuture<Peer> connect(NetworkConfig target) {return connect(target,null);}
+    public CompletableFuture<Peer> reconnect(NetworkConfig target,UUID expectedPeer) {
+        return connect(target,Objects.requireNonNull(expectedPeer));
+    }
+    private CompletableFuture<Peer> connect(NetworkConfig target,UUID expectedPeer) {
         if(closed) return CompletableFuture.failedFuture(new IOException("Coordinator closed"));
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Socket socket=new Socket();
+                Socket socket=new Socket();candidates.add(socket);
                 try {
+                    if(closed)throw new IOException("Coordinator closed");
                     socket.connect(target.socketAddress(),NetworkConfig.CONNECT_TIMEOUT_MS);
                     socket.setSoTimeout(NetworkConfig.APPROVAL_TIMEOUT_MS + NetworkConfig.HELLO_TIMEOUT_MS);
                     codec.write(socket.getOutputStream(),new WireMessage(WireMessage.Type.HELLO,null,null,
-                        local.deviceId(),null,null,Map.of("displayName",local.displayName())));
+                        local.deviceId(),expectedPeer,null,greetingPayload()));
                     WireMessage welcome=codec.read(socket.getInputStream());
                     if(welcome.type()==WireMessage.Type.REJECT) throw new IOException("Connection rejected");
                     if(welcome.type()!=WireMessage.Type.WELCOME || welcome.senderId().equals(local.deviceId())
                         || !local.deviceId().equals(welcome.recipientId()))
                         throw new IOException("Invalid WELCOME");
+                    if(expectedPeer!=null&&!expectedPeer.equals(welcome.senderId()))
+                        throw new IOException("Reconnect peer UUID mismatch");
                     String name=welcome.payload().get("displayName");
                     if(name==null || name.isBlank() || name.length()>80) throw new IOException("Invalid remote name");
-                    return establish(socket,welcome.senderId(),name,null);
+                    return establish(socket,welcome.senderId(),name,null,advertisedEndpoint(target.ipv4(),welcome,target));
                 } catch (Exception ex) {socket.close();throw ex;}
+                finally{candidates.remove(socket);}
             } catch (Exception ex) { throw new CompletionException(ex); }
         },workers);
     }
+    private Map<String,String> greetingPayload(){
+        int port=listeningPort;
+        return port==0?Map.of("displayName",local.displayName()):
+            Map.of("displayName",local.displayName(),"listenPort",Integer.toString(port));
+    }
+    private static NetworkConfig advertisedEndpoint(String ip,WireMessage greeting,NetworkConfig fallback){
+        try{
+            String port=greeting.payload().get("listenPort");
+            return port==null?fallback:new NetworkConfig(ip,Integer.parseInt(port));
+        }catch(IllegalArgumentException malformed){return fallback;}
+    }
     private void pruneClosed(){peers.entrySet().removeIf(e->!e.getValue().session().isOpen());}
-    private synchronized Peer establish(Socket socket, UUID remoteId,String name,WireMessage greeting) throws Exception {
+    private synchronized Peer establish(Socket socket, UUID remoteId,String name,WireMessage greeting,NetworkConfig endpoint) throws Exception {
+        if(closed)throw new IOException("Coordinator closed");
         pruneClosed();
         if(peers.size()>=NetworkConfig.MAX_ACTIVE_SESSIONS || peers.containsKey(remoteId))
             throw new IOException("Duplicate peer or connection limit");
         LanSession session=new LanSession(socket,local.deviceId(),remoteId);
-        Peer peer=new Peer(session,name);
+        Peer peer=new Peer(session,name,endpoint,socket.getInetAddress().getHostAddress());
         if(peers.putIfAbsent(remoteId,peer)!=null) throw new IOException("Duplicate peer");
         try {
             if(greeting!=null)session.send(greeting);
@@ -120,10 +147,11 @@ public final class LanCoordinator implements AutoCloseable {
         if(peer!=null)peer.session().close();
     }
     public synchronized void stopListening() {
-        if(listener!=null){try{listener.close();}catch(IOException ignored){}listener=null;}
+        if(listener!=null){try{listener.close();}catch(IOException ignored){}listener=null;listeningPort=0;}
     }
     @Override public void close() {
         closed=true;stopListening();
+        for(Socket candidate:candidates)try{candidate.close();}catch(IOException ignored){}
         for(UUID id:List.copyOf(peers.keySet()))disconnect(id);
         workers.shutdownNow();
     }

@@ -36,7 +36,7 @@ Script ưu tiên JDK 21 từ `JAVA_HOME`, JDK portable đã cài bằng `scripts
 .\run.cmd -SkipBuild -DataDir 'C:\Temp\IntraChat-A'
 ```
 
-Khi chạy `.\run.cmd` không truyền `-User` hoặc `-DataDir`, ứng dụng sẽ hỏi tên người dùng (hoặc chọn user đã có) để lưu hồ sơ, lịch sử và media riêng vào `data/<tên user>/` trong thư mục project. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
+Khi chạy `.\run.cmd` không truyền `-User` hoặc `-DataDir`, ứng dụng mở lại profile dùng gần nhất (hoặc profile duy nhất); chỉ hỏi tên khi chưa xác định được user. Dùng `-User` để chuyển sang profile khác. Hồ sơ, lịch sử và media lưu riêng vào `data/<tên user>/` trong thư mục project. `-Diagnostics` không mở GUI hoặc ghi profile/history; `-SkipBuild` chỉ dùng khi JAR đã được build. Script không thay đổi cấu hình môi trường toàn hệ thống hoặc firewall. Có thể double-click `run.cmd` trong File Explorer.
 
 Hoặc build và chạy thủ công:
 
@@ -47,7 +47,7 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 java -jar target\intrachat-0.1.0-SNAPSHOT.jar
 ```
 
-JAR có Main-Class `ui.IntraChat`. **Luồng C4 Live-only**: `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog → MainChatFrame/LiveChatAdapter`. Không có Demo login, đăng ký hoặc mật khẩu. Dialog kết nối mở trước Messenger, tự nhận diện IPv4 LAN riêng (10/8, 172.16/12, 192.168/16) của card mạng đang hoạt động và tự Listen cổng `47321`. Nếu có nhiều IP, chọn Stop rồi chọn IPv4 khác trong danh sách hoặc nhập thủ công và Listen lại. Nếu không có IPv4 LAN riêng, ứng dụng dùng `127.0.0.1` (chỉ máy này). Nếu cổng bận, đổi cổng rồi Listen lại. Messenger xuất hiện khi kết nối được chấp nhận. Trong Messenger có nút **Kết nối LAN** để mở lại dialog. Đóng cửa sổ để dừng phiên và bảo toàn History. Có thể chạy `java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics` mà không cần GUI.
+JAR có Main-Class `ui.IntraChat`. **Luồng C4 Live-only**: `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog → MainChatFrame/LiveChatAdapter`. Không có Demo login, đăng ký hoặc mật khẩu. Profile mới mở dialog kết nối; profile đã tồn tại mở thẳng Messenger (kể cả offline) và tự Listen/reconnect ngầm. Ứng dụng tự nhận diện IPv4 LAN riêng (10/8, 172.16/12, 192.168/16) của card mạng đang hoạt động và tự Listen cổng `47321` hoặc cổng Listen thành công gần nhất. Nếu có nhiều IP, chọn Stop rồi chọn IPv4 khác trong danh sách hoặc nhập thủ công và Listen lại. Nếu không có IPv4 LAN riêng, ứng dụng dùng `127.0.0.1` (chỉ máy này). Nếu cổng bận, đổi cổng rồi Listen lại. Profile mới mở Messenger khi kết nối đầu tiên được chấp nhận. Trong Messenger có nút **Kết nối LAN** để mở lại dialog. Đóng cửa sổ để dừng phiên và bảo toàn History. Có thể chạy `java -jar target\intrachat-0.1.0-SNAPSHOT.jar --diagnostics` mà không cần GUI.
 
 ## Chạy hai JVM độc lập (cùng PC)
 
@@ -60,7 +60,7 @@ java '-Dintrachat.dataDir=C:\Temp\IntraChat-A' -jar target\intrachat-0.1.0-SNAPS
 java '-Dintrachat.dataDir=C:\Temp\IntraChat-B' -jar target\intrachat-0.1.0-SNAPSHOT.jar
 ```
 
-Trong cửa sổ kết nối Live, A **Stop** nếu đang Listen, chọn `127.0.0.1` và **Listen** cổng `47321`; B **Connect** đến `127.0.0.1:47321` (B không cần Listen; có thể Stop hoặc đổi cổng nếu trùng); A **Accept** hoặc thử **Reject**. Sau khi kết nối, gửi P2P text và emoji hai chiều, kiểm tra Sender/Time/State. SENT, DELIVERED (ACK), SEEN (READ khi hội thoại foreground) là các trạng thái khác nhau; SEEN không chứng minh đọc bằng mắt. Disconnect/Connect lại thủ công, không tự động resend.
+Trong cửa sổ kết nối Live, A **Stop** nếu đang Listen, chọn `127.0.0.1` và **Listen** cổng `47321`; B **Connect** đến `127.0.0.1:47321` (B không cần Listen; có thể Stop hoặc đổi cổng nếu trùng); A **Accept** hoặc thử **Reject**. Sau khi kết nối, gửi P2P text và emoji hai chiều, kiểm tra Sender/Time/State. SENT, DELIVERED (ACK), SEEN (READ khi hội thoại foreground) là các trạng thái khác nhau; SEEN không chứng minh đọc bằng mắt. Tự kết nối lại với peer đã ghi nhận IP/port, không tự động resend. Disconnect thủ công tạm dừng reconnect trong phiên hiện tại; nhấn Connect để tiếp tục.
 
 ## Group ba JVM
 
@@ -77,6 +77,14 @@ Trên máy A mở IntraChat, ghi nhận IPv4 và port trong trạng thái **Đan
 Chủ nhóm gửi trực tiếp đến các thành viên; thành viên gửi qua chủ nhóm, chủ nhóm chỉ chuyển tiếp sau khi lưu và kiểm tra CRC32 thành công. Một tin media giữ cùng UUID, người gửi và thời gian trên mọi máy, trạng thái người gửi hiển thị số thành viên đã nhận và lỗi/chưa xác nhận. Chủ nhóm offline thì không relay; thành viên offline hoặc đang bận truyền có thể thất bại riêng. Không tự resend/resume, không lưu hộp thoại chọn vị trí. Hủy là best-effort, không thu hồi bản sao đã nhận.
 
 Chunk 32 KiB, kiểm tra CRC32 và kích thước; file/video 128 MiB, ảnh PNG/JPEG 16 MiB/32 MP, âm thanh WAV/MP3/M4A 8 MiB, ghi âm tối đa 120 giây. WAV PCM phát bằng Java Sound; video MP4/AVI/MKV và MP3/M4A mở player mặc định. Chỉ dùng LAN tin cậy: tự nhận tệp không đồng nghĩa tự mở/chạy tệp; dữ liệu không mã hóa. Mọi thiết bị cần cập nhật cùng phiên bản để dùng Group Media.
+
+## Khởi động lại và tự kết nối
+
+- Profile cũ mở thẳng Messenger, hiển thị history và trạng thái offline ngay; retry ngầm tới tối đa 32 endpoint đã nhớ, tối đa 4 session hoạt động. Mỗi endpoint thử lại khoảng 15 giây, có giãn thời điểm giữa hai máy. Không scan LAN, không gọi Internet.
+- Sau kết nối thành công, history lưu UUID, IP quan sát từ socket và cổng Listen được peer công bố (không dùng cổng TCP nguồn ngẫu nhiên). IP tự kết nối chỉ thuộc LAN riêng hoặc loopback. Peer mới vẫn phải Accept; reconnect tự chấp nhận chỉ khi UUID và IP đã ghi nhận khớp. UUID tự khai, không phải xác thực mật mã; chỉ dùng LAN tin cậy.
+- Lịch sử trước bản reconnect chỉ có UUID/tên, không có IP/port: cần kết nối thủ công **một lần** trên hai bản cập nhật để ghi nhớ. Nếu IP/cổng thay đổi và không còn tuyến đã lưu, dùng Kết nối LAN để cập nhật. Không tự dò IP mới. Tự reconnect không tự gửi lại tin hay resume file dang dở.
+- Nhóm được khôi phục từ history; thành viên đồng bộ roster với chủ nhóm qua GROUP_SYNC/GROUP_UPDATE trước khi gửi media/text. Không tự chuyển chủ nhóm; cần tất cả máy dùng phiên bản mới.
+- Kiểm thử GUI độc lập trên Windows (profile/port tạm): `powershell -ExecutionPolicy Bypass -File scripts/verify-reconnect-gui.ps1 -JavaHome <JDK21>` sau khi build JAR.
 
 ## History và dữ liệu
 
