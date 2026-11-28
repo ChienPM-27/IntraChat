@@ -5,6 +5,7 @@ import ui.dialogs.LanConnectionDialog;
 import vn.intrachat.application.AppInfo;
 import vn.intrachat.application.LocalProfile;
 import vn.intrachat.application.LiveChatService;
+import vn.intrachat.transport.LocalIpv4;
 
 import javax.swing.*;
 import java.awt.GraphicsEnvironment;
@@ -35,10 +36,12 @@ public final class IntraChat {
                     LocalProfile profile = LocalProfile.loadOrCreate();
                     live = new LiveChatService(profile);
                     LiveChatService initialized = live;
+                    var localAddresses = LocalIpv4.detect();
                     SwingUtilities.invokeLater(() -> {
                         try {
-                            LanConnectionDialog dialog = new LanConnectionDialog(profile, initialized);
+                            LanConnectionDialog dialog = new LanConnectionDialog(profile, initialized, localAddresses);
                             dialog.setVisible(true);
+                            dialog.startListening();
                         } catch (RuntimeException failure) {
                             initialized.close();
                             JOptionPane.showMessageDialog(null, "Không thể mở Messenger Live: " + failure.getMessage(),

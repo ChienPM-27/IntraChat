@@ -32,7 +32,12 @@ public final class LanCoordinator implements AutoCloseable {
         if(closed) throw new IOException("Coordinator closed");
         if(listener != null) throw new IOException("Already listening");
         ServerSocket server=new ServerSocket();
-        server.bind(config.socketAddress(), 8);
+        try {
+            server.bind(config.socketAddress(), 8);
+        } catch (IOException | RuntimeException failure) {
+            try { server.close(); } catch (IOException cleanup) { failure.addSuppressed(cleanup); }
+            throw failure;
+        }
         listener=server;
         workers.submit(() -> {
             while (!server.isClosed() && !closed) {

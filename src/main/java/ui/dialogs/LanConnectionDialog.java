@@ -18,17 +18,18 @@ public final class LanConnectionDialog extends JDialog {
     private final LiveChatService live;
     private final LanCoordinator coordinator;
     private final ExecutorService workers=Executors.newVirtualThreadPerTaskExecutor();
-    private final JTextField listenIp=new JTextField("127.0.0.1",15);
-    private final JTextField listenPort=new JTextField("47321",6);
+    private final JComboBox<String> listenIp=new JComboBox<>();
+    private final JTextField listenPort=new JTextField(String.valueOf(NetworkConfig.DEFAULT_PORT),6);
     private final JTextField connectIp=new JTextField("127.0.0.1",15);
-    private final JTextField connectPort=new JTextField("47321",6);
+    private final JTextField connectPort=new JTextField(String.valueOf(NetworkConfig.DEFAULT_PORT),6);
+    private final JLabel listenStatus=new JLabel("Đang chuẩn bị Listen...");
     private final JLabel status=new JLabel("Chưa kết nối. TCP không mã hóa; chỉ dùng trong LAN tin cậy.");
     private final JButton start=new JButton("Listen"), stop=new JButton("Stop");
     private final JButton connect=new JButton("Connect"), disconnect=new JButton("Disconnect");
     private MainChatFrame frame;
     private boolean closed;
 
-    public LanConnectionDialog(LocalProfile profile,LiveChatService service){
+    public LanConnectionDialog(LocalProfile profile,LiveChatService service,java.util.List<String> localAddresses){
         super((Frame)null,"IntraChat — Kết nối LAN",ModalityType.MODELESS);
         this.profile=Objects.requireNonNull(profile);
         this.live=Objects.requireNonNull(service);
@@ -52,7 +53,11 @@ public final class LanConnectionDialog extends JDialog {
         JPanel sections=new JPanel(new GridLayout(2,1,0,14));
         JPanel hosting=new JPanel(new FlowLayout(FlowLayout.LEFT,8,12));
         hosting.setBorder(BorderFactory.createTitledBorder("Chờ kết nối"));
-        hosting.add(new JLabel("IPv4"));hosting.add(listenIp);
+        listenIp.setEditable(true);
+        listenIp.setPrototypeDisplayValue("255.255.255.255");
+        for(String address:localAddresses)listenIp.addItem(address);
+        if(listenIp.getItemCount()==0)listenIp.addItem("127.0.0.1");
+        hosting.add(new JLabel("IPv4 của bạn"));hosting.add(listenIp);
         hosting.add(new JLabel("Port"));hosting.add(listenPort);
         hosting.add(start);hosting.add(stop);
         JPanel joining=new JPanel(new FlowLayout(FlowLayout.LEFT,8,12));
@@ -65,13 +70,16 @@ public final class LanConnectionDialog extends JDialog {
         JPanel footer=new JPanel(new BorderLayout(0,10));
         footer.add(new JLabel("Thiết bị: "+profile.displayName()+" · "+profile.deviceId()+
             " · Dữ liệu không được mã hóa"),BorderLayout.NORTH);
-        footer.add(status,BorderLayout.SOUTH);
+        JPanel states=new JPanel(new GridLayout(2,1,0,4));
+        states.add(listenStatus);states.add(status);
+        footer.add(states,BorderLayout.SOUTH);
         root.add(footer,BorderLayout.SOUTH);
         stop.setEnabled(false);
         disconnect.setEnabled(false);
         start.addActionListener(e->startListening());
         stop.addActionListener(e->{coordinator.stopListening();stop.setEnabled(false);
-            start.setEnabled(true);report("Đã dừng Listen.");});
+            start.setEnabled(true);listenIp.setEnabled(true);listenPort.setEnabled(true);
+            listenStatus.setText("Đã dừng Listen.");});
         connect.addActionListener(e->connect());
         disconnect.addActionListener(e->{
             for(UUID peer:live.connectedPeers().keySet()){
@@ -92,19 +100,28 @@ public final class LanConnectionDialog extends JDialog {
             }
         });
     }
-    private void startListening(){
+    public void startListening(){
+        if(closed||!start.isEnabled())return;
         final NetworkConfig cfg;
-        try {cfg=new NetworkConfig(listenIp.getText().trim(),Integer.parseInt(listenPort.getText().trim()));}
-        catch(RuntimeException ex){report("IPv4/port không hợp lệ: "+ex.getMessage());return;}
-        start.setEnabled(false);
+        try {cfg=new NetworkConfig(String.valueOf(listenIp.getEditor().getItem()).trim(),Integer.parseInt(listenPort.getText().trim()));}
+        catch(RuntimeException ex){listenStatus.setText("IPv4/port không hợp lệ: "+ex.getMessage());return;}
+        start.setEnabled(false);listenIp.setEnabled(false);listenPort.setEnabled(false);
+        listenStatus.setText("Đang mở Listen trên "+cfg.ipv4()+":"+cfg.port()+"...");
         workers.submit(()->{
             try{
                 coordinator.startListening(cfg);
-                report("Đang Listen trên "+cfg.ipv4()+":"+cfg.port());
-                SwingUtilities.invokeLater(()->stop.setEnabled(true));
+                SwingUtilities.invokeLater(()->{
+                    if(closed)return;
+                    listenStatus.setText("Đang Listen trên "+cfg.ipv4()+":"+cfg.port()+
+                        (cfg.ipv4().startsWith("127.")?" (chỉ máy này)":" — chia sẻ IP và port này cho peer"));
+                    stop.setEnabled(true);
+                });
             }catch(Exception error){
-                report("Không thể Listen: "+error.getMessage());
-                SwingUtilities.invokeLater(()->start.setEnabled(true));
+                SwingUtilities.invokeLater(()->{
+                    if(closed)return;
+                    listenStatus.setText("Không thể Listen: "+error.getMessage()+" — đổi IP/port và thử lại.");
+                    start.setEnabled(true);listenIp.setEnabled(true);listenPort.setEnabled(true);
+                });
             }
         });
     }
