@@ -3,32 +3,40 @@ package vn.intrachat.application;
 import vn.intrachat.transport.CallMediaTransport;
 
 import javax.sound.sampled.*;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * Full-duplex PCM 16 kHz / 16-bit / mono audio engine for P2P LAN calls using Java Sound.
- * Gracefully degrades if microphone or speaker hardware is unavailable.
+ * Full-duplex PCM 16 kHz / 16-bit / mono audio engine for P2P and Group LAN calls using Java Sound.
+ * Mixes multiple incoming participant PCM streams simultaneously with clamped 16-bit addition.
  */
 public final class AudioCallEngine implements AutoCloseable {
     public static final AudioFormat FORMAT = new AudioFormat(16_000f, 16, 1, true, false);
     private static final int FRAME_BYTES = 640; // 20 ms at 16kHz * 2 bytes/sample
+    private static final UUID P2P_SENDER = new UUID(0L, 0L);
 
     private final CallMediaTransport transport;
+    private final UUID groupSenderId;
     private final Consumer<String> onNotice;
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicBoolean muted = new AtomicBoolean();
-    private final ArrayBlockingQueue<byte[]> playbackQueue = new ArrayBlockingQueue<>(8);
+    private final ConcurrentHashMap<UUID, ArrayBlockingQueue<byte[]>> participantQueues = new ConcurrentHashMap<>();
+    private final Object audioSignal = new Object();
     private volatile TargetDataLine micLine;
     private volatile SourceDataLine speakerLine;
     private Thread captureThread;
     private Thread playbackThread;
 
     public AudioCallEngine(CallMediaTransport transport, Consumer<String> onNotice) {
+        this(transport, null, onNotice);
+    }
+
+    public AudioCallEngine(CallMediaTransport transport, UUID groupSenderId, Consumer<String> onNotice) {
         this.transport = Objects.requireNonNull(transport, "transport");
+        this.groupSenderId = groupSenderId;
         this.onNotice = onNotice == null ? s -> {} : onNotice;
     }
 
@@ -47,11 +55,24 @@ public final class AudioCallEngine implements AutoCloseable {
     }
 
     public void enqueueIncomingAudio(byte[] pcm) {
+        enqueueIncomingAudio(P2P_SENDER, pcm);
+    }
+
+    public void enqueueIncomingAudio(UUID senderId, byte[] pcm) {
         if (!running.get() || pcm == null || pcm.length == 0) return;
-        if (!playbackQueue.offer(pcm)) {
-            playbackQueue.poll(); // drop oldest frame to keep realtime latency low
-            playbackQueue.offer(pcm);
+        UUID key = senderId == null ? P2P_SENDER : senderId;
+        ArrayBlockingQueue<byte[]> queue = participantQueues.computeIfAbsent(key, k -> new ArrayBlockingQueue<>(8));
+        if (!queue.offer(pcm)) {
+            queue.poll(); // drop oldest frame to keep realtime latency low
+            queue.offer(pcm);
         }
+        synchronized (audioSignal) {
+            audioSignal.notify();
+        }
+    }
+
+    public void removeParticipant(UUID senderId) {
+        if (senderId != null) participantQueues.remove(senderId);
     }
 
     private void startCapture() {
@@ -69,7 +90,11 @@ public final class AudioCallEngine implements AutoCloseable {
                 while (running.get() && line.isOpen()) {
                     int read = line.read(buffer, 0, buffer.length);
                     if (read > 0 && !muted.get()) {
-                        transport.sendAudio(buffer, read);
+                        if (groupSenderId == null) {
+                            transport.sendAudio(buffer, read);
+                        } else {
+                            transport.sendGroupAudio(groupSenderId, buffer, read);
+                        }
                     }
                 }
             } catch (Exception ex) {
@@ -93,10 +118,27 @@ public final class AudioCallEngine implements AutoCloseable {
                 speakerLine = line;
                 line.open(FORMAT, FRAME_BYTES * 8);
                 line.start();
+                List<byte[]> frames = new ArrayList<>(6);
                 while (running.get() && line.isOpen()) {
-                    byte[] pcm = playbackQueue.poll(100, TimeUnit.MILLISECONDS);
-                    if (pcm != null && pcm.length > 0) {
-                        line.write(pcm, 0, pcm.length);
+                    frames.clear();
+                    for (ArrayBlockingQueue<byte[]> q : participantQueues.values()) {
+                        byte[] f = q.poll();
+                        if (f != null && f.length > 0) frames.add(f);
+                    }
+                    if (frames.isEmpty()) {
+                        synchronized (audioSignal) {
+                            if (running.get()) {
+                                try { audioSignal.wait(25); } catch (InterruptedException ignored) {}
+                            }
+                        }
+                        continue;
+                    }
+                    if (frames.size() == 1) {
+                        byte[] single = frames.get(0);
+                        line.write(single, 0, single.length);
+                    } else {
+                        byte[] mixed = mixPcm16Le(frames);
+                        line.write(mixed, 0, mixed.length);
                     }
                 }
             } catch (Exception ex) {
@@ -109,9 +151,34 @@ public final class AudioCallEngine implements AutoCloseable {
         });
     }
 
+    /** Mixes two or more 16-bit signed little-endian PCM buffers with saturation clamping. */
+    public static byte[] mixPcm16Le(List<byte[]> streams) {
+        int maxLen = 0;
+        for (byte[] s : streams) maxLen = Math.max(maxLen, s.length);
+        int evenLen = maxLen & ~1;
+        byte[] out = new byte[evenLen];
+        for (int i = 0; i < evenLen; i += 2) {
+            int sum = 0;
+            for (byte[] s : streams) {
+                if (i + 1 < s.length) {
+                    short sample = (short) ((s[i] & 0xFF) | (s[i + 1] << 8));
+                    sum += sample;
+                }
+            }
+            if (sum > Short.MAX_VALUE) sum = Short.MAX_VALUE;
+            else if (sum < Short.MIN_VALUE) sum = Short.MIN_VALUE;
+            out[i] = (byte) (sum & 0xFF);
+            out[i + 1] = (byte) ((sum >> 8) & 0xFF);
+        }
+        return out;
+    }
+
     @Override
     public void close() {
         if (!running.compareAndSet(true, false)) return;
+        synchronized (audioSignal) {
+            audioSignal.notifyAll();
+        }
         TargetDataLine mic = micLine;
         if (mic != null) {
             try { mic.stop(); mic.close(); } catch (Exception ignored) {}
@@ -122,6 +189,6 @@ public final class AudioCallEngine implements AutoCloseable {
         }
         if (captureThread != null) captureThread.interrupt();
         if (playbackThread != null) playbackThread.interrupt();
-        playbackQueue.clear();
+        participantQueues.clear();
     }
 }

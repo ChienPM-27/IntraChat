@@ -40,6 +40,7 @@ public final class LiveChatService implements AutoCloseable {
     private volatile boolean closed;
     private volatile java.util.function.BiConsumer<UUID,WireMessage> groupHandler;
     private volatile java.util.function.BiPredicate<UUID,WireMessage> groupMediaValidator;
+    private volatile java.util.function.Function<UUID,ChatGroup> groupLookup;
     private final boolean autoReceiveDirect;
     private final Set<UUID> automaticReceives=ConcurrentHashMap.newKeySet();
     private static final class Peer {
@@ -91,6 +92,15 @@ public final class LiveChatService implements AutoCloseable {
         Peer peer=peers.get(peerId);
         if(peer==null||!peer.socket.isOpen())throw new IOException("Đối phương đang ngoại tuyến");
         return callService.startCall(peerId,peer.conversation,peer.name,mode,peer.socket.remoteAddress());
+    }
+    public CallService.CallSession startGroupCall(ChatGroup group,CallService.Mode mode)throws IOException{
+        return callService.startGroupCall(group,local.displayName(),mode,connectedPeerAddresses());
+    }
+    public void setGroupLookup(java.util.function.Function<UUID,ChatGroup> lookup){groupLookup=lookup;}
+    public Map<UUID,java.net.InetAddress> connectedPeerAddresses(){
+        Map<UUID,java.net.InetAddress> result=new HashMap<>();
+        peers.forEach((id,p)->{if(p.socket.isOpen())result.put(id,p.socket.remoteAddress());});
+        return Map.copyOf(result);
     }
     private static boolean terminalTransfer(FileTransferService.State state){
         return state==FileTransferService.State.COMPLETED||state==FileTransferService.State.FAILED
@@ -348,6 +358,11 @@ public final class LiveChatService implements AutoCloseable {
             if(!peer.conversation.equals(frame.conversationId()))
                 throw new IllegalArgumentException("Call conversation mismatch");
             callService.handleIncoming(id,peer.name,peer.socket.remoteAddress(),frame);
+            return;
+        }
+        if(frame.type().name().startsWith("GROUP_CALL_")){
+            callService.handleIncomingGroup(id,peer.name,peer.socket.remoteAddress(),frame,
+                groupLookup,this::connectedPeerAddresses,local.displayName());
             return;
         }
         if(frame.type().name().startsWith("GROUP_")){
