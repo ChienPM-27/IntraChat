@@ -48,7 +48,7 @@ public class MediaGuiSmoke {
         return components(root,JButton.class).stream().filter(predicate).findFirst().orElse(null);
     }
     static JButton tool(Component root,ChatIcon.Kind kind) {
-        return button(root,b->b.getIcon() instanceof ChatIcon icon && icon.kind()==kind);
+        return button(root,b->b.getIcon() instanceof ChatIcon icon && icon.kind()==kind && !"call-video".equals(b.getName()));
     }
     static void clickChooser(JFrame frame,JButton button,Path file)throws Exception {
         check(button!=null,"Missing chooser button");

@@ -28,6 +28,8 @@ public final class LanSession implements AutoCloseable {
     public UUID localId() { return localId; }
     public UUID remoteId() { return remoteId; }
     public UUID sessionId() { return sessionId; }
+    public InetAddress remoteAddress() { return socket.getInetAddress(); }
+    public InetAddress localAddress() { return socket.getLocalAddress(); }
     public boolean isOpen() { return !closed.get() && !socket.isClosed(); }
     public void send(WireMessage message) throws IOException {
         if (!localId.equals(message.senderId()) || !remoteId.equals(message.recipientId()))

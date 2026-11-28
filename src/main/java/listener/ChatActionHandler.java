@@ -40,6 +40,19 @@ public interface ChatActionHandler extends AutoCloseable {
     /** Manage the existing live LAN session from the Messenger interface. */
     default boolean connectionSettingsAvailable() { return false; }
     default void openConnectionSettings() { }
+    /** P2P Voice/Video call controls (direct 1-1 online conversations only). */
+    default boolean callAvailable() { return false; }
+    default void startCall(String conversationId, vn.intrachat.application.CallService.Mode mode) throws java.io.IOException {
+        throw new UnsupportedOperationException("Calling unavailable");
+    }
+    default void acceptCall(String callId) throws java.io.IOException {
+        throw new UnsupportedOperationException("Calling unavailable");
+    }
+    default void rejectCall(String callId) { }
+    default void endCall(String callId) { }
+    default void setCallMuted(boolean muted) { }
+    default void setCallCameraOn(boolean on) { }
+    default void setCallScreenShare(boolean enabled) { }
     /** Called only after foreground selected conversation bubble is actually visible. */
     default void onMessageVisible(String conversationId, String messageId) { }
 

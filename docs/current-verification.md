@@ -24,13 +24,13 @@ Hai smoke GUI cần desktop Windows, JAR đã build; không chạy trong headles
 
 ## Evidence hiện hành
 
-Kết quả JUnit và GUI media trên bản contextual-controls: 109/109 PASS, 0 failures/errors/skipped; BUILD SUCCESS. MediaGuiSmoke in ra PASS_GUI_CONTEXTUAL_GROUP_AND_PROFILE_SETTINGS và PASS_GUI_MEDIA_END_TO_END. Smoke sử dụng ba cửa sổ Swing trên một JVM với TCP thật. Kiểm thử callback Settings xác nhận đúng vị trí và action, không phải kiểm thử toàn bộ dialog LAN.
+Kết quả JUnit và GUI media trên bản hợp nhất: 113/113 PASS, 0 failures/errors/skipped; BUILD SUCCESS. MediaGuiSmoke in ra PASS_GUI_CONTEXTUAL_GROUP_AND_PROFILE_SETTINGS và PASS_GUI_MEDIA_END_TO_END. Smoke sử dụng ba cửa sổ Swing trên một JVM với TCP thật. Kiểm thử callback Settings xác nhận đúng vị trí và action, không phải kiểm thử toàn bộ dialog LAN.
 
-Bản hiện hành đã chạy lại verify-all P1–P5 PASS và hai JVM GUI độc lập PASS_GUI_MAIN_WHILE_PEER_OFFLINE / PASS_GUI_TWO_JVM_AUTO_RECONNECT. JUnit PeerReconnectTest kiểm tra peer bật muộn, UUID sai, pause, group text/file sau restart. Không tuyên bố đã kiểm tra hardware hoặc IP thay đổi thực tế.
+Bản sau merge call đã chạy lại verify-all P1–P5 PASS và hai JVM GUI độc lập PASS_GUI_MAIN_WHILE_PEER_OFFLINE / PASS_GUI_TWO_JVM_AUTO_RECONNECT. JUnit PeerReconnectTest kiểm tra peer bật muộn, UUID sai, pause, group text/file sau restart. Không tuyên bố đã kiểm tra hardware hoặc IP thay đổi thực tế.
 
 | Kịch bản | Kết quả |
 |---|---|
-| JUnit Java 21 | 109/109 PASS |
+| JUnit Java 21 | 113/113 PASS |
 | P1–P5 backend regression | PASS trên bản hiện hành |
 | P2P/group media, auto-save, CRC/bytes, duplicate filename | PASS |
 | Owner/member relay, partial failure, origin sai | PASS |
@@ -48,3 +48,7 @@ Bản hiện hành đã chạy lại verify-all P1–P5 PASS và hai JVM GUI đ�
 Tối đa 4 TCP sessions, 5 thành viên/nhóm, 1 transfer/peer, 32 endpoint đã nhớ, 16 group media jobs active. Chunk 32 KiB; ảnh 16 MiB/32 MP, audio 8 MiB, video/file 128 MiB, ghi âm 120 giây. Owner phải online và roster sẵn sàng; không tự resend/resume/offline queue/owner failover. Reconnect thử lại khoảng 15 giây, không scan IP mới. UUID/IP tự khai/quan sát không phải xác thực mật mã. Chỉ LAN tin cậy; tự nhận không tự thực thi file. Lịch sử cũ chưa có endpoint cần kết nối một lần.
 
 Tài liệu sử dụng: [README](../README.md), [DESIGN](../DESIGN.md), [architecture](architecture.md), [feature matrix](feature-matrix.md), [ROADMAP](../ROADMAP.md). Bằng chứng lịch sử: [P6](p6-final-report.md), [C6](c6-final-verification-report.md).
+
+## Tích hợp upstream P2P Call
+
+Merge c2a3c2d / fad2ea5 bổ sung calling. Build đầu tiên thất bại 1/113 test do trạng thái mute/camera gửi bất đồng bộ có thể đảo thứ tự; chuyển sang executor tuần tự cho CALL_MEDIA_STATE. Build lại 113/113 PASS. CallServiceTest kiểm tra signaling bằng callback trực tiếp và JPEG qua UDP; CallMediaTransportTest kiểm tra UDP. Không xác nhận thiết bị thực, GUI call hoặc LAN vật lý.

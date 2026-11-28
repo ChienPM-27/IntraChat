@@ -15,5 +15,9 @@ public interface ChatClientListener {
     /** A recipient ACK count can change without a DeliveryState transition. */
     default void onGroupReceiptChanged(String conversationId,String messageId) { }
 
+    default void onCallStateChanged(vn.intrachat.application.CallService.CallSession session) { }
+    default void onLocalVideoFrame(java.awt.image.BufferedImage frame) { }
+    default void onRemoteVideoFrame(java.awt.image.BufferedImage frame) { }
+
     void onConnectionError(String message);
 }

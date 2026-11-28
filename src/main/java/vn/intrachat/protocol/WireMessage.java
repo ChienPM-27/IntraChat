@@ -5,7 +5,8 @@ public record WireMessage(Type type,UUID messageId,UUID conversationId,
     UUID senderId,UUID recipientId,Instant sentAtUtc,Map<String,String> payload){
     public enum Type {HELLO,WELCOME,REJECT,TEXT,ACK,READ,ERROR,
         GROUP_INVITE,GROUP_ACCEPT,GROUP_REJECT,GROUP_UPDATE,GROUP_REMOVE,GROUP_ACK,GROUP_LEAVE,GROUP_TEXT,GROUP_MEDIA_STATUS,GROUP_SYNC,
-        FILE_OFFER,FILE_ACCEPT,FILE_REJECT,FILE_CHUNK,FILE_DONE,FILE_RESULT,FILE_CANCEL,FILE_ERROR}
+        FILE_OFFER,FILE_ACCEPT,FILE_REJECT,FILE_CHUNK,FILE_DONE,FILE_RESULT,FILE_CANCEL,FILE_ERROR,
+        CALL_OFFER,CALL_ACCEPT,CALL_REJECT,CALL_END,CALL_MEDIA_STATE}
     public WireMessage {
         if(type==null||senderId==null)throw new IllegalArgumentException("Missing type/senderId");
         payload=payload==null?Map.of():Map.copyOf(payload);

@@ -2,7 +2,7 @@
 
 Ứng dụng desktop **Java Swing + FlatLaf** dùng **Jackson JSON** cho chat trong mạng LAN bằng một giao thức **TCP plaintext**. Một Messenger Live dùng `LiveChatAdapter`, `GroupService`, `FileTransferService` và `HistoryRepository` JSONL. **Không có mã hóa hay xác thực danh tính mật mã**; chỉ dùng LAN tin cậy và dữ liệu thử, không mở cổng ra Internet.
 
-## Đúng 11 chức năng MVP
+## 11 chức năng MVP và mở rộng upstream
 
 | ID | Chức năng | ID | Chức năng |
 |---|---|---|---|
@@ -13,7 +13,7 @@
 | F05 | Chat History | F11 | Sender |
 | F06 | Image | | |
 
-**Hiện trạng 28/11/2026:** 109/109 JUnit PASS; backend P1–P5 PASS; GUI localhost media, nhóm, contextual controls và auto reconnect có smoke PASS. LAN vật lý, microphone capture và playback thực NOT RUN. Xem [ma trận tính năng](docs/feature-matrix.md), [thiết kế GUI](DESIGN.md) và [báo cáo kiểm chứng hiện hành](docs/current-verification.md).
+**Hiện trạng 28/11/2026:** 113/113 JUnit PASS; backend P1–P5 PASS; GUI localhost media, nhóm, contextual controls và auto reconnect có smoke PASS. LAN vật lý, microphone capture và playback thực NOT RUN. Xem [ma trận tính năng](docs/feature-matrix.md), [thiết kế GUI](DESIGN.md) và [báo cáo kiểm chứng hiện hành](docs/current-verification.md).
 
 ## Yêu cầu và build
 
@@ -118,3 +118,7 @@ JDK 21 clean test package: **97/97 JUnit PASS**; `scripts/verify-all.ps1` P1–P
 - Không tự kết nối: kiểm tra IP/port, firewall Private, phiên bản hai máy và mở bánh răng Settings để kết nối thủ công nếu endpoint cũ chưa được ghi nhận hoặc đã đổi.
 - Media nhóm thất bại một phần: kiểm tra chủ nhóm đã online/đồng bộ roster, thành viên offline/bận truyền và giới hạn kích thước. Không gửi lại tự động.
 - [ROADMAP](ROADMAP.md), [AGENTS](AGENTS.md), [kiến trúc](docs/architecture.md), [ma trận](docs/feature-matrix.md), [thiết kế](DESIGN.md), [báo cáo P6](docs/p6-final-report.md). Báo cáo C0–C6 giữ kết quả lịch sử; xem [current-verification](docs/current-verification.md) cho trạng thái mới nhất.
+
+## Gọi thoại/video P2P (mở rộng từ upstream)
+
+Header chat cá nhân online có icon điện thoại và video. Người nhận Accept/Reject cuộc gọi; hỗ trợ mute, camera on/off, chia sẻ màn hình và kết thúc. Chỉ một cuộc gọi hoạt động; không gọi nhóm. TCP mang signaling, UDP cổng động mang PCM/JPEG plaintext; cần cùng LAN tin cậy và firewall cho phép ứng dụng. Webcam dùng videoInput/JavaCPP Windows x64; Java Sound cho audio. Test signaling và UDP localhost có PASS, nhưng webcam, microphone, screen capture, playback và GUI call thật chưa nghiệm thu. Đây là phần upstream đã tích hợp, không thay thế ma trận 11 chức năng MVP.

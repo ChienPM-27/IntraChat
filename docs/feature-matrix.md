@@ -29,3 +29,7 @@ Backend PASS là kiểm thử JVM/socket. GUI PASS (smoke) chỉ áp dụng cho 
 Xem [current-verification](current-verification.md) cho số test và script chạy thực tế; [C6 matrix lịch sử](c6-final-verification-report.md#h-feature-acceptance-matrix) cho baseline 24/11; [P6 report](p6-final-report.md) cho lịch sử cleanup. GUI media smoke dùng ba cửa sổ trên một JVM, reconnect smoke dùng hai JVM độc lập; không suy diễn thành LAN vật lý hoặc playback.
 
 Chưa nghiệm thu: physical LAN, codec/hardware playback, microphone capture, blocked-read cancellation, stress concurrency/disk full/ACL/crash, GUI history media restart đầy đủ và audit lifecycle toàn diện.
+
+## Mở rộng ngoài ma trận MVP gốc: P2P Call
+
+Upstream bổ sung gọi thoại/video, mute/camera/screen share. CallServiceTest và CallMediaTransportTest kiểm tra signaling và UDP localhost (không hardware); GUI call thực, webcam/mic/screen capture, physical LAN NOT RUN. Không gọi nhóm; tối đa một cuộc gọi hoạt động.

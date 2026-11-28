@@ -1,9 +1,9 @@
 # AGENTS — Quy tắc duy trì IntraChat MVP
 
 - Dùng **Java 21**, Maven Wrapper, Swing/FlatLaf và Jackson. Build bằng `mvnw.cmd`; chạy `scripts/verify-all.ps1 -JavaHome <JDK21>`.
-- Chỉ triển khai **11 chức năng F01–F11** theo [feature matrix](docs/feature-matrix.md). Không tự thêm cloud, video call hay chức năng thứ 12.
-- Duy trì một TCP plaintext transport (`LanCoordinator/LanSession/WireCodec`), một `GroupService` (gồm `GroupMedia` điều phối relay), một `FileTransferService` dùng chung file/media và một `HistoryRepository` JSONL.
-- Không khôi phục TLS, certificate, DPAPI, fingerprint, SAS, signed grants hay security gates cũ; không thêm framework nặng hoặc thay stack không cần thiết. Không dùng dữ liệu nhạy cảm qua TCP/JSONL không mã hóa.
+- Duy trì **11 chức năng F01–F11** theo [feature matrix](docs/feature-matrix.md). Không tự thêm cloud hoặc tính năng mới ngoài phạm vi đã duyệt. Giữ phần gọi P2P đã được upstream tích hợp; không mở rộng sang gọi nhóm.
+- Duy trì một TCP plaintext transport cho chat/file/signaling (`LanCoordinator/LanSession/WireCodec`), một `GroupService` (gồm `GroupMedia` điều phối relay), một `FileTransferService` dùng chung file/media và một `HistoryRepository` JSONL.
+- Không khôi phục TLS, certificate, DPAPI, fingerprint, SAS, signed grants hay security gates cũ; không thêm framework nặng hoặc thay stack không cần thiết. Cuộc gọi P2P hiện dùng UDP media riêng và JavaCV videoInput/JavaCPP native Windows đã có trong pom. Không dùng dữ liệu nhạy cảm qua TCP/JSONL không mã hóa.
 - Bảo toàn UUID sender, timestamp, trạng thái ACK/READ thực, bounds/chunk/file integrity, giới hạn memory, cleanup, và dữ liệu local. Không chạy I/O mạng/đĩa nặng trên Swing EDT.
 - **Live-only** — `ui.IntraChat → LocalProfile → LiveChatService → LanConnectionDialog / MainChatFrame ↔ LiveChatAdapter`. Profile cũ mở Messenger ngay, `PeerReconnect` tự nối lại endpoint private/loopback đã lưu; profile mới cần kết nối lần đầu. Không Demo/Login/Mock, không authentication server. Một Messenger, một TCP stack; giữ headless `--diagnostics`.
 - Giữ lưu tự động media trong profile, kiểm tra CRC/size, UUID tin nhóm và kết quả từng thành viên. Không tự mở/chạy tệp nhận; không scan LAN, tự resend, hoặc coi UUID/IP là xác thực mật mã.

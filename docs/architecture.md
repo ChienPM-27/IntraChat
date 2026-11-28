@@ -64,3 +64,7 @@ Swing/FlatLaf hiển thị một `MainChatFrame` cho Live; callback cập nhật
 `HistoryRepository.close()` now synchronizes with its existing synchronized mutation APIs, sets `closed=true` before its flush barrier, then shuts down the single writer. Newly accepted events cannot enter behind the barrier; post-close mutation attempts reject. This preserves JSONL and does not turn TCP ACK into a durable fsync acknowledgment. The C6 concurrent-close/restart JUnit test passes. GUI approval vẫn có timeout 30 giây; bản hiện hành kiểm tra decision.isDone() trước khi tạo dialog EDT. Stress timeout-vs-approval và VoiceRecorder blocked-read cancellation vẫn chưa được nghiệm thu. See [C6 report](c6-final-verification-report.md).
 
 Kiểm chứng hiện hành và giới hạn theo lớp: [current-verification](current-verification.md). Thiết kế GUI: [DESIGN](../DESIGN.md).
+
+## Mở rộng upstream — P2P Call
+
+CallService điều phối một cuộc gọi VOICE/VIDEO, ring timeout 45 giây, trạng thái mute/camera/screen share. LiveChatService chuyển CALL_* signaling qua TCP hiện có. CallMediaTransport mở UDP cổng động, audio PCM 16 kHz mono 16-bit và JPEG phân mảnh (chunk tối đa 1350 bytes, frame tối đa 256 KiB). AudioCallEngine dùng Java Sound; VideoCallEngine dùng videoInput Windows DirectShow và Robot cho screen share. CallDialog cập nhật qua callback EDT. Media state được gửi tuần tự để tránh trạng thái camera/mute cũ đến sau trạng thái mới. Không mã hóa, không gọi nhóm; hardware và GUI call thật NOT RUN.

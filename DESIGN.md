@@ -42,3 +42,7 @@ Segoe UI; avatar chữ cái; sidebar 300 px; cửa sổ mặc định 1100×720,
 ## Kiểm chứng thiết kế
 
 MediaGuiSmoke đã kiểm chứng ba cửa sổ Swing localhost: nút Nhóm ẩn/hiện theo hội thoại, Settings ở vùng EAST của profile và callback, một micro, chọn tệp gửi/nhận tự động, thumbnail PNG và WAV controls. Kiểm thử reconnect GUI độc lập xem [báo cáo hiện hành](docs/current-verification.md). Không suy diễn từ smoke sang nghiệm thu toàn bộ UI, physical LAN, thu âm hoặc playback thực.
+
+## Giao diện gọi P2P từ upstream
+
+Header có icon điện thoại/video, chỉ enable với peer cá nhân online. Dialog CallDialog xử lý lời mời, chấp nhận/từ chối, mute, camera, chia sẻ màn hình và kết thúc. Smoke contextual controls kiểm tra Settings/Nhóm/media, chưa kiểm thử thao tác cuộc gọi trên desktop.

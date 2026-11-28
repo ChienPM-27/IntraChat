@@ -1,6 +1,6 @@
 # IntraChat — ROADMAP P0–P6 (28/11/2026)
 
-Phạm vi vẫn là 11 chức năng F01–F11. Group Media, auto-save, reconnect và cải tiến GUI tích hợp các chức năng hiện có, không thêm chức năng F12.
+Phạm vi nghiệm thu gốc là 11 chức năng F01–F11. Group Media, auto-save, reconnect và GUI tích hợp chức năng hiện có. Upstream đã bổ sung gọi thoại/video P2P ngoài baseline này; giữ riêng mức kiểm chứng, chưa nghiệm thu phần cứng.
 
 | Giai đoạn | Trạng thái hiện tại |
 |---|---|
@@ -34,3 +34,5 @@ Phạm vi vẫn là 11 chức năng F01–F11. Group Media, auto-save, reconnect
 LAN 2–3 máy vật lý; thay đổi mạng/IP/firewall; microphone capture và blocked-read cancellation; WAV/MP3/M4A/video codec playback; GUI history media sau restart; extended file/media race/concurrency; disk full, ACL, crash; timeout-vs-approval stress và full deep member audit. Không tự động resend/offline queue, resume, owner failover hoặc discovery IP mới trong phạm vi hiện tại.
 
 Tài liệu chuẩn: [README](README.md), [DESIGN](DESIGN.md), [architecture](docs/architecture.md), [feature matrix](docs/feature-matrix.md), [current verification](docs/current-verification.md). [P6 report](docs/p6-final-report.md) giữ bằng chứng lịch sử và dẫn tới trạng thái hiện hành.
+
+Mở rộng upstream: CallService/CallDialog, TCP signaling + UDP PCM/JPEG, webcam/screen share. Backend unit/socket PASS; GUI call, thiết bị thực và physical LAN NOT RUN.

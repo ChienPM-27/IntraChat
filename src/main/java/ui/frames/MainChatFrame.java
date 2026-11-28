@@ -4,11 +4,13 @@ import com.formdev.flatlaf.FlatClientProperties;
 import listener.ChatActionHandler;
 import listener.ChatClientListener;
 import model.*;
+import vn.intrachat.application.CallService;
 import vn.intrachat.application.FileTransferService;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.io.IOException;
 import ui.components.*;
+import ui.dialogs.CallDialog;
 import ui.dialogs.CreateGroupDialog;
 
 import javax.swing.*;
@@ -48,6 +50,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private final JLabel noConversations = label("Không tìm thấy đoạn chat", 13, Font.PLAIN, MUTED);
     private final JButton newGroup = iconButton(ChatIcon.Kind.PLUS, "Tạo nhóm mới", BLUE);
     private final JButton manage = secondary("Nhóm");
+    private final JButton voiceCallBtn = iconButton(ChatIcon.Kind.PHONE, "Gọi thoại P2P", BLUE);
+    private final JButton videoCallBtn = iconButton(ChatIcon.Kind.VIDEO, "Gọi video P2P", BLUE);
+
     private final JLabel headerAvatar = new JLabel();
     private final JLabel headerTitle = label("Đoạn chat", 16, Font.BOLD, INK);
     private final JLabel headerState = label(" ", 12, Font.PLAIN, MUTED);
@@ -62,6 +67,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     private boolean closed;
     private javax.swing.Timer liveVisibilityTimer;
     private final LiveMessageVisibilityObserver visibleMessages;
+    private CallDialog callDialog;
 
     public MainChatFrame(ChatUser self, ChatActionHandler actions) {
         super("IntraChat — Live LAN TCP");
@@ -172,10 +178,23 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         heading.add(headerState);
         header.add(heading);
         JPanel controls = panel(new FlowLayout(FlowLayout.TRAILING,6,0));
+        if (actions.callAvailable()) {
+            voiceCallBtn.setName("call-voice");
+            voiceCallBtn.setBackground(FIELD);
+            voiceCallBtn.setEnabled(false);
+            voiceCallBtn.addActionListener(event -> startCall(CallService.Mode.VOICE));
+            videoCallBtn.setName("call-video");
+            videoCallBtn.setBackground(FIELD);
+            videoCallBtn.setEnabled(false);
+            videoCallBtn.addActionListener(event -> startCall(CallService.Mode.VIDEO));
+            controls.add(voiceCallBtn);
+            controls.add(videoCallBtn);
+        }
         manage.setName("group-manage");
         manage.setVisible(false);
         manage.addActionListener(event -> manageGroup());
         controls.add(manage);
+
         header.add(controls,BorderLayout.EAST);
         chat.add(header, BorderLayout.NORTH);
 
@@ -275,6 +294,8 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
             headerTitle.setText("Đoạn chat");
             headerAvatar.setIcon(null);
             headerState.setText(" ");
+            voiceCallBtn.setEnabled(false);
+            videoCallBtn.setEnabled(false);
             return;
         }
         ConversationRenderer.Row row = row(chat);
@@ -284,6 +305,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
                 (!actions.groupOwnerOnline(chat.id()) ? " · Chưa kết nối / đồng bộ chủ nhóm" : "")
                 + " · Media tự lưu"
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
+        boolean canCall = actions.callAvailable() && !chat.group() && row.online();
+        voiceCallBtn.setEnabled(canCall);
+        videoCallBtn.setEnabled(canCall);
     }
 
     private void load(String id) {
@@ -600,6 +624,64 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         onEdt(() -> showNotice(message));
     }
 
+    private void startCall(CallService.Mode mode) {
+        String targetConv = activeId;
+        if (targetConv == null) return;
+        work.submit(() -> {
+            try {
+                actions.startCall(targetConv, mode);
+            } catch (IOException ex) {
+                onEdt(() -> showNotice(ex.getMessage()));
+            }
+        });
+    }
+
+    private CallDialog ensureCallDialog() {
+        if (callDialog == null) {
+            callDialog = new CallDialog(
+                this,
+                id -> work.submit(() -> {
+                    try { actions.acceptCall(id); } catch (IOException ex) { onEdt(() -> showNotice(ex.getMessage())); }
+                }),
+                id -> work.submit(() -> actions.rejectCall(id)),
+                id -> work.submit(() -> actions.endCall(id)),
+                muted -> work.submit(() -> actions.setCallMuted(muted)),
+                camOn -> work.submit(() -> actions.setCallCameraOn(camOn)),
+                screen -> work.submit(() -> actions.setCallScreenShare(screen))
+            );
+        }
+        return callDialog;
+    }
+
+    @Override
+    public void onCallStateChanged(CallService.CallSession session) {
+        onEdt(() -> {
+            if (closed || session == null) return;
+            if (session.state() == CallService.State.ENDED) {
+                if (callDialog != null) callDialog.updateSession(session);
+                if (session.reason() != null && !session.reason().isBlank()) {
+                    showNotice("Cuộc gọi: " + session.reason());
+                }
+                return;
+            }
+            ensureCallDialog().updateSession(session);
+        });
+    }
+
+    @Override
+    public void onLocalVideoFrame(java.awt.image.BufferedImage frame) {
+        onEdt(() -> {
+            if (!closed && callDialog != null) callDialog.setLocalVideoFrame(frame);
+        });
+    }
+
+    @Override
+    public void onRemoteVideoFrame(java.awt.image.BufferedImage frame) {
+        onEdt(() -> {
+            if (!closed && callDialog != null) callDialog.setRemoteVideoFrame(frame);
+        });
+    }
+
     /** The only read trigger: actual foreground Live Swing message row within scroll viewport. */
     private void checkLiveVisibleRows() {
         if (closed || activeId == null) return;
@@ -620,6 +702,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         if (!closed) {
             closed = true;
             if (liveVisibilityTimer != null) liveVisibilityTimer.stop();
+            if (callDialog != null) callDialog.closeSilently();
             composer.close();
             media.close();
             work.shutdownNow();
