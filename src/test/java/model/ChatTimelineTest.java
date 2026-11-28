@@ -19,6 +19,20 @@ class ChatTimelineTest {
         assertEquals(List.of(first, second.withState(DeliveryState.SEEN)), timeline.orderedMessages());
     }
 
+    @Test void completedMediaReplacesPlaceholderWithoutStaleOfferRegression() {
+        ChatTimeline timeline = new ChatTimeline("chat");
+        var placeholder = MessageContent.media(MessageType.IMAGE,
+            new Attachment(java.nio.file.Path.of("incoming-file"), "photo.png", 16, 0, 0, 0));
+        var saved = MessageContent.media(MessageType.IMAGE,
+            new Attachment(java.nio.file.Path.of("received-photo.png"), "photo.png", 16, 0, 0, 0));
+        var pending = new ChatMessage("file", "chat", "sender", Instant.EPOCH, placeholder, DeliveryState.SENDING);
+        var complete = new ChatMessage("file", "chat", "sender", Instant.EPOCH, saved, DeliveryState.DELIVERED);
+        assertTrue(timeline.merge(pending));
+        assertTrue(timeline.merge(complete));
+        assertFalse(timeline.merge(pending));
+        assertEquals(List.of(complete), timeline.orderedMessages());
+    }
+
     private ChatMessage message(String id, String conversation, Instant instant, String sender) {
         return new ChatMessage(id, conversation, sender, instant, MessageContent.text("Xin chào 😊"), DeliveryState.SENT);
     }

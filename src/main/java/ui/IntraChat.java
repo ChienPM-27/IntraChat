@@ -35,6 +35,7 @@ public final class IntraChat {
                 try {
                     LocalProfile profile = LocalProfile.loadOrCreate();
                     live = new LiveChatService(profile);
+                    live.enableAutoReceive(java.nio.file.Path.of(System.getProperty("intrachat.receivedDir", "received-files")));
                     LiveChatService initialized = live;
                     var localAddresses = LocalIpv4.detect();
                     SwingUtilities.invokeLater(() -> {

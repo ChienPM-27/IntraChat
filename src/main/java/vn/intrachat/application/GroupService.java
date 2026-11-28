@@ -18,6 +18,8 @@ public final class GroupService implements AutoCloseable {
     public interface Invitation { CompletionStage<Boolean> decide(UUID ownerId,String ownerName,String groupName); }
     private record Pending(UUID ownerId,String name) {}
     private final LiveChatService tcp;
+    private final GroupMedia media;
+    public record MediaEvent(FileTransferService.Transfer transfer,int received,int expected,int failed) {}
     private final HistoryRepository history;
     private final Set<UUID> verified=ConcurrentHashMap.newKeySet();
     private final UUID me;
@@ -48,6 +50,7 @@ public final class GroupService implements AutoCloseable {
         this.me=tcp.localId();
         memberNames.put(me,tcp.localName());
         this.invitation=Objects.requireNonNull(invitation);
+        media=new GroupMedia(tcp,groups::get,verified::contains);
         tcp.onGroupFrame(this::receive);
         tcp.addListener(event -> {
             if(event.kind()==LiveChatService.EventKind.DISCONNECTED)
@@ -55,6 +58,13 @@ public final class GroupService implements AutoCloseable {
         });
     }
     public void addListener(Consumer<Event> listener){listeners.add(listener);}
+    public void addMediaListener(Consumer<MediaEvent> listener){
+        media.addListener(e->listener.accept(new MediaEvent(e.transfer(),e.received(),e.expected(),e.failed())));
+    }
+    public FileTransferService.Transfer sendGroupMedia(UUID id,java.nio.file.Path source,model.MessageType type)throws IOException{
+        return media.send(id,source,type);
+    }
+    public void cancelMedia(UUID id){media.cancel(id);}
     private void announce(ChatGroup group,Message message,UUID messageId,int count,int total,String notice){
         Event event=new Event(group,message,messageId,count,total,notice);
         for(var listener:listeners)try{listener.accept(event);}catch(RuntimeException ignored){}
@@ -283,6 +293,7 @@ public final class GroupService implements AutoCloseable {
             }
             case GROUP_TEXT -> receiveText(via,id,data);
             case GROUP_ACK -> receiveAck(via,id,data);
+            case GROUP_MEDIA_STATUS -> media.receiveStatus(via,id,data);
             case GROUP_LEAVE -> {
                 ChatGroup group=groups.get(id);
                 if(group!=null&&group.ownerId().equals(me)&&group.contains(via)){
@@ -346,7 +357,7 @@ public final class GroupService implements AutoCloseable {
         }
     }
     @Override public void close(){
-        closed=true;groups.clear();pending.clear();listeners.clear();
+        media.close();closed=true;groups.clear();pending.clear();listeners.clear();
         expected.clear();receipts.clear();receiptOrder.clear();invitations.clear();timelines.clear();memberNames.clear();
         creations.values().forEach(f->f.completeExceptionally(new IOException("Closed")));
         creations.clear();

@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.geom.*;
 
 public record ChatIcon(Kind kind, Color color, int size) implements Icon {
-    public enum Kind { LOGO, PLUS, SEARCH, IMAGE, VIDEO, FILE, MIC, SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK }
+    public enum Kind { LOGO, PLUS, SEARCH, IMAGE, VIDEO, FILE, AUDIO, MIC, SMILE, PLAY, PAUSE, DOWNLOAD, CHECK, DOUBLE_CHECK }
 
     /** Shared application icon, independent from the deleted demo login window. */
     public static Image appIconImage() {
@@ -61,6 +61,13 @@ public record ChatIcon(Kind kind, Color color, int size) implements Icon {
                 draw.draw(path(13, 3, 13, 8, 18, 8));
                 draw.drawLine(9, 13, 15, 13);
                 draw.drawLine(9, 17, 15, 17);
+            }
+            case AUDIO -> {
+                draw.drawLine(10, 17, 10, 5);
+                draw.drawLine(10, 5, 19, 3);
+                draw.drawLine(19, 3, 19, 15);
+                draw.fill(new Ellipse2D.Double(4, 15, 6, 5));
+                draw.fill(new Ellipse2D.Double(13, 13, 6, 5));
             }
             case MIC -> {
                 draw.draw(new RoundRectangle2D.Double(9, 3, 6, 11, 6, 6));

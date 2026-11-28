@@ -5,6 +5,7 @@ import vn.intrachat.protocol.*;
 import vn.intrachat.transport.*;
 import vn.intrachat.persistence.HistoryRepository;
 import java.io.IOException;
+import java.nio.file.*;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -35,6 +36,9 @@ public final class LiveChatService implements AutoCloseable {
     private final Set<UUID> completedSet=ConcurrentHashMap.newKeySet();
     private volatile boolean closed;
     private volatile java.util.function.BiConsumer<UUID,WireMessage> groupHandler;
+    private volatile java.util.function.BiPredicate<UUID,WireMessage> groupMediaValidator;
+    private volatile Path autoReceiveRoot;
+    private final Set<UUID> automaticReceives=ConcurrentHashMap.newKeySet();
     private static final class Peer {
         final LanSession socket;
         final String name;
@@ -61,12 +65,36 @@ public final class LiveChatService implements AutoCloseable {
             if(peer==null||!peer.socket.isOpen())throw new IOException("Peer offline");
             peer.socket.send(new WireMessage(type,UUID.randomUUID(),conversation,
                 localId(),remote,Instant.now(),payload));
-        },transfer->{persistTransfer(transfer);for(var listener:fileListeners)try{listener.accept(transfer);}catch(RuntimeException ignored){}});
+        },transfer->{
+            if(transfer.groupRef()==null)persistTransfer(transfer);
+            for(var listener:fileListeners)try{listener.accept(transfer);}catch(RuntimeException ignored){}
+            if(transfer.groupRef()==null&&autoReceiveRoot!=null&&transfer.recipientId().equals(localId())
+                &&transfer.state()==FileTransferService.State.WAITING_ACCEPT)acceptAutomatically(transfer);
+        });
     }
     private final CopyOnWriteArrayList<Consumer<FileTransferService.Transfer>> fileListeners=new CopyOnWriteArrayList<>();
     public void addFileListener(Consumer<FileTransferService.Transfer> listener){fileListeners.add(listener);}
     public FileTransferService files(){return fileTransfers;}
     public HistoryRepository history(){return history;}
+    public void enableAutoReceive(Path directory){autoReceiveRoot=directory.toAbsolutePath().normalize();}
+    public void onGroupMediaOffer(java.util.function.BiPredicate<UUID,WireMessage> validator){groupMediaValidator=validator;}
+    /** A unique directory per transfer prevents collisions and preserves the original filename. */
+    public void acceptAutomatically(FileTransferService.Transfer t){
+        if(!localId().equals(t.recipientId())||!automaticReceives.add(t.transferId()))return;
+        workers.execute(()->{
+            try{
+                Path root=autoReceiveRoot==null?local.dataDir().resolve("received-files"):autoReceiveRoot;
+                Path folder=root.resolve(localId().toString()).resolve(t.conversationId().toString()).resolve(t.transferId().toString());
+                Files.createDirectories(folder);
+                Path target=folder.resolve(FileTransferService.safeFileName(t.fileName()));
+                fileTransfers.accept(t.transferId(),target);
+            }catch(Exception failure){
+                var current=fileTransfers.get(t.transferId());
+                if(current!=null&&current.state()==FileTransferService.State.WAITING_ACCEPT)
+                    fileTransfers.failReceive(t.transferId(),"Không thể tự lưu tệp: "+failure.getMessage());
+            }finally{automaticReceives.remove(t.transferId());}
+        });
+    }
     private void persistTransfer(FileTransferService.Transfer t){
         String state=t.state().name();
         String delivery=switch(t.state()){case COMPLETED -> "DELIVERED";case FAILED,REJECTED,CANCELLED -> "FAILED";default -> "SENDING";};
@@ -257,8 +285,20 @@ public final class LiveChatService implements AutoCloseable {
     }
     private void receive(UUID id,Peer peer,WireMessage frame){
         if(frame.type().name().startsWith("FILE_")){
-            if(!peer.conversation.equals(frame.conversationId()))
-                throw new IllegalArgumentException("File conversation mismatch");
+            boolean direct=peer.conversation.equals(frame.conversationId());
+            if(frame.type()==WireMessage.Type.FILE_OFFER){
+                boolean group=frame.payload().containsKey("groupMessageId");
+                if(group){
+                    var validator=groupMediaValidator;
+                    if(direct||validator==null||!validator.test(id,frame)){
+                        try{peer.socket.send(new WireMessage(WireMessage.Type.FILE_REJECT,UUID.randomUUID(),frame.conversationId(),
+                            localId(),id,Instant.now(),Map.of("transferId",frame.payload().get("transferId"))));}
+                        catch(IOException ignored){}
+                        return;
+                    }
+                }else if(!direct)throw new IllegalArgumentException("File conversation mismatch");
+            }else if(!direct&&!fileTransfers.matches(id,frame.conversationId(),UUID.fromString(frame.payload().get("transferId"))))
+                throw new IllegalArgumentException("Group file conversation mismatch");
             fileTransfers.handleIncoming(id,frame);
             return;
         }

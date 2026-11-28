@@ -69,7 +69,7 @@ public final class MessageBubblePanel extends JPanel {
         bubble.add(message.content().type() == MessageType.TEXT ? text(message.content().text(), ink)
                 : transfer!=null && (transfer.state()!=FileTransferService.State.COMPLETED ||
                         message.content().type()==MessageType.FILE)
-                    ? fileLabel(transfer,ink) : media.render(message.content(), mine));
+                    ? fileLabel(transfer,ink) : media.render(completedContent(message, transfer), mine));
         bubble.setToolTipText(sender + " · " + time);
         bubble.getAccessibleContext().setAccessibleName(sender + " · " + time);
         stack.add(bubble);
@@ -107,6 +107,13 @@ public final class MessageBubblePanel extends JPanel {
         add(stack);
     }
 
+    private static model.MessageContent completedContent(ChatMessage message, FileTransferService.Transfer transfer) {
+        if (transfer == null || transfer.state() != FileTransferService.State.COMPLETED || transfer.localPath() == null)
+            return message.content();
+        return model.MessageContent.media(message.content().type(), new model.Attachment(
+            transfer.localPath(), transfer.fileName(), transfer.fileSize(), 0, 0, 0));
+    }
+
     private static JPanel fileLabel(FileTransferService.Transfer t,Color ink){
         JPanel panel=new JPanel(new GridLayout(2,1));panel.setOpaque(false);
         panel.add(label(t.messageType().name()+" · "+t.fileName(),13,Font.BOLD,ink));
@@ -120,9 +127,9 @@ public final class MessageBubblePanel extends JPanel {
         String state=t.state().name();
         String description=switch(t.state()){
             case OFFERED -> "Đang gửi lời mời";
-            case WAITING_ACCEPT -> "Đang chờ chấp nhận";
+            case WAITING_ACCEPT -> "Đang chuẩn bị tự lưu";
             case TRANSFERRING -> "Đang truyền";
-            case COMPLETED -> "Đã lưu thành công";
+            case COMPLETED -> "Đã truyền / lưu thành công";
             case REJECTED -> "Đã từ chối";
             case CANCELLED -> "Đã hủy";
             case FAILED -> "Lỗi: "+t.error();
@@ -135,11 +142,8 @@ public final class MessageBubblePanel extends JPanel {
         progress.setPreferredSize(new Dimension(220,9));
         fileArea.add(progress);
         JPanel buttons=new JPanel(new FlowLayout(FlowLayout.LEFT,4,0));buttons.setOpaque(false);
-        // The caller owns local identity; only the receiver has no sourcePath until accept.
-        if(t.state()==FileTransferService.State.WAITING_ACCEPT && t.localPath()==null){
-            addFileButton(buttons,"Nhận / Chọn nơi lưu",()->action.accept("accept",t.transferId().toString()));
-            addFileButton(buttons,"Từ chối",()->action.accept("reject",t.transferId().toString()));
-        }
+        // Incoming transfers are accepted automatically into the managed received-files directory.
+        // Cancel remains available while the transfer is active.
         if(t.state()==FileTransferService.State.WAITING_ACCEPT||t.state()==FileTransferService.State.TRANSFERRING)
             addFileButton(buttons,"Hủy",()->action.accept("cancel",t.transferId().toString()));
         if(t.state()==FileTransferService.State.COMPLETED&&t.localPath()!=null)

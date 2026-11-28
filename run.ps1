@@ -54,7 +54,7 @@ $JavaHome = (Resolve-Path -LiteralPath $JavaHome).Path
 $java = Join-Path $JavaHome 'bin\java.exe'
 $wrapper = Join-Path $repo 'mvnw.cmd'
 $jar = Join-Path $repo 'target\intrachat-0.1.0-SNAPSHOT.jar'
-$javaArgs = @()
+$javaArgs = @("-Dintrachat.receivedDir=$(Join-Path $repo 'received-files')")
 if ($DataDir) {
     $dataPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($DataDir)
     $javaArgs += "-Dintrachat.dataDir=$dataPath"

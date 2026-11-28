@@ -71,7 +71,7 @@ Trên máy A mở IntraChat, ghi nhận IPv4 và port trong trạng thái **Đan
 
 ## File, Image, Video, Sound
 
-Ở hội thoại P2P Live, chọn tệp/media qua composer, gửi **OFFER**; người nhận **Accept/Reject**, chọn nơi lưu; xem progress hoặc Cancel. Truyền theo CHUNK **32 KiB**, có CRC32/kiểm tra kích thước; không overwrite file có sẵn, không resume; file lỗi/cancel cần cleanup. File thường và video tối đa **128 MiB**. Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview. Video MP4/AVI/MKV tối đa **128 MiB**, mở bằng ứng dụng OS qua `Desktop.open`. Sound WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop, MP3/M4A mở player mặc định. Gửi/nhận bytes **không** chứng minh playback thực: MP4/codec và thiết bị âm thanh NOT RUN.
+Ở hội thoại P2P Live **đang kết nối**, chọn tệp/media qua composer (ảnh, video, tệp, biểu tượng nốt nhạc để chọn WAV/MP3/M4A, hoặc một biểu tượng micro để ghi âm WAV), gửi **OFFER**; người nhận **Accept/Reject**, chọn nơi lưu; xem progress hoặc Cancel. Truyền theo CHUNK **32 KiB**, có CRC32/kiểm tra kích thước; không overwrite file có sẵn, không resume; file lỗi/cancel cần cleanup. File thường và video tối đa **128 MiB**. Image PNG/JPEG tối đa **16 MiB / 32 MP**, có thumbnail/preview. Video MP4/AVI/MKV tối đa **128 MiB**, mở bằng ứng dụng OS qua `Desktop.open`. Sound WAV/MP3/M4A tối đa **8 MiB**; WAV PCM dùng Java Sound Play/Stop, MP3/M4A mở player mặc định. Gửi/nhận bytes **không** chứng minh playback thực: MP4/codec và thiết bị âm thanh NOT RUN. Chat nhóm MVP chỉ hỗ trợ văn bản/emoji; các nút media bị khóa và có tooltip giải thích. Chat cá nhân ngoại tuyến cũng không gửi được media; kết nối lại để mở các nút.
 
 ## History và dữ liệu
 
@@ -85,6 +85,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-all.ps1
 ```
 
 Script chạy P1–P5 smoke và Git diff check, log dưới `%TEMP%` (không trong `target/`). Kết quả mới và giới hạn được ghi trong [báo cáo C0–C3](docs/c0-c3-cleanup-report.md), [báo cáo P6](docs/p6-final-report.md), [architecture](docs/architecture.md) và [ma trận 11 tính năng](docs/feature-matrix.md).
+
+### Kiểm thử giao diện media end-to-end
+
+Sau khi build JAR, chạy smoke riêng trên desktop Windows bằng JDK 21 (hai cửa sổ thử nghiệm, profile tạm, không dùng dữ liệu thật):
+
+```powershell
+java -cp target\intrachat-0.1.0-SNAPSHOT.jar scripts\MediaGuiSmoke.java "$env:TEMP\IntraChat-MediaGui-$([guid]::NewGuid().ToString('N'))"
+```
+
+Smoke tự thao tác nút gửi/chọn tệp và nhận/chọn nơi lưu qua TCP localhost, so sánh bytes PNG/WAV/mẫu MP4/tệp, kiểm tra thumbnail ảnh và điều khiển WAV, nhóm có đúng một micro và khóa media. Mẫu MP4 chỉ có signature, không kiểm chứng playback. Không thu microphone thật, không mở player bên ngoài, không kiểm chứng LAN vật lý.
 
 ### C6 verification note (24/11/2026)
 

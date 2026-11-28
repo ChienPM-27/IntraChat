@@ -25,9 +25,22 @@ public final class FileTransferService implements AutoCloseable {
         return switch(type){case IMAGE -> 16L*1024*1024;case SOUND -> 8L*1024*1024;default -> MAX_FILE_SIZE;};
     }
     public enum State { OFFERED, WAITING_ACCEPT, TRANSFERRING, COMPLETED, REJECTED, CANCELLED, FAILED }
+    /** Logical group identity is distinct from each hop's transfer ID. */
+    public record GroupRef(UUID messageId, UUID origin, Instant sentAt) {
+        public GroupRef { Objects.requireNonNull(messageId); Objects.requireNonNull(origin); Objects.requireNonNull(sentAt); }
+        static GroupRef parse(Map<String,String> body) {
+            if (!body.containsKey("groupMessageId")) return null;
+            return new GroupRef(UUID.fromString(body.get("groupMessageId")), UUID.fromString(body.get("origin")), Instant.parse(body.get("originalSentAt")));
+        }
+    }
     public record Transfer(UUID transferId, UUID conversationId, UUID senderId, UUID recipientId,
                            String fileName, long fileSize, long transferredBytes, State state,
-                           Path localPath, String error, Instant sentAt, MessageType messageType) {
+                           Path localPath, String error, Instant sentAt, MessageType messageType, GroupRef groupRef) {
+        public Transfer(UUID transferId, UUID conversationId, UUID senderId, UUID recipientId,
+                        String fileName, long fileSize, long transferredBytes, State state,
+                        Path localPath, String error, Instant sentAt, MessageType messageType) {
+            this(transferId,conversationId,senderId,recipientId,fileName,fileSize,transferredBytes,state,localPath,error,sentAt,messageType,null);
+        }
         public Transfer(UUID transferId,UUID conversationId,UUID senderId,UUID recipientId,
                         String fileName,long fileSize,long transferredBytes,State state,
                         Path localPath,String error,Instant sentAt) {
@@ -54,6 +67,7 @@ public final class FileTransferService implements AutoCloseable {
         final UUID id, conversation, source, destination, peer;
         final String name;
         final MessageType messageType;
+        final GroupRef groupRef;
         final long size;
         final Instant time;
         volatile Path sourcePath, targetPath, temporary;
@@ -65,14 +79,15 @@ public final class FileTransferService implements AutoCloseable {
         OutputStream output;
         final CRC32 crc = new CRC32();
         Task(UUID id, UUID conversation, UUID source, UUID destination, String name,
-             long size, Instant time, State state, UUID peer, MessageType messageType) {
+             long size, Instant time, State state, UUID peer, MessageType messageType, GroupRef groupRef) {
+            this.groupRef=groupRef;
             this.messageType=messageType;
             this.id=id;this.conversation=conversation;this.source=source;this.destination=destination;
             this.name=name;this.size=size;this.time=time;this.state=state;this.peer=peer;
         }
         Transfer snapshot() {
             return new Transfer(id,conversation,source,destination,name,size,transferred,state,
-                sourcePath!=null?sourcePath:targetPath,error,time,messageType);
+                sourcePath!=null?sourcePath:targetPath,error,time,messageType,groupRef);
         }
     }
 
@@ -125,21 +140,30 @@ public final class FileTransferService implements AutoCloseable {
         return offer(peer,conversation,source,MessageType.FILE);
     }
     public Transfer offer(UUID peer, UUID conversation, Path source, MessageType type) throws IOException {
+        return offerGroup(peer,conversation,source,type,null);
+    }
+    Transfer offerGroup(UUID peer, UUID conversation, Path source, MessageType type, GroupRef ref) throws IOException {
         if(type==null||!MEDIA_TYPES.contains(type))throw new IOException("Invalid media type");
         if(source==null||!Files.isRegularFile(source)||!Files.isReadable(source))
             throw new IOException("Không thể đọc tệp nguồn");
         long size=Files.size(source);
         if(size>maxSize(type))throw new IOException("Tệp vượt giới hạn "+(maxSize(type)/(1024*1024))+" MiB");
         String name=safeFileName(source.getFileName().toString());
-        Task t=new Task(UUID.randomUUID(),conversation,localId,peer,name,size,Instant.now(),State.OFFERED,peer,type);
+        Task t=new Task(UUID.randomUUID(),conversation,localId,peer,name,size,Instant.now(),State.OFFERED,peer,type,ref);
         t.sourcePath=source.toAbsolutePath().normalize();
         register(t);emit(t);
         synchronized(t){t.state=State.WAITING_ACCEPT;t.lastActivity=System.currentTimeMillis();}
         emit(t);
         try{
-            send(t,WireMessage.Type.FILE_OFFER,Map.of("fileName",name,"fileSize",Long.toString(size),"messageType",type.name()));
+            Map<String,String> body=new HashMap<>(Map.of("fileName",name,"fileSize",Long.toString(size),"messageType",type.name()));
+            if(ref!=null){body.put("groupMessageId",ref.messageId().toString());body.put("origin",ref.origin().toString());body.put("originalSentAt",ref.sentAt().toString());}
+            send(t,WireMessage.Type.FILE_OFFER,body);
         }catch(IOException failure){fail(t,failure.getMessage(),false);throw failure;}
         return t.snapshot();
+    }
+    boolean matches(UUID peer, UUID conversation, UUID transferId) {
+        Task t=tasks.get(transferId);
+        return t!=null&&t.peer.equals(peer)&&t.conversation.equals(conversation);
     }
     public Transfer get(UUID transferId){ Task t=tasks.get(transferId);return t==null?null:t.snapshot(); }
     public void accept(UUID id,Path target)throws IOException{
@@ -177,6 +201,9 @@ public final class FileTransferService implements AutoCloseable {
         synchronized(t){if(terminal(t.state))return;t.state=State.CANCELLED;cleanup(t);}
         emit(t);
         try{send(t,WireMessage.Type.FILE_CANCEL,Map.of());}catch(IOException ignored){}
+    }
+    void failReceive(UUID id,String reason) {
+        Task task=tasks.get(id);if(task!=null)fail(task,reason,true);
     }
     private Task required(UUID id)throws IOException{
         Task t=tasks.get(id);
@@ -245,7 +272,7 @@ public final class FileTransferService implements AutoCloseable {
             catch(IllegalArgumentException ex){throw new IllegalArgumentException("Invalid media type",ex);}
             if(!MEDIA_TYPES.contains(contentType)||size>maxSize(contentType))throw new IllegalArgumentException("Invalid media size/type");
             Task t=new Task(id,frame.conversationId(),frame.senderId(),localId,name,size,
-                frame.sentAtUtc(),State.WAITING_ACCEPT,peer,contentType);
+                frame.sentAtUtc(),State.WAITING_ACCEPT,peer,contentType,GroupRef.parse(frame.payload()));
             try{register(t);}catch(IOException ex){
                 try{send(t,WireMessage.Type.FILE_REJECT,Map.of());}catch(IOException ignored){}
                 return;

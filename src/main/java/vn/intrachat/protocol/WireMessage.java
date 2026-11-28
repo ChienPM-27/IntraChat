@@ -4,7 +4,7 @@ import java.util.*;
 public record WireMessage(Type type,UUID messageId,UUID conversationId,
     UUID senderId,UUID recipientId,Instant sentAtUtc,Map<String,String> payload){
     public enum Type {HELLO,WELCOME,REJECT,TEXT,ACK,READ,ERROR,
-        GROUP_INVITE,GROUP_ACCEPT,GROUP_REJECT,GROUP_UPDATE,GROUP_REMOVE,GROUP_ACK,GROUP_LEAVE,GROUP_TEXT,
+        GROUP_INVITE,GROUP_ACCEPT,GROUP_REJECT,GROUP_UPDATE,GROUP_REMOVE,GROUP_ACK,GROUP_LEAVE,GROUP_TEXT,GROUP_MEDIA_STATUS,
         FILE_OFFER,FILE_ACCEPT,FILE_REJECT,FILE_CHUNK,FILE_DONE,FILE_RESULT,FILE_CANCEL,FILE_ERROR}
     public WireMessage {
         if(type==null||senderId==null)throw new IllegalArgumentException("Missing type/senderId");

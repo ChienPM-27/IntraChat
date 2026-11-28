@@ -250,12 +250,20 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         rows.clear();
         showNotice("");
         refreshHeader();
-        Conversation selected=conversations.get(id);
-        composer.setMediaEnabled(selected!=null && !selected.group());
+        refreshMediaAvailability();
         if (id != null && !loaded.contains(id)) {
             load(id);
         }
         renderHistory(true);
+    }
+
+    private void refreshMediaAvailability() {
+        Conversation chat = conversations.get(activeId);
+        ChatUser other = chat == null ? null : peer(chat);
+        boolean enabled = chat != null && (chat.group()?actions.groupOwnerOnline(chat.id()):other != null && other.online());
+        composer.setMediaEnabled(enabled, chat != null && chat.group()
+            ? "Chủ nhóm cần online để chuyển tiếp media."
+            : "Cần kết nối với thiết bị nhận trước khi gửi media.");
     }
 
     private void refreshHeader() {
@@ -271,6 +279,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         headerAvatar.setIcon(new AvatarIcon(row.title(), row.avatarId(), 40, row.online(), chat.group()));
         headerState.setText(chat.group() ? chat.memberIds().size() + " thành viên" +
                 (!actions.groupOwnerOnline(chat.id()) ? " · Chủ nhóm offline — không thể gửi" : "")
+                + " · Media tự lưu"
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
     }
 
@@ -517,6 +526,7 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
                 switchChat(conversations.keySet().stream().findFirst().orElse(null));
             }
             refreshHeader();
+            refreshMediaAvailability();
             refreshDirectory();
         });
     }
@@ -526,20 +536,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
         if(t==null)return;
         try{
             switch(action){
-                case "accept" -> {
-                    JFileChooser chooser=new JFileChooser();
-                    chooser.setDialogTitle("Chọn nơi lưu tệp nhận");
-                    chooser.setSelectedFile(new java.io.File(t.fileName()));
-                    if(chooser.showSaveDialog(this)==JFileChooser.APPROVE_OPTION){
-                        Path path=chooser.getSelectedFile().toPath();
-                        if(Files.exists(path)){
-                            showNotice("Tệp đã tồn tại. Chọn tên tệp khác để không ghi đè.");return;
-                        }
-                        work.submit(()->{
-                            try{actions.acceptFile(id,path);}catch(IOException ex){onEdt(()->showNotice(ex.getMessage()));}
-                        });
-                    }
-                }
+                case "accept" -> work.submit(()->{
+                    try{actions.acceptFile(id,null);}catch(IOException ex){onEdt(()->showNotice(ex.getMessage()));}
+                });
                 case "reject" -> work.submit(()->{
                     try{actions.rejectFile(id);}catch(IOException ex){onEdt(()->showNotice(ex.getMessage()));}
                 });
@@ -559,9 +558,16 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     }
     @Override public void onFileTransfer(FileTransferService.Transfer t){
         onEdt(()->{
-            fileTransfers.put(t.transferId().toString(),t);
-            MessageBubblePanel bubble=rows.get(t.transferId().toString());
-            if(bubble!=null)bubble.showFileTransfer(t,this::fileAction);
+            String id=t.transferId().toString();
+            FileTransferService.Transfer previous=fileTransfers.put(id,t);
+            MessageBubblePanel bubble=rows.get(id);
+            // Rebuild when the file becomes readable (or an offer arrives after history).
+            if (previous==null || (previous.state()!=FileTransferService.State.COMPLETED
+                    && t.state()==FileTransferService.State.COMPLETED)) {
+                rows.remove(id);
+            } else if(bubble!=null) {
+                bubble.showFileTransfer(t,this::fileAction);
+            }
             if(t.conversationId().toString().equals(activeId))renderHistory(false);
         });
     }

@@ -20,6 +20,15 @@ public final class ChatTimeline {
         DeliveryState early = earlyReceipts.remove(message.id());
         ChatMessage existing = messages.get(message.id());
         ChatMessage merged = existing == null ? message : existing.withState(message.state());
+        // File offers have a placeholder path; a later transfer update carries the actual
+        // destination. Do not let an older SENDING snapshot overwrite a completed path.
+        if (existing != null && existing.content().type() != MessageType.TEXT
+                && existing.content().type() == message.content().type()
+                && merged.state() == message.state()
+                && !existing.content().equals(message.content())) {
+            merged = new ChatMessage(existing.id(), existing.conversationId(), existing.senderId(),
+                existing.sentAt(), message.content(), merged.state());
+        }
         if (early != null) {
             merged = merged.withState(early);
         }
