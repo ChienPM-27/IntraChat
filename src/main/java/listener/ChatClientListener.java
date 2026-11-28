@@ -18,6 +18,7 @@ public interface ChatClientListener {
     default void onCallStateChanged(vn.intrachat.application.CallService.CallSession session) { }
     default void onLocalVideoFrame(java.awt.image.BufferedImage frame) { }
     default void onRemoteVideoFrame(java.awt.image.BufferedImage frame) { }
+    default void onParticipantVideoFrame(java.util.UUID participantId, java.awt.image.BufferedImage frame) { }
 
     void onConnectionError(String message);
 }

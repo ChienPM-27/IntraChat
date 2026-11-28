@@ -16,31 +16,39 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Realtime JPEG video engine for P2P LAN calls.
+ * Realtime JPEG video engine for P2P and Group LAN calls.
  * Captures from Windows DirectShow webcam (via videoInput) or optional screen-share mode,
- * gracefully falling back if no webcam is attached or the webcam is in use by another app.
+ * and decodes incoming video frames per remote participant.
  */
 public final class VideoCallEngine implements AutoCloseable {
-    private static final int TARGET_W = 480;
-    private static final int TARGET_H = 360;
+    private static final int P2P_W = 480;
+    private static final int P2P_H = 360;
+    private static final int GROUP_W = 360;
+    private static final int GROUP_H = 270;
     private static final int SCREEN_W = 640;
     private static final int SCREEN_H = 360;
-    private static final float JPEG_QUALITY = 0.65f;
-    private static final long FRAME_INTERVAL_MS = 66; // ~15 FPS
+    private static final UUID P2P_SENDER = new UUID(0L, 0L);
 
     private final CallMediaTransport transport;
+    private final UUID groupSenderId;
+    private final int targetW;
+    private final int targetH;
+    private final float jpegQuality;
+    private final long frameIntervalMs;
     private final Consumer<BufferedImage> onLocalFrame;
-    private final Consumer<BufferedImage> onRemoteFrame;
+    private final BiConsumer<UUID, BufferedImage> onRemoteFrame;
     private final Consumer<String> onNotice;
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicBoolean cameraOn = new AtomicBoolean(true);
     private final AtomicBoolean screenShare = new AtomicBoolean(false);
-    private final AtomicReference<byte[]> latestRemoteJpeg = new AtomicReference<>();
+    private final ConcurrentHashMap<UUID, byte[]> latestRemoteJpegs = new ConcurrentHashMap<>();
     private final Object decodeSignal = new Object();
 
     private Thread captureThread;
@@ -50,9 +58,25 @@ public final class VideoCallEngine implements AutoCloseable {
                            Consumer<BufferedImage> onLocalFrame,
                            Consumer<BufferedImage> onRemoteFrame,
                            Consumer<String> onNotice) {
+        this(transport, null, onLocalFrame,
+            onRemoteFrame == null ? (id, img) -> {} : (id, img) -> onRemoteFrame.accept(img),
+            onNotice);
+    }
+
+    public VideoCallEngine(CallMediaTransport transport,
+                           UUID groupSenderId,
+                           Consumer<BufferedImage> onLocalFrame,
+                           BiConsumer<UUID, BufferedImage> onRemoteFrame,
+                           Consumer<String> onNotice) {
         this.transport = Objects.requireNonNull(transport, "transport");
+        this.groupSenderId = groupSenderId;
+        boolean group = groupSenderId != null;
+        this.targetW = group ? GROUP_W : P2P_W;
+        this.targetH = group ? GROUP_H : P2P_H;
+        this.jpegQuality = group ? 0.58f : 0.65f;
+        this.frameIntervalMs = group ? 83 : 66; // ~12 FPS for group, ~15 FPS for P2P
         this.onLocalFrame = onLocalFrame == null ? f -> {} : onLocalFrame;
-        this.onRemoteFrame = onRemoteFrame == null ? f -> {} : onRemoteFrame;
+        this.onRemoteFrame = onRemoteFrame == null ? (id, f) -> {} : onRemoteFrame;
         this.onNotice = onNotice == null ? s -> {} : onNotice;
     }
 
@@ -87,8 +111,13 @@ public final class VideoCallEngine implements AutoCloseable {
     }
 
     public void enqueueRemoteJpeg(byte[] jpeg) {
+        enqueueRemoteJpeg(P2P_SENDER, jpeg);
+    }
+
+    public void enqueueRemoteJpeg(UUID senderId, byte[] jpeg) {
         if (!running.get() || jpeg == null || jpeg.length == 0) return;
-        latestRemoteJpeg.set(jpeg);
+        UUID key = senderId == null ? P2P_SENDER : senderId;
+        latestRemoteJpegs.put(key, jpeg);
         synchronized (decodeSignal) {
             decodeSignal.notify();
         }
@@ -97,22 +126,25 @@ public final class VideoCallEngine implements AutoCloseable {
     private void startDecodeLoop() {
         decodeThread = Thread.ofVirtual().name("intrachat-call-vdec").start(() -> {
             while (running.get()) {
-                byte[] jpeg = latestRemoteJpeg.getAndSet(null);
-                if (jpeg == null) {
+                if (latestRemoteJpegs.isEmpty()) {
                     synchronized (decodeSignal) {
-                        if (latestRemoteJpeg.get() == null && running.get()) {
+                        if (latestRemoteJpegs.isEmpty() && running.get()) {
                             try { decodeSignal.wait(150); } catch (InterruptedException ignored) {}
                         }
                     }
                     continue;
                 }
-                try {
-                    BufferedImage img = ImageIO.read(new ByteArrayInputStream(jpeg));
-                    if (img != null) {
-                        onRemoteFrame.accept(img);
+                for (UUID senderId : latestRemoteJpegs.keySet()) {
+                    byte[] jpeg = latestRemoteJpegs.remove(senderId);
+                    if (jpeg == null) continue;
+                    try {
+                        BufferedImage img = ImageIO.read(new ByteArrayInputStream(jpeg));
+                        if (img != null) {
+                            onRemoteFrame.accept(senderId, img);
+                        }
+                    } catch (Exception ignored) {
+                        // Drop corrupted UDP frame silently
                     }
-                } catch (Exception ignored) {
-                    // Drop corrupted UDP frame silently
                 }
             }
         });
@@ -169,7 +201,7 @@ public final class VideoCallEngine implements AutoCloseable {
                             try {
                                 videoInput vi = new videoInput();
                                 int count = videoInput.listDevices(true);
-                                if (count > 0 && vi.setupDevice(0, TARGET_W, TARGET_H)) {
+                                if (count > 0 && vi.setupDevice(0, targetW, targetH)) {
                                     webcam = vi;
                                     webcamDevice = 0;
                                     camW = vi.getWidth(0);
@@ -199,8 +231,8 @@ public final class VideoCallEngine implements AutoCloseable {
                                 BufferedImage raw = new BufferedImage(camW, camH, BufferedImage.TYPE_3BYTE_BGR);
                                 byte[] dst = ((DataBufferByte) raw.getRaster().getDataBuffer()).getData();
                                 System.arraycopy(webcamBuf, 0, dst, 0, Math.min(dst.length, webcamBuf.length));
-                                frame = (camW > TARGET_W || camH > TARGET_H)
-                                    ? scaleImage(raw, TARGET_W, TARGET_H)
+                                frame = (camW > targetW || camH > targetH)
+                                    ? scaleImage(raw, targetW, targetH)
                                     : raw;
                             }
                         }
@@ -209,9 +241,13 @@ public final class VideoCallEngine implements AutoCloseable {
                     if (frame != null) {
                         onLocalFrame.accept(frame);
                         try {
-                            byte[] jpeg = encodeJpeg(frame, JPEG_QUALITY);
+                            byte[] jpeg = encodeJpeg(frame, jpegQuality);
                             if (jpeg.length <= CallMediaTransport.MAX_VIDEO_FRAME_BYTES) {
-                                transport.sendVideoJpeg(jpeg);
+                                if (groupSenderId == null) {
+                                    transport.sendVideoJpeg(jpeg);
+                                } else {
+                                    transport.sendGroupVideoJpeg(groupSenderId, jpeg);
+                                }
                             }
                         } catch (IOException ignored) {
                             // Transient UDP send failure; next frame will retry
@@ -219,7 +255,7 @@ public final class VideoCallEngine implements AutoCloseable {
                     }
 
                     long elapsed = System.currentTimeMillis() - startMs;
-                    long wait = FRAME_INTERVAL_MS - elapsed;
+                    long wait = frameIntervalMs - elapsed;
                     if (wait > 0) sleepQuiet(wait);
                 }
             } finally {
@@ -290,5 +326,6 @@ public final class VideoCallEngine implements AutoCloseable {
         }
         if (captureThread != null) captureThread.interrupt();
         if (decodeThread != null) decodeThread.interrupt();
+        latestRemoteJpegs.clear();
     }
 }

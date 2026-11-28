@@ -305,7 +305,9 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
                 (!actions.groupOwnerOnline(chat.id()) ? " · Chưa kết nối / đồng bộ chủ nhóm" : "")
                 + " · Media tự lưu"
                 : row.online() ? "Đang hoạt động" : "Ngoại tuyến");
-        boolean canCall = actions.callAvailable() && !chat.group() && row.online();
+        boolean canCall = actions.callAvailable() && (chat.group() ? actions.groupOwnerOnline(chat.id()) : row.online());
+        voiceCallBtn.setToolTipText(chat.group() ? "Gọi thoại nhóm" : "Gọi thoại P2P");
+        videoCallBtn.setToolTipText(chat.group() ? "Gọi video nhóm" : "Gọi video P2P");
         voiceCallBtn.setEnabled(canCall);
         videoCallBtn.setEnabled(canCall);
     }
@@ -679,6 +681,13 @@ public final class MainChatFrame extends JFrame implements ChatClientListener {
     public void onRemoteVideoFrame(java.awt.image.BufferedImage frame) {
         onEdt(() -> {
             if (!closed && callDialog != null) callDialog.setRemoteVideoFrame(frame);
+        });
+    }
+
+    @Override
+    public void onParticipantVideoFrame(java.util.UUID participantId, java.awt.image.BufferedImage frame) {
+        onEdt(() -> {
+            if (!closed && callDialog != null) callDialog.setParticipantVideoFrame(participantId, frame);
         });
     }
 

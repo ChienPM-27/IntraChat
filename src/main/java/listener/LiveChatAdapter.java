@@ -83,6 +83,10 @@ public final class LiveChatAdapter implements ChatActionHandler {
             ChatClientListener current = subscriber;
             if (!closed && current != null) current.onRemoteVideoFrame(frame);
         }));
+        service.calls().addParticipantVideoListener((participantId, frame) -> javax.swing.SwingUtilities.invokeLater(() -> {
+            ChatClientListener current = subscriber;
+            if (!closed && current != null) current.onParticipantVideoFrame(participantId, frame);
+        }));
         service.calls().addNoticeListener(msg -> javax.swing.SwingUtilities.invokeLater(() -> {
             ChatClientListener current = subscriber;
             if (!closed && current != null) current.onConnectionError(msg);
@@ -118,13 +122,19 @@ public final class LiveChatAdapter implements ChatActionHandler {
         UUID requested;
         try{requested=UUID.fromString(conversationId);}
         catch(IllegalArgumentException ex){throw new IOException("Hội thoại không hợp lệ",ex);}
+        ChatGroup group=groups.group(requested);
+        if(group!=null){
+            if(!groups.ready(requested))throw new IOException("Chủ nhóm cần trực tuyến và đồng bộ nhóm trước khi gọi.");
+            service.startGroupCall(group,mode);
+            return;
+        }
         for(UUID remote:service.connectedPeers().keySet()){
             if(requested.equals(service.conversationId(remote))){
                 service.startCall(remote,mode);
                 return;
             }
         }
-        throw new IOException("Chỉ gọi P2P khi đối phương đang trực tuyến.");
+        throw new IOException("Chỉ gọi khi đối phương đang trực tuyến.");
     }
     @Override public void acceptCall(String callId)throws IOException{
         service.calls().acceptCall(UUID.fromString(callId));

@@ -12,15 +12,18 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Objects;
+import java.util.*;
+import java.util.List;
 import java.util.function.Consumer;
 
-/** Live P2P Voice and Video Call window with ringing controls, PiP preview, mute/camera/screen-share. */
+/** Live P2P and Group Voice/Video Call window with ringing controls, PiP preview, and participant grid. */
 public final class CallDialog extends JDialog {
     private static final Color BG_DARK = new Color(17, 24, 39);
+    private static final Color TILE_DARK = new Color(31, 41, 55);
     private static final Color BAR_DARK = new Color(31, 41, 55);
     private static final Color TEXT_LIGHT = new Color(243, 244, 246);
     private static final Color TEXT_MUTED = new Color(156, 163, 175);
+    private static final Color AMBER = new Color(251, 191, 36);
     private static final Color GREEN_ACCEPT = new Color(22, 163, 74);
     private static final Color RED_END = new Color(220, 38, 38);
     private static final Color BTN_NEUTRAL = new Color(55, 65, 81);
@@ -43,6 +46,7 @@ public final class CallDialog extends JDialog {
     private CallService.CallSession session;
     private BufferedImage localFrame;
     private BufferedImage remoteFrame;
+    private final Map<UUID, BufferedImage> participantFrames = new HashMap<>();
     private boolean closingByProgram;
 
     public CallDialog(Frame owner,
@@ -52,7 +56,7 @@ public final class CallDialog extends JDialog {
                       Consumer<Boolean> onMute,
                       Consumer<Boolean> onCamera,
                       Consumer<Boolean> onScreenShare) {
-        super(owner, "IntraChat — Cuộc gọi P2P", ModalityType.MODELESS);
+        super(owner, "IntraChat — Cuộc gọi", ModalityType.MODELESS);
         this.onAccept = Objects.requireNonNull(onAccept);
         this.onReject = Objects.requireNonNull(onReject);
         this.onEnd = Objects.requireNonNull(onEnd);
@@ -61,8 +65,8 @@ public final class CallDialog extends JDialog {
         this.onScreenShare = Objects.requireNonNull(onScreenShare);
 
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-        setSize(760, 560);
-        setMinimumSize(new Dimension(520, 420));
+        setSize(820, 580);
+        setMinimumSize(new Dimension(540, 420));
         setLocationRelativeTo(owner);
 
         JPanel root = new JPanel(new BorderLayout());
@@ -80,7 +84,7 @@ public final class CallDialog extends JDialog {
         statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 12.5f));
         titleCol.add(peerTitle);
         titleCol.add(statusLabel);
-        remoteBadge.setForeground(new Color(251, 191, 36));
+        remoteBadge.setForeground(AMBER);
         remoteBadge.setFont(remoteBadge.getFont().deriveFont(Font.PLAIN, 12f));
         topBar.add(titleCol, BorderLayout.CENTER);
         topBar.add(remoteBadge, BorderLayout.EAST);
@@ -115,7 +119,9 @@ public final class CallDialog extends JDialog {
         this.session = next;
         if (next == null) return;
 
-        String modeText = next.mode() == CallService.Mode.VIDEO ? "Cuộc gọi video" : "Cuộc gọi thoại";
+        String modeText = next.mode() == CallService.Mode.VIDEO
+            ? (next.group() ? "Cuộc gọi video nhóm" : "Cuộc gọi video")
+            : (next.group() ? "Cuộc gọi thoại nhóm" : "Cuộc gọi thoại");
         setTitle("IntraChat — " + modeText + " · " + next.peerName());
         peerTitle.setText(next.peerName() + " (" + modeText + ")");
 
@@ -128,6 +134,11 @@ public final class CallDialog extends JDialog {
         if (next.state() == CallService.State.ENDED) {
             localFrame = null;
             remoteFrame = null;
+            participantFrames.clear();
+        } else if (next.group()) {
+            Set<UUID> activeIds = new HashSet<>();
+            for (var p : next.participants()) activeIds.add(p.id());
+            participantFrames.keySet().retainAll(activeIds);
         }
         updateStatusText();
         updateRemoteBadge();
@@ -152,11 +163,19 @@ public final class CallDialog extends JDialog {
         stage.repaint();
     }
 
+    public void setParticipantVideoFrame(UUID participantId, BufferedImage frame) {
+        if (participantId == null) return;
+        if (frame == null) participantFrames.remove(participantId);
+        else participantFrames.put(participantId, frame);
+        stage.repaint();
+    }
+
     public void closeSilently() {
         closingByProgram = true;
         clockTimer.stop();
         localFrame = null;
         remoteFrame = null;
+        participantFrames.clear();
         if (isDisplayable()) dispose();
         closingByProgram = false;
     }
@@ -165,11 +184,17 @@ public final class CallDialog extends JDialog {
         CallService.CallSession current = session;
         if (current == null) return;
         String text = switch (current.state()) {
-            case OUTGOING_RINGING -> "Đang đổ chuông...";
-            case INCOMING_RINGING -> current.mode() == CallService.Mode.VIDEO
-                ? "Cuộc gọi video đến — bấm Nghe máy để tham gia"
-                : "Cuộc gọi thoại đến — bấm Nghe máy để tham gia";
-            case CONNECTED -> "Đã kết nối · " + formatElapsed(current.connectedAt());
+            case OUTGOING_RINGING -> current.group() ? "Đang kết nối phòng gọi nhóm..." : "Đang đổ chuông...";
+            case INCOMING_RINGING -> current.group()
+                ? (current.mode() == CallService.Mode.VIDEO
+                    ? "Cuộc gọi video nhóm đang mời — bấm Tham gia"
+                    : "Cuộc gọi thoại nhóm đang mời — bấm Tham gia")
+                : (current.mode() == CallService.Mode.VIDEO
+                    ? "Cuộc gọi video đến — bấm Nghe máy để tham gia"
+                    : "Cuộc gọi thoại đến — bấm Nghe máy để tham gia");
+            case CONNECTED -> current.group()
+                ? current.participants().size() + " người tham gia · " + formatElapsed(current.connectedAt())
+                : "Đã kết nối · " + formatElapsed(current.connectedAt());
             case ENDED -> current.reason() == null || current.reason().isBlank() ? "Đã kết thúc" : current.reason();
         };
         statusLabel.setText(text);
@@ -179,6 +204,10 @@ public final class CallDialog extends JDialog {
         CallService.CallSession current = session;
         if (current == null || current.state() != CallService.State.CONNECTED) {
             remoteBadge.setText("");
+            return;
+        }
+        if (current.group()) {
+            remoteBadge.setText("Chuyển tiếp qua chủ nhóm (UDP LAN)");
             return;
         }
         StringBuilder sb = new StringBuilder();
@@ -195,7 +224,7 @@ public final class CallDialog extends JDialog {
         String callId = current.callId().toString();
         switch (current.state()) {
             case INCOMING_RINGING -> {
-                actionBar.add(actionButton("Nghe máy", GREEN_ACCEPT, () -> onAccept.accept(callId)));
+                actionBar.add(actionButton(current.group() ? "Tham gia" : "Nghe máy", GREEN_ACCEPT, () -> onAccept.accept(callId)));
                 actionBar.add(actionButton("Từ chối", RED_END, () -> onReject.accept(callId)));
             }
             case OUTGOING_RINGING -> {
@@ -216,7 +245,7 @@ public final class CallDialog extends JDialog {
                         current.screenShare() ? BTN_ACTIVE : BTN_NEUTRAL,
                         () -> onScreenShare.accept(!current.screenShare())));
                 }
-                actionBar.add(actionButton("Kết thúc", RED_END, () -> onEnd.accept(callId)));
+                actionBar.add(actionButton(current.group() ? "Rời / Kết thúc" : "Kết thúc", RED_END, () -> onEnd.accept(callId)));
             }
             case ENDED -> {}
         }
@@ -260,6 +289,12 @@ public final class CallDialog extends JDialog {
             int h = getHeight();
             CallService.CallSession current = session;
 
+            if (current != null && current.group() && current.state() == CallService.State.CONNECTED) {
+                drawGroupGrid(g2, w, h, current);
+                g2.dispose();
+                return;
+            }
+
             boolean hasRemoteVideo = current != null
                 && current.mode() == CallService.Mode.VIDEO
                 && current.state() == CallService.State.CONNECTED
@@ -272,8 +307,8 @@ public final class CallDialog extends JDialog {
                 drawAvatarPlaceholder(g2, w, h, current);
             }
 
-            // Picture-in-Picture local video preview
-            if (current != null && current.mode() == CallService.Mode.VIDEO
+            // Picture-in-Picture local video preview for P2P video calls
+            if (current != null && !current.group() && current.mode() == CallService.Mode.VIDEO
                     && current.state() == CallService.State.CONNECTED
                     && current.cameraOn() && localFrame != null) {
                 int pipW = Math.min(200, Math.max(120, w / 4));
@@ -295,6 +330,68 @@ public final class CallDialog extends JDialog {
             g2.dispose();
         }
 
+        private void drawGroupGrid(Graphics2D g2, int w, int h, CallService.CallSession current) {
+            List<CallService.Participant> list = current.participants();
+            if (list.isEmpty()) {
+                drawAvatarPlaceholder(g2, w, h, current);
+                return;
+            }
+            int count = list.size();
+            int cols = count == 1 ? 1 : (count <= 4 ? 2 : 3);
+            int rows = (count + cols - 1) / cols;
+            int pad = 12;
+            int gap = 10;
+            int tileW = Math.max(100, (w - pad * 2 - gap * (cols - 1)) / cols);
+            int tileH = Math.max(100, (h - pad * 2 - gap * (rows - 1)) / rows);
+
+            for (int i = 0; i < count; i++) {
+                CallService.Participant p = list.get(i);
+                int r = i / cols;
+                int c = i % cols;
+                int tx = pad + c * (tileW + gap);
+                int ty = pad + r * (tileH + gap);
+
+                Shape tileShape = new RoundRectangle2D.Double(tx, ty, tileW, tileH, 14, 14);
+                g2.setColor(TILE_DARK);
+                g2.fill(tileShape);
+
+                BufferedImage frame = null;
+                if (current.mode() == CallService.Mode.VIDEO && p.cameraOn()) {
+                    frame = p.self() ? localFrame : participantFrames.get(p.id());
+                }
+
+                Shape oldClip = g2.getClip();
+                g2.setClip(tileShape);
+                if (frame != null) {
+                    drawAspectFit(g2, frame, tx, ty, tileW, tileH);
+                } else {
+                    int iconSize = Math.min(76, Math.max(44, Math.min(tileW, tileH) / 3));
+                    AvatarIcon avatar = new AvatarIcon(p.name(), p.id().toString(), iconSize, true, false);
+                    int ax = tx + (tileW - iconSize) / 2;
+                    int ay = ty + (tileH - iconSize) / 2 - 10;
+                    avatar.paintIcon(this, g2, ax, ay);
+                }
+
+                // Bottom-left participant label badge
+                String tag = p.name() + (p.self() ? " (Bạn)" : "") + (p.muted() ? " · Tắt mic" : "");
+                g2.setFont(getFont().deriveFont(Font.BOLD, 12f));
+                FontMetrics fm = g2.getFontMetrics();
+                int badgeW = Math.min(tileW - 16, fm.stringWidth(tag) + 16);
+                int badgeH = 24;
+                int bx = tx + 10;
+                int by = ty + tileH - badgeH - 10;
+                g2.setColor(new Color(0, 0, 0, 165));
+                g2.fillRoundRect(bx, by, badgeW, badgeH, 10, 10);
+                g2.setColor(p.muted() ? AMBER : TEXT_LIGHT);
+                g2.drawString(tag, bx + 8, by + 16);
+
+                g2.setClip(oldClip);
+                g2.setColor(new Color(255, 255, 255, 36));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.draw(tileShape);
+            }
+        }
+
         private void drawAspectFit(Graphics2D g2, BufferedImage img, int x, int y, int maxW, int maxH) {
             if (maxW <= 0 || maxH <= 0) return;
             double scale = Math.min((double) maxW / img.getWidth(), (double) maxH / img.getHeight());
@@ -308,7 +405,9 @@ public final class CallDialog extends JDialog {
         private void drawAvatarPlaceholder(Graphics2D g2, int w, int h, CallService.CallSession current) {
             String name = current == null ? "IntraChat" : current.peerName();
             String id = current == null ? "call" : current.peerId().toString();
-            AvatarIcon avatar = new AvatarIcon(name, id, 96, current != null && current.state() == CallService.State.CONNECTED, false);
+            AvatarIcon avatar = new AvatarIcon(name, id, 96,
+                current != null && current.state() == CallService.State.CONNECTED,
+                current != null && current.group());
             int ax = (w - avatar.getIconWidth()) / 2;
             int ay = (h - avatar.getIconHeight()) / 2 - 22;
             avatar.paintIcon(this, g2, ax, ay);
@@ -322,8 +421,12 @@ public final class CallDialog extends JDialog {
             String sub = "";
             if (current != null) {
                 sub = switch (current.state()) {
-                    case OUTGOING_RINGING -> "Đang chờ đối phương nghe máy...";
-                    case INCOMING_RINGING -> current.mode() == CallService.Mode.VIDEO ? "Cuộc gọi video đến..." : "Cuộc gọi thoại đến...";
+                    case OUTGOING_RINGING -> current.group()
+                        ? "Đang gửi yêu cầu mở phòng gọi nhóm đến chủ nhóm..."
+                        : "Đang chờ đối phương nghe máy...";
+                    case INCOMING_RINGING -> current.group()
+                        ? (current.mode() == CallService.Mode.VIDEO ? "Cuộc gọi video nhóm đang mời..." : "Cuộc gọi thoại nhóm đang mời...")
+                        : (current.mode() == CallService.Mode.VIDEO ? "Cuộc gọi video đến..." : "Cuộc gọi thoại đến...");
                     case CONNECTED -> current.mode() == CallService.Mode.VIDEO
                         ? "Đang chờ hình ảnh từ đối phương..."
                         : "Đang trò chuyện bằng giọng nói (UDP LAN)";

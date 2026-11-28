@@ -52,6 +52,7 @@ public final class GroupService implements AutoCloseable {
         memberNames.put(me,tcp.localName());
         this.invitation=Objects.requireNonNull(invitation);
         media=new GroupMedia(tcp,groups::get,verified::contains);
+        tcp.setGroupLookup(groups::get);
         tcp.onGroupFrame(this::receive);
         tcp.addListener(event -> {
             if(event.kind()==LiveChatService.EventKind.CONNECTED)restoreWith(event.peerId());
